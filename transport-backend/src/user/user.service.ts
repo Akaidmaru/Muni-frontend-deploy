@@ -54,10 +54,10 @@ export class UserService {
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
-
     if (!user) {
       throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
     }
+    return user;
   }
 
   async getTrucksOfUser(userId: number) {
@@ -65,10 +65,7 @@ export class UserService {
       where: { userId },
       include: { truck: true },
     });
-    return assignments.map(a => a.truck);
-  }
-
-    return user;
+    return assignments.map((a) => a.truck);
   }
 
   async findByEmail(email: string) {

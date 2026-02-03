@@ -19,16 +19,16 @@ import type { Request } from 'express';
 
 interface AuthenticatedRequest extends Request {
   user: { id: number };
+}
+
+@Controller('users')
+export class UserController {
   @Get(':id/trucks')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   getTrucksOfUser(@Param('id') id: string) {
     return this.userService.getTrucksOfUser(Number(id));
   }
-}
-
-@Controller('users')
-export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
