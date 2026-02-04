@@ -74,6 +74,22 @@ export class UserService {
     });
   }
 
+  async findByVerificationStatus(status: string) {
+    const { BadRequestException } = await import('@nestjs/common');
+    if (
+      typeof status !== 'string' ||
+      (status !== 'true' && status !== 'false')
+    ) {
+      throw new BadRequestException(
+        "El parámetro 'status' es requerido y debe ser 'true' o 'false'.",
+      );
+    }
+    const isVerified = status === 'true';
+    return this.prisma.user.findMany({
+      where: { isVerified },
+    });
+  }
+
   async update(id: number, dto: UpdateUserDto) {
     await this.findOne(id); // Verifica que existe
 

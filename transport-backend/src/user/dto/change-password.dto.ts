@@ -6,6 +6,7 @@ import {
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 @ValidatorConstraint({ name: 'MatchPasswords', async: false })
 export class MatchPasswordsConstraint implements ValidatorConstraintInterface {
@@ -20,15 +21,18 @@ export class MatchPasswordsConstraint implements ValidatorConstraintInterface {
 }
 
 export class ChangePasswordDto {
+  @ApiProperty({ example: 'oldPassword123', description: 'Contraseña actual del usuario' })
   @IsString()
   currentPassword: string;
 
+  @ApiProperty({ example: 'newPassword456', description: 'Nueva contraseña del usuario' })
   @IsString()
   @MinLength(6, {
     message: 'La nueva contraseña debe tener al menos 6 caracteres',
   })
   newPassword: string;
 
+  @ApiProperty({ example: 'newPassword456', description: 'Confirmación de la nueva contraseña' })
   @IsString()
   @Validate(MatchPasswordsConstraint)
   confirmPassword: string;

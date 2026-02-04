@@ -11,11 +11,13 @@ datasource db {
 model User {
   id        Int               @id @default(autoincrement())
   email     String            @unique
+  phone     String?           @unique
   name      String?
   password  String
   createdAt DateTime          @default(now())
   role      UserRole          @default(CLIENT)
   trucks    TruckAssignment[]
+  isVerified Boolean          @default(false)
 }
 
 model Truck {
