@@ -8,14 +8,7 @@ import {
   Body,
   UseGuards,
 } from '@nestjs/common';
-<<<<<<< HEAD
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-=======
-<<<<<<< HEAD
-=======
-import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
->>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
->>>>>>> origin/home
 import { TruckService } from './truck.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -24,26 +17,15 @@ import { CreateTruckDto } from './dto/create-truck.dto';
 import { UpdateTruckDto } from './dto/update-truck.dto';
 import { AssignUserDto } from './dto/assign-user.dto';
 
-<<<<<<< HEAD
 @ApiBearerAuth()
-=======
-<<<<<<< HEAD
-=======
-@ApiBearerAuth()
->>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
->>>>>>> origin/home
 @Controller('trucks')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
 export class TruckController {
-  constructor(private readonly truckService: TruckService) {}
+  constructor(private readonly truckService: TruckService) { }
 
   @Post()
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> origin/home
+
   @ApiOperation({ summary: 'Crear camión (ADMIN)' })
   @ApiResponse({
     status: 201,
@@ -55,20 +37,13 @@ export class TruckController {
       },
     },
   })
-<<<<<<< HEAD
-=======
->>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
->>>>>>> origin/home
+
   create(@Body() dto: CreateTruckDto) {
     return this.truckService.create(dto);
   }
 
   @Get()
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> origin/home
+
   @ApiOperation({ summary: 'Listar todos los camiones (ADMIN)' })
   @ApiResponse({
     status: 200,
@@ -83,20 +58,13 @@ export class TruckController {
       },
     },
   })
-<<<<<<< HEAD
-=======
->>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
->>>>>>> origin/home
+
   findAll() {
     return this.truckService.findAll();
   }
 
   @Get(':id')
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> origin/home
+
   @ApiOperation({ summary: 'Obtener camión por ID (ADMIN)' })
   @ApiResponse({
     status: 200,
@@ -108,20 +76,13 @@ export class TruckController {
       },
     },
   })
-<<<<<<< HEAD
-=======
->>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
->>>>>>> origin/home
+
   findOne(@Param('id') id: string) {
     return this.truckService.findOne(Number(id));
   }
 
   @Patch(':id')
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> origin/home
+
   @ApiOperation({ summary: 'Actualizar camión por ID (ADMIN)' })
   @ApiResponse({
     status: 200,
@@ -133,20 +94,13 @@ export class TruckController {
       },
     },
   })
-<<<<<<< HEAD
-=======
->>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
->>>>>>> origin/home
+
   update(@Param('id') id: string, @Body() dto: UpdateTruckDto) {
     return this.truckService.update(Number(id), dto);
   }
 
   @Delete(':id')
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> origin/home
+
   @ApiOperation({ summary: 'Eliminar camión por ID (ADMIN)' })
   @ApiResponse({
     status: 200,
@@ -158,20 +112,13 @@ export class TruckController {
       },
     },
   })
-<<<<<<< HEAD
-=======
->>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
->>>>>>> origin/home
+
   remove(@Param('id') id: string) {
     return this.truckService.remove(Number(id));
   }
 
   @Post('assign')
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> origin/home
+
   @ApiOperation({ summary: 'Asignar usuario a camión (ADMIN)' })
   @ApiResponse({
     status: 201,
@@ -183,20 +130,13 @@ export class TruckController {
       },
     },
   })
-<<<<<<< HEAD
-=======
->>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
->>>>>>> origin/home
+
   assignUser(@Body() dto: AssignUserDto) {
     return this.truckService.assignUser(dto);
   }
 
   @Get(':id/users')
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> origin/home
+
   @ApiOperation({ summary: 'Listar usuarios asignados a un camión (ADMIN)' })
   @ApiResponse({
     status: 200,
@@ -211,10 +151,7 @@ export class TruckController {
       },
     },
   })
-<<<<<<< HEAD
-=======
->>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
->>>>>>> origin/home
+
   getUsersOfTruck(@Param('id') id: string) {
     return this.truckService.getUsersOfTruck(Number(id));
   }

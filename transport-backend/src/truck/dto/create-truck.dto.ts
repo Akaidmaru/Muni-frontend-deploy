@@ -1,14 +1,5 @@
 import { IsNotEmpty, IsString } from 'class-validator';
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
 
-export class CreateTruckDto {
-  @IsString()
-  @IsNotEmpty()
-  plate: string;
-=======
->>>>>>> origin/home
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateTruckDto {
@@ -18,10 +9,7 @@ export class CreateTruckDto {
   plate: string;
 
   @ApiProperty({ example: 'Volvo FH', description: 'Modelo del camión' })
-<<<<<<< HEAD
-=======
->>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
->>>>>>> origin/home
+
   @IsString()
   @IsNotEmpty()
   model: string;

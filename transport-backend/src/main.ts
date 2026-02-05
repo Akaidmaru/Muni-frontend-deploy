@@ -2,14 +2,7 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-<<<<<<< HEAD
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-=======
-<<<<<<< HEAD
-=======
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
->>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
->>>>>>> origin/home
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -29,11 +22,7 @@ async function bootstrap() {
       transform: true, // Transforma el payload al tipo del DTO
     }),
   );
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> origin/home
+
 
   // Swagger setup
   const config = new DocumentBuilder()
@@ -45,10 +34,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api-docs', app, document);
 
-<<<<<<< HEAD
-=======
->>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
->>>>>>> origin/home
+
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
