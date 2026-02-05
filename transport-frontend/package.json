@@ -9,8 +9,23 @@
     "preview": "vite preview"
   },
   "dependencies": {
+<<<<<<< HEAD
     "axios": "^1.13.4",
     "vue": "^3.5.27"
+=======
+<<<<<<< HEAD
+    "autoprefixer": "^10.4.24",
+    "axios": "^1.13.4",
+    "lucide-vue-next": "^0.563.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "vue": "^3.5.27",
+    "vue-router": "^5.0.2"
+=======
+    "axios": "^1.13.4",
+    "vue": "^3.5.27"
+>>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
+>>>>>>> origin/home
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.3",

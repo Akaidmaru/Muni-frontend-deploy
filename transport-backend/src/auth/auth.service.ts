@@ -9,30 +9,71 @@ import { RedisService } from '../redis/redis.service';
 import { CreateUserDto } from './dto/create-user-dto';
 import { LoginDto } from './dto/login-dto';
 import * as bcrypt from 'bcrypt';
+<<<<<<< HEAD
 import { MailService } from '../common/mail.service';
+=======
+<<<<<<< HEAD
+
+=======
+import { MailService } from '../common/mail.service';
+>>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
+>>>>>>> origin/home
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private redisService: RedisService,
+<<<<<<< HEAD
     private mailService: MailService,
+=======
+<<<<<<< HEAD
+=======
+    private mailService: MailService,
+>>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
+>>>>>>> origin/home
   ) {}
 
   async register(data: CreateUserDto) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: data.email },
     });
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+
+    if (existingUser) {
+      throw new ConflictException('El email ya está registrado');
+    }
+
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+
+=======
+>>>>>>> origin/home
     if (existingUser) {
       throw new ConflictException('El email ya está registrado');
     }
     const hashedPassword = await bcrypt.hash(data.password, 10);
+<<<<<<< HEAD
+=======
+>>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
+>>>>>>> origin/home
     const user = await this.prisma.user.create({
       data: {
         ...data,
         password: hashedPassword,
       },
     });
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+
+    const payload = { sub: user.id };
+    const accessToken = this.jwtService.sign(payload);
+
+    return { user, accessToken };
+=======
+>>>>>>> origin/home
     // No devolver token, solo usuario
     return { user };
   }
@@ -91,6 +132,10 @@ export class AuthService {
     // Eliminar el código para que no se reutilice
     await this.redisService.del(key);
     return { message: 'Verificación exitosa' };
+<<<<<<< HEAD
+=======
+>>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
+>>>>>>> origin/home
   }
 
   async login({ email, password }: LoginDto) {
@@ -98,6 +143,25 @@ export class AuthService {
       where: { email },
       omit: { password: false },
     });
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+
+    if (!user) {
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    const payload = { sub: user.id };
+    const accessToken = this.jwtService.sign(payload);
+
+=======
+>>>>>>> origin/home
     if (!user) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
@@ -111,6 +175,10 @@ export class AuthService {
     }
     const payload = { sub: user.id };
     const accessToken = this.jwtService.sign(payload);
+<<<<<<< HEAD
+=======
+>>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
+>>>>>>> origin/home
     return {
       accessToken,
       user: {

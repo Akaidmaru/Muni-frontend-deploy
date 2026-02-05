@@ -74,6 +74,11 @@ export class UserService {
     });
   }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> origin/home
   async findByVerificationStatus(status: string) {
     const { BadRequestException } = await import('@nestjs/common');
     if (
@@ -90,6 +95,10 @@ export class UserService {
     });
   }
 
+<<<<<<< HEAD
+=======
+>>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
+>>>>>>> origin/home
   async update(id: number, dto: UpdateUserDto) {
     await this.findOne(id); // Verifica que existe
 

@@ -7,6 +7,12 @@ import {
   Patch,
   UseGuards,
   Req,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+} from '@nestjs/common';
+=======
+>>>>>>> origin/home
   Query,
 } from '@nestjs/common';
 import {
@@ -15,6 +21,10 @@ import {
   ApiOperation,
   ApiResponse,
 } from '@nestjs/swagger';
+<<<<<<< HEAD
+=======
+>>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
+>>>>>>> origin/home
 import { UserService } from './user.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
@@ -28,6 +38,16 @@ interface AuthenticatedRequest extends Request {
   user: { id: number };
 }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+@Controller('users')
+export class UserController {
+  @Get(':id/trucks')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+=======
+>>>>>>> origin/home
 @ApiTags('users')
 @ApiBearerAuth()
 @Controller('users')
@@ -75,6 +95,10 @@ export class UserController {
       },
     },
   })
+<<<<<<< HEAD
+=======
+>>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
+>>>>>>> origin/home
   getTrucksOfUser(@Param('id') id: string) {
     return this.userService.getTrucksOfUser(Number(id));
   }
@@ -83,6 +107,11 @@ export class UserController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> origin/home
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Crear usuario por administrador' })
   @ApiResponse({
@@ -95,6 +124,10 @@ export class UserController {
       },
     },
   })
+<<<<<<< HEAD
+=======
+>>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
+>>>>>>> origin/home
   adminCreate(@Body() dto: AdminCreateUserDto) {
     return this.userService.adminCreate(dto);
   }
@@ -102,6 +135,11 @@ export class UserController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> origin/home
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Listar todos los usuarios (ADMIN)' })
   @ApiResponse({
@@ -117,6 +155,10 @@ export class UserController {
       },
     },
   })
+<<<<<<< HEAD
+=======
+>>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
+>>>>>>> origin/home
   findAll() {
     return this.userService.findAll();
   }
@@ -124,6 +166,11 @@ export class UserController {
   @Get(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> origin/home
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtener usuario por ID (ADMIN)' })
   @ApiResponse({
@@ -136,12 +183,21 @@ export class UserController {
       },
     },
   })
+<<<<<<< HEAD
+=======
+>>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
+>>>>>>> origin/home
   findOne(@Param('id') id: string) {
     return this.userService.findOne(Number(id));
   }
 
   @Patch('change-password')
   @UseGuards(JwtAuthGuard)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> origin/home
   @ApiOperation({ summary: 'Cambiar contraseña del usuario autenticado' })
   @ApiResponse({
     status: 200,
@@ -154,6 +210,10 @@ export class UserController {
     },
   })
   @ApiBearerAuth()
+<<<<<<< HEAD
+=======
+>>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
+>>>>>>> origin/home
   changePassword(
     @Req() req: AuthenticatedRequest,
     @Body() dto: ChangePasswordDto,
@@ -165,6 +225,11 @@ export class UserController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> origin/home
   @ApiOperation({ summary: 'Actualizar usuario por administrador' })
   @ApiResponse({
     status: 200,
@@ -177,6 +242,10 @@ export class UserController {
     },
   })
   @ApiBearerAuth()
+<<<<<<< HEAD
+=======
+>>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
+>>>>>>> origin/home
   @Roles('ADMIN')
   adminUpdateUser(@Param('id') id: string, @Body() dto: AdminUpdateUserDto) {
     return this.userService.adminUpdateUser(Number(id), dto);

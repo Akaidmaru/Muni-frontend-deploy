@@ -1,5 +1,12 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateTruckDto } from './create-truck.dto';
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+
+export class UpdateTruckDto extends PartialType(CreateTruckDto) {}
+=======
+>>>>>>> origin/home
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateTruckDto extends PartialType(CreateTruckDto) {
@@ -15,3 +22,7 @@ export class UpdateTruckDto extends PartialType(CreateTruckDto) {
   })
   model?: string;
 }
+<<<<<<< HEAD
+=======
+>>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
+>>>>>>> origin/home

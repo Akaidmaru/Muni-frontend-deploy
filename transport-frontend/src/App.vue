@@ -1,4 +1,26 @@
 <script setup>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+import Navbar from './components/Navbar.vue'
+import Footer from './components/Footer.vue'
+import WhatsAppFAB from './components/WhatsAppFAB.vue'
+</script>
+
+<template>
+  <div class="min-h-screen bg-background font-sans flex flex-col">
+    <Navbar v-if="!['/clientes', '/registro'].includes($route.path)" />
+    <main class="flex-grow">
+      <RouterView />
+    </main>
+    <Footer v-if="!['/clientes', '/registro'].includes($route.path)" />
+    
+    <!-- WhatsApp FAB - visible en todas las páginas -->
+    <WhatsAppFAB />
+  </div>
+</template>
+=======
+>>>>>>> origin/home
 import HelloWorld from './components/HelloWorld.vue'
 import TheWelcome from './components/TheWelcome.vue'
 import ApiTest from './components/ApiTest.vue'
@@ -47,3 +69,7 @@ header {
   }
 }
 </style>
+<<<<<<< HEAD
+=======
+>>>>>>> c0cd806041ac4512d8c8764c65d7ca9ec3a15f9a
+>>>>>>> origin/home
