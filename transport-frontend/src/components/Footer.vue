@@ -60,8 +60,8 @@ import { MapPin, Phone, Mail } from 'lucide-vue-next'
       </div>
 
       <!-- Copyright -->
-      <div class="border-t border-gray-300 pt-8 text-center">
-        <p class="font-legal text-legal text-text-secondary/60">
+      <div class="bg-black border-t border-gray-800 pt-8 pb-4 -mb-8 -mx-4 px-4 text-center">
+        <p class="font-legal text-legal text-gray-300">
           &copy; {{ new Date().getFullYear() }} Transportes Flores Vargas SPA. Todos los derechos reservados.
         </p>
       </div>

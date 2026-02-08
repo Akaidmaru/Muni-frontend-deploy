@@ -4,6 +4,9 @@ import ServicesView from '../views/ServicesView.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import ContactView from '../views/ContactView.vue'
+import DashboardView from '../views/DashboardView.vue'
+import DailyRegistrationView from '../views/DailyRegistrationView.vue'
+import TravelHistoryView from '../views/TravelHistoryView.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -32,6 +35,21 @@ const router = createRouter({
             path: '/contacto',
             name: 'contact',
             component: ContactView
+        },
+        {
+            path: '/dashboard',
+            name: 'dashboard',
+            component: DashboardView
+        },
+        {
+            path: '/registro-diario',
+            name: 'daily-registration',
+            component: DailyRegistrationView
+        },
+        {
+            path: '/historial-viajes',
+            name: 'travel-history',
+            component: TravelHistoryView
         }
     ]
 })

@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import logoCompleto from '@/assets/images/Logo-completo.png'
 
 const email = ref('')
 const password = ref('')
@@ -12,6 +13,9 @@ const handleSubmit = () => {
 <template>
   <div class="min-h-screen bg-background flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
      <div class="bg-white py-12 px-10 shadow-xl rounded-2xl w-full max-w-lg border-t-4 border-primary">
+         <router-link to="/" class="flex justify-center mb-8">
+            <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-20 w-auto object-contain hover:opacity-80 transition-opacity" />
+         </router-link>
          <h2 class="text-3xl font-bold text-center text-text-title font-titles mb-10">Iniciar sesión</h2>
          
          <form @submit.prevent="handleSubmit" class="space-y-6">
