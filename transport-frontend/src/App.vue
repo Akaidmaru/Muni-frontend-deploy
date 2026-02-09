@@ -6,14 +6,13 @@ import WhatsAppFAB from './components/WhatsAppFAB.vue'
 
 <template>
   <div class="min-h-screen bg-background font-sans flex flex-col">
-    <Navbar v-if="!['/clientes', '/registro'].includes($route.path)" />
+    <Navbar v-if="!['/clientes', '/registro', '/dashboard', '/registro-diario', '/historial-viajes'].includes($route.path)" />
     <main class="flex-grow">
       <RouterView />
     </main>
-    <Footer v-if="!['/clientes', '/registro'].includes($route.path)" />
+    <Footer v-if="!['/clientes', '/registro', '/dashboard', '/registro-diario', '/historial-viajes'].includes($route.path)" />
     
-    <!-- WhatsApp FAB - visible en todas las páginas -->
-    <WhatsAppFAB />
+    <WhatsAppFAB v-if="!['/clientes', '/registro', '/dashboard', '/registro-diario', '/historial-viajes'].includes($route.path)"/>
   </div>
 </template>
 

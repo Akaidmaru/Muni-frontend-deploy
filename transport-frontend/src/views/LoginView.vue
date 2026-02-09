@@ -1,12 +1,16 @@
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 
+const router = useRouter()
 const email = ref('')
 const password = ref('')
 
 const handleSubmit = () => {
     console.log('Login attempt', { email: email.value, password: password.value })
+    // Redirect to dashboard (mock login - backend integration pending)
+    router.push('/dashboard')
 }
 </script>
 

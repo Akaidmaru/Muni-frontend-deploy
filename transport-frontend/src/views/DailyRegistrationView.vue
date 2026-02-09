@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
-import { User, Calendar } from 'lucide-vue-next'
+
 
 const router = useRouter()
 
@@ -56,10 +56,8 @@ const goBack = () => {
 
 <template>
   <div class="min-h-screen bg-background">
-    <!-- Header -->
     <div class="bg-white shadow-sm border-b border-gray-200">
       <div class="container mx-auto px-4 py-4 flex items-center justify-between">
-        <!-- Logo with back arrow -->
         <div class="flex items-center gap-4">
           <button @click="goBack" class="text-text-title hover:text-primary transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -71,7 +69,6 @@ const goBack = () => {
           </router-link>
         </div>
         
-        <!-- User Info -->
         <div class="flex items-center gap-3">
           <span class="font-body text-text-title font-semibold">{{ user.name }} {{ user.surname }}</span>
           <div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg">
@@ -81,69 +78,59 @@ const goBack = () => {
       </div>
     </div>
 
-    <!-- Main Content -->
     <div class="container mx-auto px-4 py-12">
       <div class="max-w-3xl mx-auto">
-        <!-- Main Card -->
-        <div class="bg-white rounded-3xl shadow-xl p-8 md:p-12 border border-gray-100">
-          <h1 class="text-3xl font-titles font-bold text-text-title text-center mb-10">Registro diario</h1>
-          
-          <!-- User Info and Date Box -->
-          <div class="bg-gray-50 rounded-2xl p-6 mb-8 flex flex-col md:flex-row items-center justify-between gap-6 border border-gray-200">
-            <!-- User Name with Icon -->
-            <div class="flex items-center gap-3">
-              <div class="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center">
-                <User :size="24" class="text-gray-600" />
-              </div>
-              <span class="font-body text-text-title font-semibold text-lg">{{ user.name }} {{ user.surname }}</span>
-            </div>
-            
-            <!-- Date with Icon -->
-            <div class="flex items-center gap-3">
-              <div class="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center">
-                <Calendar :size="24" class="text-gray-600" />
-              </div>
-              <span class="font-body text-text-title font-semibold text-lg">{{ currentDate }}</span>
-            </div>
-          </div>
+        
+        <div class="bg-white rounded-3xl border-2 border-slate-300 p-8 md:p-12 max-w-3xl mx-auto shadow-sm">
+  
+  <h1 class="text-3xl font-titles font-bold text-text-title text-center mb-16">
+    Registro diario
+  </h1>
+  
+  <div class="max-w-2xl mx-auto flex justify-between items-center mb-12 px-6">
+    <span class="font-body text-text-title font-medium text-lg">
+      {{ user.name }} {{ user.surname }}
+    </span>
+    <span class="font-body text-text-title font-medium text-lg text-gray-600">
+      {{ currentDate }}
+    </span>
+  </div>
 
-          <!-- License Plate Selector -->
-          <div class="mb-8">
-            <div class="relative">
-              <select 
-                v-model="selectedPlate"
-                class="w-full px-6 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-primary focus:border-primary font-body text-body bg-white appearance-none cursor-pointer text-gray-500"
-              >
-                <option value="" disabled selected>Selecciona la patente asignada</option>
-                <option 
-                  v-for="item in licensePlates" 
-                  :key="item.id" 
-                  :value="item.plate"
-                  class="text-text-title"
-                >
-                  {{ item.id }}. {{ item.plate }}
-                </option>
-              </select>
-              <!-- Custom dropdown arrow -->
-              <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
-                <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                </svg>
-              </div>
-            </div>
-          </div>
+  <div class="max-w-xs mx-auto mb-12">
+    <div class="relative">
+      <select 
+        v-model="selectedPlate"
+        class="w-full px-6 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-primary focus:border-primary font-body text-sm bg-white appearance-none cursor-pointer text-gray-400 text-center"
+      >
+        <option value="" disabled selected>Seleccione la patente asignada</option>
+        <option 
+          v-for="item in licensePlates" 
+          :key="item.id" 
+          :value="item.plate"
+          class="text-text-title"
+        >
+          {{ item.plate }}
+        </option>
+      </select>
+      
+      <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+        <svg class="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+    </div>
+  </div>
 
-          <!-- Confirm Button -->
-          <div class="flex justify-center">
-            <button 
-              @click="handleConfirm"
-              :disabled="!selectedPlate"
-              class="px-12 py-4 bg-primary hover:bg-primary-hover text-white font-button text-btn font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-            >
-              Confirmar
-            </button>
-          </div>
-        </div>
+  <div class="flex justify-center">
+    <button 
+      @click="handleConfirm"
+      :disabled="!selectedPlate"
+      class="px-12 py-3 bg-[#215179] hover:bg-blue-900 text-white font-bold rounded-xl shadow-md transition-all disabled:opacity-40"
+    >
+      Confirmar
+    </button>
+  </div>
+</div>
       </div>
     </div>
   </div>
