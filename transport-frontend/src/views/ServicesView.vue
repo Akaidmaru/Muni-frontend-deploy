@@ -3,7 +3,6 @@ import { Users, Package } from 'lucide-vue-next'
 import ServiceCard from '../components/ServiceCard.vue'
 import servicePassengerImg from '@/assets/images/service-passenger.png'
 import serviceCargoImg from '@/assets/images/service-cargo.png'
-import whatsappIcon from '@/assets/images/icon-whatsapp.png'
 </script>
 
 <template>
@@ -14,12 +13,7 @@ import whatsappIcon from '@/assets/images/icon-whatsapp.png'
       <h1 class="text-h1 font-titles font-semibold text-text-title mb-2">Nuestros servicios</h1>
       <p class="text-text-secondary font-body text-body">Soluciones de transporte confiables y eficientes</p>
       
-      <!-- WhatsApp Icon Floating -->
-      <a href="#" class="absolute right-4 top-8 md:right-12 md:top-8 hover:scale-110 transition-transform">
-        <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg p-2">
-           <img :src="whatsappIcon" alt="Contactar por WhatsApp" class="w-full h-full object-contain" />
-        </div>
-      </a>
+
     </div>
 
     <div class="container mx-auto px-4 md:px-8 mt-8">
