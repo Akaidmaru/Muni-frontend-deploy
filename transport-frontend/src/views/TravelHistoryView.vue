@@ -1,16 +1,9 @@
 <script setup>
-import { ref } from 'vue'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
+import { useAuthStore } from '@/stores/auth'
 
-const user = ref({
-  name: 'Juan',
-  surname: 'Pérez'
-})
-
-const getInitials = () => {
-  return `${user.value.name[0]}${user.value.surname[0]}`
-}
+const auth = useAuthStore()
 </script>
 
 <template>
@@ -24,9 +17,9 @@ const getInitials = () => {
 
         <!-- User Info -->
         <div class="flex items-center gap-3">
-          <span class="font-body text-text-title font-semibold">{{ user.name }} {{ user.surname }}</span>
+          <span class="font-body text-text-title font-semibold">{{ auth.fullName }}</span>
           <div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg">
-            {{ getInitials() }}
+            {{ auth.initials }}
           </div>
         </div>
       </div>

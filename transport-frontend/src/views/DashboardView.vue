@@ -4,21 +4,19 @@ import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import registroIcon from '@/assets/images/Registro.png'
 import historialIcon from '@/assets/images/Historial.png'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
-
-// Mock user data (will be replaced with actual auth data after backend pull)
-const user = ref({
-  name: 'Juan',
-  surname: 'Pérez'
-})
-
-const getInitials = () => {
-  return `${user.value.name[0]}${user.value.surname[0]}`
-}
+const auth = useAuthStore()
 
 const navigateTo = (route) => {
   router.push(route)
+}
+
+// Título dinámico según rol
+const roleTitle = {
+  conductor:   'Conductor',
+  funcionario: 'Funcionario',
 }
 </script>
 
@@ -34,9 +32,9 @@ const navigateTo = (route) => {
         
         <!-- User Info -->
         <div class="flex items-center gap-3">
-          <span class="font-body text-text-title font-semibold">{{ user.name }} {{ user.surname }}</span>
+          <span class="font-body text-text-title font-semibold">{{ auth.fullName }}</span>
           <div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg">
-            {{ getInitials() }}
+            {{ auth.initials }}
           </div>
         </div>
       </div>
@@ -45,13 +43,13 @@ const navigateTo = (route) => {
     <!-- Main Content -->
     <div class="container mx-auto px-4 py-16">
       <div class="max-w-2xl mx-auto">
-        <h1 class="text-h1 font-titles font-semibold text-text-title text-center mb-12">Perfil de sesión - Conductor</h1>
+        <h1 class="text-h1 font-titles font-semibold text-text-title text-center mb-12">Perfil de sesión - {{ roleTitle[auth.userRole] || auth.userRole }}</h1>
         
         <!-- Action Buttons -->
         <div class="space-y-6">
           <!-- Registro diario Button -->
           <button 
-            @click="navigateTo('/registro-diario')"
+            @click="navigateTo(auth.isFuncionario ? '/registro-diario-funcionario' : '/registro-diario')"
             class="w-full bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-8 flex items-center gap-6 border border-gray-100 hover:border-primary hover:-translate-y-1 active:scale-98"
           >
             <div class="flex-shrink-0">

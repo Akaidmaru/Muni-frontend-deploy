@@ -1,24 +1,41 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import registroIcon from '@/assets/images/Registro.png'
 import historialIcon from '@/assets/images/Historial.png'
 
 const router = useRouter()
 const route  = useRoute()
+const auth   = useAuthStore()
 
 const open = ref(false)
 
-const navItems = [
-  { label: 'Registro\ndiario',    path: '/registro-diario',  icon: registroIcon,  alt: 'Registro diario' },
-  { label: 'Historial de\nviajes', path: '/historial-viajes', icon: historialIcon, alt: 'Historial de viajes' }
-]
+// Definir items de navegación según rol
+const allNavItems = {
+  conductor: [
+    { label: 'Registro\ndiario',    path: '/registro-diario',  icon: registroIcon,  alt: 'Registro diario' },
+    { label: 'Historial de\nviajes', path: '/historial-viajes', icon: historialIcon, alt: 'Historial de viajes' }
+  ],
+  funcionario: [
+    { label: 'Registro\ndiario',    path: '/registro-diario-funcionario',  icon: registroIcon,  alt: 'Registro diario' },
+    { label: 'Historial de\nviajes', path: '/historial-viajes', icon: historialIcon, alt: 'Historial de viajes' }
+  ],
+}
+
+// Usar items del rol actual, o un set por defecto
+const navItems = allNavItems[auth.userRole] || allNavItems.conductor
 
 const isActive = (path) => route.path === path
 
 const navigate = (path) => {
   router.push(path)
   open.value = false
+}
+
+const handleLogout = () => {
+  auth.logout()
+  router.push('/')
 }
 </script>
 
@@ -46,7 +63,7 @@ const navigate = (path) => {
     >
       <div
         v-if="open"
-        class="relative w-48 bg-white border-r border-gray-200 shadow-sm"
+        class="relative w-48 bg-white border-r border-gray-200 shadow-sm flex flex-col"
         style="min-height: calc(100vh - 88px);"
       >
         <!-- Botón colapsar (◁) en el borde derecho -->
@@ -61,7 +78,7 @@ const navigate = (path) => {
         </button>
 
         <!-- Items de navegación -->
-        <nav class="flex flex-col gap-1 pt-6 px-2">
+        <nav class="flex flex-col gap-1 pt-6 px-2 flex-1">
           <button
             v-for="item in navItems"
             :key="item.path"
@@ -82,6 +99,19 @@ const navigate = (path) => {
             >{{ item.label }}</span>
           </button>
         </nav>
+
+        <!-- Botón Cerrar sesión -->
+        <div class="px-2 pb-4">
+          <button
+            @click="handleLogout"
+            class="flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-150 w-full text-left text-red-500 hover:bg-red-50 group"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span class="text-sm font-titles font-semibold">Cerrar sesión</span>
+          </button>
+        </div>
       </div>
     </transition>
 

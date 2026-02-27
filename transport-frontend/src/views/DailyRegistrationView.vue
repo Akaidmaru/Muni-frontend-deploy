@@ -2,6 +2,9 @@
 import { ref, computed } from 'vue'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
 
 // ── Mock data (reemplazar con llamadas a API) ──────────────────────────
 const mockDestinations = [
@@ -32,9 +35,7 @@ const mockEmployees = [
   { id: 12, name: 'Funcionario 12' },
 ]
 
-// ── User ──────────────────────────────────────────────────────────────
-const user = ref({ name: 'Juan', surname: 'Pérez' })
-const getInitials = () => `${user.value.name[0]}${user.value.surname[0]}`
+// ── User (desde auth store) ───────────────────────────────────────────
 
 // ── License plates ────────────────────────────────────────────────────
 const licensePlates = [
@@ -155,9 +156,9 @@ const selectEmployee = (emp) => {
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
         </router-link>
         <div class="flex items-center gap-3">
-          <span class="font-body text-text-title font-semibold">{{ user.name }} {{ user.surname }}</span>
+          <span class="font-body text-text-title font-semibold">{{ auth.fullName }}</span>
           <div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg">
-            {{ getInitials() }}
+            {{ auth.initials }}
           </div>
         </div>
       </div>
@@ -177,7 +178,7 @@ const selectEmployee = (emp) => {
             <h1 class="text-3xl font-titles font-bold text-text-title text-center mb-16">Registro diario</h1>
 
             <div class="flex justify-between items-center mb-12 px-4">
-              <span class="font-body text-text-title font-medium text-lg">{{ user.name }} {{ user.surname }}</span>
+              <span class="font-body text-text-title font-medium text-lg">{{ auth.fullName }}</span>
               <span class="font-body text-gray-500 font-medium text-lg">{{ currentDate }}</span>
             </div>
 
