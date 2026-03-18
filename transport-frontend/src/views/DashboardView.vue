@@ -5,6 +5,7 @@ import logoCompleto from '@/assets/images/Logo-completo.png'
 import registroIcon from '@/assets/images/Registro.png'
 import historialIcon from '@/assets/images/Historial.png'
 import { useAuthStore } from '@/stores/auth'
+import UserMenu from '@/components/UserMenu.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -30,13 +31,8 @@ const roleTitle = {
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
         </router-link>
         
-        <!-- User Info -->
-        <div class="flex items-center gap-3">
-          <span class="font-body text-text-title font-semibold">{{ auth.fullName }}</span>
-          <div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg">
-            {{ auth.initials }}
-          </div>
-        </div>
+        <!-- User Menu -->
+        <UserMenu />
       </div>
     </div>
 
@@ -60,7 +56,7 @@ const roleTitle = {
 
           <!-- Historial de viajes Button -->
           <button 
-            @click="navigateTo('/historial-viajes')"
+            @click="navigateTo(auth.isFuncionario ? '/historial-viajes-funcionario' : '/historial-viajes')"
             class="w-full bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-8 flex items-center gap-6 border border-gray-100 hover:border-primary hover:-translate-y-1 active:scale-98"
           >
             <div class="flex-shrink-0">

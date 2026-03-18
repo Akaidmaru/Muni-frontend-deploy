@@ -1,6 +1,7 @@
 <script setup>
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import { useAuthStore } from '@/stores/auth'
+import UserMenu from '@/components/UserMenu.vue'
 
 const auth = useAuthStore()
 </script>
@@ -13,12 +14,8 @@ const auth = useAuthStore()
         <router-link to="/" class="flex items-center">
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
         </router-link>
-        <div class="flex items-center gap-3">
-          <span class="font-body text-text-title font-semibold">{{ auth.fullName }}</span>
-          <div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg">
-            {{ auth.initials }}
-          </div>
-        </div>
+        <!-- User Menu -->
+        <UserMenu />
       </div>
     </div>
 

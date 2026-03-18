@@ -9,6 +9,7 @@ import DashboardView from '../views/DashboardView.vue'
 import DailyRegistrationView from '../views/DailyRegistrationView.vue'
 import DailyRegistrationFuncionarioView from '../views/DailyRegistrationFuncionarioView.vue'
 import TravelHistoryView from '../views/TravelHistoryView.vue'
+import TravelHistoryFuncionarioView from '../views/TravelHistoryFuncionarioView.vue'
 import AccessDeniedView from '../views/AccessDeniedView.vue'
 import DashboardAdminView from '../views/DashboardAdminView.vue'
 import DashboardPacienteView from '../views/DashboardPacienteView.vue'
@@ -62,7 +63,7 @@ const router = createRouter({
             path: '/historial-viajes',
             name: 'travel-history',
             component: TravelHistoryView,
-            meta: { requiresAuth: true, roles: ['conductor', 'funcionario', 'admin'] }
+            meta: { requiresAuth: true, roles: ['conductor', 'admin'] }
         },
 
         // ── Rutas del funcionario ─────────────────────────────
@@ -70,6 +71,12 @@ const router = createRouter({
             path: '/registro-diario-funcionario',
             name: 'daily-registration-funcionario',
             component: DailyRegistrationFuncionarioView,
+            meta: { requiresAuth: true, roles: ['funcionario', 'admin'] }
+        },
+        {
+            path: '/historial-viajes-funcionario',
+            name: 'travel-history-funcionario',
+            component: TravelHistoryFuncionarioView,
             meta: { requiresAuth: true, roles: ['funcionario', 'admin'] }
         },
 

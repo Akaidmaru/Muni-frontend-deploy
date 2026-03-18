@@ -3,8 +3,11 @@ import { ref, computed } from 'vue'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useTripsStore } from '@/stores/trips'
+import UserMenu from '@/components/UserMenu.vue'
 
 const auth = useAuthStore()
+const tripsStore = useTripsStore()
 
 // ── Mock data (reemplazar con llamadas a API) ──────────────────────────
 const mockDestinations = [
@@ -53,6 +56,12 @@ const currentDate = computed(() => {
   return `${String(t.getDate()).padStart(2,'0')}/${String(t.getMonth()+1).padStart(2,'0')}/${t.getFullYear()}`
 })
 
+// Obtains current time HH:MM
+const getCurrentTime = () => {
+  const t = new Date()
+  return `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`
+}
+
 // ── Step 1 → 2 ────────────────────────────────────────────────────────
 const handleConfirm = () => {
   if (!selectedPlate.value) return
@@ -99,8 +108,23 @@ const openStopTrip = (trip) => {
 }
 
 const confirmStopTrip = () => {
-  if (stopTripModal.value.trip) {
-    stopTripModal.value.trip.status = 'done'
+  const trip = stopTripModal.value.trip
+  if (trip) {
+    trip.status = 'done'
+    trip.endTime = getCurrentTime()
+
+    // Enviar viaje completado al store para mostrar en el historial
+    tripsStore.addCompletedTrip({
+      date: currentDate.value,
+      licensePlate: selectedPlate.value,
+      startTime: trip.startTime,
+      endTime: trip.endTime,
+      destination: trip.destination,
+      startKm: null, // Hardcoded for this iteration
+      endKm: null,
+      official: trip.employee ? trip.employee.name : null,
+      signature: true, // Auto-signed
+    })
   }
   stopTripModal.value = { open: false, trip: null }
 }
@@ -121,8 +145,10 @@ const newTrip = () => ({
 const trips = ref([])
 
 const addTrip   = () => trips.value.push(newTrip())
-const startTrip = (trip) => { trip.status = 'running' }
-const endTrip   = (trip) => { trip.status = 'done'    }
+const startTrip = (trip) => { 
+  trip.status = 'running' 
+  trip.startTime = getCurrentTime()
+}
 
 // ── Funcionario modal ─────────────────────────────────────────────────
 const empModal = ref({ open: false, trip: null, search: '' })
@@ -155,12 +181,8 @@ const selectEmployee = (emp) => {
         <router-link to="/" class="flex items-center">
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
         </router-link>
-        <div class="flex items-center gap-3">
-          <span class="font-body text-text-title font-semibold">{{ auth.fullName }}</span>
-          <div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg">
-            {{ auth.initials }}
-          </div>
-        </div>
+        <!-- User Menu -->
+        <UserMenu />
       </div>
     </div>
 

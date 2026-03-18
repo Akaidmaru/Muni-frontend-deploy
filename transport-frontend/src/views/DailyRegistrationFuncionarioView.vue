@@ -3,8 +3,11 @@ import { ref, computed } from 'vue'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useTripsStore } from '@/stores/trips'
+import UserMenu from '@/components/UserMenu.vue'
 
 const auth = useAuthStore()
+const tripsStore = useTripsStore()
 
 // ── Mock data (reemplazar con API) ────────────────────────────────────
 const mockPatients = [
@@ -23,11 +26,16 @@ const mockPatients = [
 // Patente asignada (viene del backend, mock por ahora)
 const assignedPlate = ref('Patente 1')
 
-// ── Date ──────────────────────────────────────────────────────────────
+// ── Date & Time ────────────────────────────────────────────────────────
 const currentDate = computed(() => {
   const t = new Date()
   return `${String(t.getDate()).padStart(2,'0')}/${String(t.getMonth()+1).padStart(2,'0')}/${t.getFullYear()}`
 })
+
+const getCurrentTime = () => {
+  const t = new Date()
+  return `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`
+}
 
 // ── Rows (registros del funcionario) ──────────────────────────────────
 let rowCounter = 1
@@ -44,6 +52,27 @@ const newRow = () => ({
 
 const rows = ref([newRow()])
 const addRow = () => rows.value.push(newRow())
+
+const saveRow = (row) => {
+  if (!row.horaInicio || !row.horaFinal || !row.patente || !row.destino) {
+    alert('Por favor complete todos los campos obligatorios del viaje antes de guardar.')
+    return
+  }
+  
+  tripsStore.addCompletedTrip({
+    date: currentDate.value,
+    licensePlate: row.patente,
+    startTime: row.horaInicio,
+    endTime: row.horaFinal,
+    destination: row.destino,
+    patient: row.paciente ? row.paciente.name : null,
+    patientSignature: Boolean(row.firmaPaciente),
+    signature: Boolean(row.firma),
+  })
+  
+  // Opcional: Marcar la fila como guardada para UI feedback
+  row.isSaved = true
+}
 
 // ── Paciente modal ────────────────────────────────────────────────────
 const patientModal = ref({ open: false, row: null, search: '' })
@@ -98,12 +127,8 @@ const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.v
         <router-link to="/" class="flex items-center">
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
         </router-link>
-        <div class="flex items-center gap-3">
-          <span class="font-body text-text-title font-semibold">{{ auth.fullName }}</span>
-          <div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg">
-            {{ auth.initials }}
-          </div>
-        </div>
+        <!-- User Menu -->
+        <UserMenu />
       </div>
     </div>
 
@@ -145,6 +170,7 @@ const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.v
                     <th class="px-4 py-1 border-l border-gray-200"></th>
                     <th class="px-4 py-1 border-l border-gray-200"></th>
                     <th class="px-4 py-1 border-l border-gray-200"></th>
+                    <th class="px-2 py-1 border-l border-gray-200 text-center w-10">Guardar</th>
                     <th class="px-4 py-1 border-l border-gray-200"></th>
                     <th class="px-4 py-1 border-l border-gray-200"></th>
                   </tr>
@@ -156,23 +182,43 @@ const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.v
                     class="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                   >
                     <!-- Hora Inicio -->
-                    <td class="px-4 py-3 text-center">
-                      <input
-                        type="time"
-                        v-model="row.horaInicio"
-                        class="bg-transparent outline-none text-sm text-center w-20 font-body"
-                        placeholder="00:00"
-                      />
+                    <td class="px-2 py-3 text-center min-w-[120px]">
+                      <div class="flex items-center justify-center gap-1">
+                        <button
+                          @click="row.horaInicio = getCurrentTime()"
+                          :disabled="row.isSaved"
+                          title="Fijar hora inicio actual"
+                          class="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-500 hover:bg-green-600 text-white transition-colors disabled:opacity-50"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        </button>
+                        <input
+                          type="time"
+                          v-model="row.horaInicio"
+                          :disabled="row.isSaved"
+                          class="bg-transparent outline-none text-sm text-center w-[75px] font-body disabled:text-gray-400 p-0 m-0"
+                        />
+                      </div>
                     </td>
 
                     <!-- Hora Final -->
-                    <td class="px-4 py-3 text-center border-l border-gray-200">
-                      <input
-                        type="time"
-                        v-model="row.horaFinal"
-                        class="bg-transparent outline-none text-sm text-center w-20 font-body"
-                        placeholder="00:00"
-                      />
+                    <td class="px-2 py-3 text-center border-l border-gray-200 min-w-[120px]">
+                      <div class="flex items-center justify-center gap-1">
+                        <input
+                          type="time"
+                          v-model="row.horaFinal"
+                          :disabled="row.isSaved"
+                          class="bg-transparent outline-none text-sm text-center w-[75px] font-body disabled:text-gray-400 p-0 m-0"
+                        />
+                        <button
+                          @click="row.horaFinal = getCurrentTime()"
+                          :disabled="row.isSaved"
+                          title="Fijar hora final actual"
+                          class="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-50"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+                        </button>
+                      </div>
                     </td>
 
                     <!-- Patente -->
@@ -225,9 +271,25 @@ const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.v
                       <input
                         type="text"
                         v-model="row.firmaPaciente"
-                        class="bg-transparent outline-none text-sm w-full font-body"
+                        :disabled="row.isSaved"
+                        class="bg-transparent outline-none text-sm w-full font-body disabled:text-gray-400"
                         placeholder=""
                       />
+                    </td>
+
+                    <!-- Botón Guardar fila -->
+                    <td class="px-2 py-3 border-l border-gray-200 text-center">
+                      <button
+                        v-if="!row.isSaved"
+                        @click="saveRow(row)"
+                        title="Guardar viaje en el historial"
+                        class="inline-flex items-center justify-center w-8 h-8 rounded bg-[#215179] hover:bg-blue-900 text-white shadow-sm transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                      </button>
+                      <span v-else class="inline-flex items-center justify-center w-8 h-8 text-green-600" title="Viaje guardado">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                      </span>
                     </td>
                   </tr>
                 </tbody>

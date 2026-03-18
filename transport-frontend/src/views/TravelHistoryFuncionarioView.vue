@@ -20,34 +20,50 @@ const currentPage = ref(1)
 const filters = ref({
   from: '',
   to: '',
-  name: '',
+  patient: '',
   license: ''
 })
 
 // Applied state (when user clicks Apply)
 const appliedFilters = ref({ ...filters.value })
 
-// Patentes únicas (derivadas dinámicamente del historial)
-const uniquePlates = computed(() => {
-  const plates = new Set(tripsStore.completedTrips.map(t => t.licensePlate))
-  return [...plates]
+// All trips from global store (newest first)
+const allTrips = computed(() => {
+  return [...tripsStore.completedTrips].reverse()
 })
 
-// Computed filtered travels (lee directamente del store)
+// Helper: converts "DD/MM/YYYY" → Date
+const parseDate = (str) => {
+  const [d, m, y] = str.split('/')
+  return new Date(`${y}-${m}-${d}`)
+}
+
+// Computed filtered travels
 const filteredTravels = computed(() => {
-  return tripsStore.completedTrips.filter(travel => {
+  return allTrips.value.filter(travel => {
     let match = true
-    
+
     // Filter by license
     if (appliedFilters.value.license && travel.licensePlate !== appliedFilters.value.license) {
       match = false
     }
-    
-    // Filter by official name (case insensitive)
-    if (appliedFilters.value.name && travel.official && !travel.official.toLowerCase().includes(appliedFilters.value.name.toLowerCase())) {
+
+    // Filter by patient name (case insensitive)
+    if (appliedFilters.value.patient && (!travel.patient || !travel.patient.toLowerCase().includes(appliedFilters.value.patient.toLowerCase()))) {
       match = false
     }
-    
+
+    // Filter by date range (input gives YYYY-MM-DD, data is DD/MM/YYYY)
+    const travelDate = parseDate(travel.date)
+    if (appliedFilters.value.from) {
+      const fromDate = new Date(appliedFilters.value.from)
+      if (travelDate < fromDate) match = false
+    }
+    if (appliedFilters.value.to) {
+      const toDate = new Date(appliedFilters.value.to)
+      if (travelDate > toDate) match = false
+    }
+
     return match
   })
 })
@@ -58,7 +74,7 @@ const applyFilters = () => {
 }
 
 const clearFilters = () => {
-  filters.value = { from: '', to: '', name: '', license: '' }
+  filters.value = { from: '', to: '', patient: '', license: '' }
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
 }
@@ -99,7 +115,6 @@ const clearFilters = () => {
                        @click="isFilterOpen = true" 
                        class="absolute right-6 top-6 p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors outline-none focus:ring-2 focus:ring-primary z-10 border border-gray-300"
                        title="Abrir filtros">
-                 <!-- Icon as requested in design -->
                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                    <line x1="8" y1="5" x2="8" y2="19"></line>
                    <line x1="16" y1="5" x2="16" y2="19"></line>
@@ -111,7 +126,7 @@ const clearFilters = () => {
 
             <!-- Table Container -->
             <div class="flex-1 overflow-auto px-12 md:px-16 relative mt-6">
-              <div class="min-w-[900px]">
+              <div class="min-w-[800px]">
                 <table class="history-table w-full text-sm text-center" style="border-collapse: separate; border-spacing: 0;">
                   <thead class="text-[13px] text-text-title font-bold sticky top-0 bg-white z-10">
                     <tr>
@@ -119,19 +134,17 @@ const clearFilters = () => {
                       <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Patente</th>
                       <th colspan="2" style="border: 1px solid #555; border-bottom: none; padding: 10px 12px;">Hora</th>
                       <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Destino</th>
-                      <th colspan="2" style="border: 1px solid #555; border-bottom: none; padding: 10px 12px;">Kilometraje</th>
-                      <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Funcionario</th>
+                      <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Firma</th>
+                      <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Paciente</th>
                       <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Firma</th>
                     </tr>
                     <tr>
                       <th class="text-xs font-semibold" style="border: 1px solid #555; border-top: 1px solid #999; padding: 8px 12px;">Inicio</th>
                       <th class="text-xs font-semibold" style="border: 1px solid #555; border-top: 1px solid #999; padding: 8px 12px;">Final</th>
-                      <th class="text-xs font-semibold" style="border: 1px solid #555; border-top: 1px solid #999; padding: 8px 12px;">Inicio</th>
-                      <th class="text-xs font-semibold" style="border: 1px solid #555; border-top: 1px solid #999; padding: 8px 12px;">Final</th>
                     </tr>
                   </thead>
                   <tbody class="text-center font-body">
-                    <!-- Placeholder Rows -->
+                    <!-- Placeholder Row -->
                     <tr class="border-b border-gray-200 hover:bg-gray-50/50 transition-colors text-text-secondary">
                       <td class="px-2 py-6 text-[13px] opacity-60">00/00/0000</td>
                       <td class="px-2 py-6"></td>
@@ -139,7 +152,6 @@ const clearFilters = () => {
                       <td class="px-2 py-6 border-r border-transparent text-xs opacity-60">00:00</td>
                       <td class="px-2 py-6 opacity-60 text-sm">Nombre del destino</td>
                       <td class="px-2 py-6"></td>
-                      <td class="px-2 py-6 border-r border-transparent"></td>
                       <td class="px-4 py-6 text-sm opacity-60 font-medium">Nombre Apellido</td>
                       <td class="px-4 py-6"></td>
                     </tr>
@@ -151,19 +163,22 @@ const clearFilters = () => {
                       <td class="px-2 py-5 text-gray-500">{{ travel.startTime }}</td>
                       <td class="px-2 py-5 text-gray-500">{{ travel.endTime }}</td>
                       <td class="px-2 py-5 text-gray-700">{{ travel.destination }}</td>
-                      <td class="px-2 py-5 font-medium">{{ travel.startKm?.toLocaleString() ?? '-' }}</td>
-                      <td class="px-2 py-5 font-medium">{{ travel.endKm?.toLocaleString() ?? '-' }}</td>
-                      <td class="px-4 py-5 text-gray-700">{{ travel.official }}</td>
                       <td class="px-4 py-5">
-                         <div v-if="travel.signature" class="w-full flex justify-center">
-                           <div class="h-1 w-12 bg-primary rounded-full opacity-60 rotate-[-10deg]"></div>
-                         </div>
+                        <div v-if="travel.signature" class="w-full flex justify-center">
+                          <div class="h-1 w-12 bg-primary rounded-full opacity-60 rotate-[-10deg]"></div>
+                        </div>
+                      </td>
+                      <td class="px-4 py-5 text-gray-700">{{ travel.patient }}</td>
+                      <td class="px-4 py-5">
+                        <div v-if="travel.patientSignature" class="w-full flex justify-center">
+                          <div class="h-1 w-12 bg-primary rounded-full opacity-60 rotate-[-10deg]"></div>
+                        </div>
                       </td>
                     </tr>
                     
                     <!-- Empty State -->
                     <tr v-if="filteredTravels.length === 0">
-                      <td colspan="9" class="px-3 py-20 text-center text-text-secondary font-medium">
+                      <td colspan="8" class="px-3 py-20 text-center text-text-secondary font-medium">
                         No hay viajes que coincidan con la búsqueda.
                       </td>
                     </tr>
@@ -209,9 +224,8 @@ const clearFilters = () => {
           <Transition name="slide">
             <div v-show="isFilterOpen" class="w-[22rem] bg-[#EBEBEB] rounded-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 shrink-0 z-20 h-full overflow-y-auto relative">
               
-              <!-- Filter icon top right inside panel (serves as close button also) -->
+              <!-- Close button -->
               <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent">
-                <!-- Icon as requested in design -->
                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                    <line x1="8" y1="5" x2="8" y2="19"></line>
                    <line x1="16" y1="5" x2="16" y2="19"></line>
@@ -238,29 +252,25 @@ const clearFilters = () => {
                   <div class="flex flex-col relative">
                     <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Desde</label>
                     <div class="relative">
-                      <input type="date" v-model="filters.from" class="text-xs px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" style="color:transparent; text-shadow: 0 0 0 #4b5563;"/>
-                      <svg width="14" height="14" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                      <span v-if="!filters.from" class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">00/00/0000</span>
+                      <input type="date" v-model="filters.from" class="text-xs px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
                     </div>
                   </div>
                   <div class="flex flex-col relative">
                     <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Hasta</label>
                     <div class="relative">
-                      <input type="date" v-model="filters.to" class="text-xs px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" style="color:transparent; text-shadow: 0 0 0 #4b5563;" />
-                      <svg width="14" height="14" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                      <span v-if="!filters.to" class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">00/00/0000</span>
+                      <input type="date" v-model="filters.to" class="text-xs px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
                     </div>
                   </div>
                 </div>
 
-                <!-- Names -->
+                <!-- Paciente -->
                 <div class="flex flex-col mt-2 relative">
-                  <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Nombres</label>
+                  <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Paciente</label>
                   <div class="relative">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     </div>
-                    <input type="text" v-model="filters.name" placeholder="Escribe el nombre..." class="pl-8 pr-3 py-2.5 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-700 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary placeholder-gray-400" />
+                    <input type="text" v-model="filters.patient" placeholder="Escribe el nombre..." class="pl-8 pr-3 py-2.5 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-700 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary placeholder-gray-400" />
                   </div>
                 </div>
 
@@ -270,7 +280,9 @@ const clearFilters = () => {
                   <div class="relative">
                     <select v-model="filters.license" class="px-3 py-2.5 pr-8 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-500 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary appearance-none cursor-pointer">
                       <option value="">Selecciona la patente...</option>
-                      <option v-for="plate in uniquePlates" :key="plate" :value="plate">{{ plate }}</option>
+                      <option value="AB-CD-12">AB-CD-12</option>
+                      <option value="XX-YY-99">XX-YY-99</option>
+                      <option value="AB-CD-11">AB-CD-11</option>
                     </select>
                     <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -278,7 +290,7 @@ const clearFilters = () => {
                   </div>
                 </div>
 
-                <!-- Enviar button -->
+                <!-- Aplicar button -->
                 <div class="mt-4 flex justify-end">
                   <button @click="applyFilters" class="px-6 py-2 bg-[#A61919] text-white text-xs rounded-xl font-bold shadow-sm hover:bg-red-800 transition-all w-28">
                     Aplicar
@@ -325,9 +337,9 @@ const clearFilters = () => {
   padding: 12px 8px;
 }
 
-/* Native date picker pseudo-element styling to look good */
+/* Native date picker pseudo-element styling */
 input[type="date"]::-webkit-calendar-picker-indicator {
-  opacity: 0; /* completely hide native icon over our custom one */
+  opacity: 0;
   cursor: pointer;
   z-index: 10;
   position: absolute;
