@@ -1,6 +1,7 @@
 # Logs
 logs
 *.log
+docker-build-frontend-log.txt
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -37,3 +38,7 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# Environment variables
+.env
+.env.local
