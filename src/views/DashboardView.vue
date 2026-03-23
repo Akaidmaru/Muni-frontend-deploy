@@ -16,8 +16,8 @@ const navigateTo = (route) => {
 
 // Título dinámico según rol
 const roleTitle = {
-  conductor:   'Conductor',
-  funcionario: 'Funcionario',
+  DRIVER:   'Conductor',
+  EMPLOYEE: 'Funcionario',
 }
 </script>
 

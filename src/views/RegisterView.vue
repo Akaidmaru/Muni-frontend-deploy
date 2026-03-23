@@ -1,6 +1,10 @@
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
+import api from '@/services/axios'
+
+const router = useRouter()
 
 const name = ref('')
 const surname = ref('')
@@ -11,9 +15,69 @@ const occupation = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 
-const handleSubmit = () => {
-    console.log('Register attempt', { name: name.value })
+const occupations = ref([])
+const loadingOccupations = ref(false)
+const loadingSubmit = ref(false)
+const error = ref('')
+const successMessage = ref('')
+
+async function fetchOccupations() {
+   loadingOccupations.value = true
+   try {
+      const response = await api.get('/auth/occupations')
+      occupations.value = Array.isArray(response.data) ? response.data : []
+   } catch {
+      error.value = 'No se pudieron cargar las ocupaciones. Intenta nuevamente.'
+   } finally {
+      loadingOccupations.value = false
+   }
 }
+
+const handleSubmit = async () => {
+   error.value = ''
+   successMessage.value = ''
+
+   if (email.value !== confirmEmail.value) {
+      error.value = 'Los correos no coinciden.'
+      return
+   }
+
+   if (password.value !== confirmPassword.value) {
+      error.value = 'Las contraseñas no coinciden.'
+      return
+   }
+
+   if (!occupation.value) {
+      error.value = 'Debes seleccionar una ocupación.'
+      return
+   }
+
+   loadingSubmit.value = true
+   try {
+      const fullName = `${name.value} ${surname.value}`.trim()
+      await api.post('/auth/register', {
+         name: fullName,
+         email: email.value,
+         password: password.value,
+         phone: phone.value.trim() || undefined,
+         occupationId: Number(occupation.value),
+      })
+
+      successMessage.value = 'Registro exitoso. Ahora inicia sesión.'
+      setTimeout(() => router.push('/clientes'), 1200)
+   } catch (err) {
+      const backendMessage = err.response?.data?.message
+      error.value = Array.isArray(backendMessage)
+         ? backendMessage.join(', ')
+         : backendMessage || 'No se pudo completar el registro.'
+   } finally {
+      loadingSubmit.value = false
+   }
+}
+
+onMounted(() => {
+   fetchOccupations()
+})
 </script>
 
 <template>
@@ -23,6 +87,14 @@ const handleSubmit = () => {
             <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-20 w-auto object-contain hover:opacity-80 transition-opacity" />
          </router-link>
          <h2 class="text-3xl font-bold text-center text-text-title font-titles mb-10">Crear cuenta</h2>
+
+         <div v-if="error" class="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {{ error }}
+         </div>
+
+         <div v-if="successMessage" class="mb-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            {{ successMessage }}
+         </div>
          
          <form @submit.prevent="handleSubmit" class="space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -51,11 +123,22 @@ const handleSubmit = () => {
                    <input type="tel" v-model="phone" placeholder="Ingresa tu teléfono" class="w-full pl-24 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary font-body text-body placeholder-gray-400" />
                 </div>
                 <div>
-                   <select v-model="occupation" class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary font-body text-body text-gray-500 bg-white">
-                       <option value="" disabled selected>Selecciona una ocupación</option>
-                       <option>Estudiante</option>
-                       <option>Trabajador</option>
-                       <option>Empresa</option>
+                   <select
+                     v-model="occupation"
+                     :disabled="loadingOccupations"
+                     required
+                     class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary font-body text-body text-gray-700 bg-white disabled:bg-gray-100"
+                   >
+                       <option value="" disabled>
+                          {{ loadingOccupations ? 'Cargando ocupaciones...' : 'Selecciona una ocupación' }}
+                       </option>
+                       <option
+                          v-for="item in occupations"
+                          :key="item.id"
+                          :value="String(item.id)"
+                       >
+                          {{ item.name }}
+                       </option>
                    </select>
                 </div>
 
@@ -71,9 +154,10 @@ const handleSubmit = () => {
              <div class="flex justify-center pt-6">
                 <button 
                   type="submit" 
+                           :disabled="loadingSubmit"
                   class="w-auto px-12 py-3 border border-transparent rounded-lg shadow-sm text-btn font-bold text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary font-button hover:shadow-[0_4px_14px_0_rgba(0,0,0,0.39)] hover:-translate-y-1 active:scale-95 transform transition-all duration-200"
                 >
-                  Registrarse
+                           {{ loadingSubmit ? 'Registrando...' : 'Registrarse' }}
                 </button>
              </div>
          </form>

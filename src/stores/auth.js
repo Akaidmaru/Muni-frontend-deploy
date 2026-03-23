@@ -5,46 +5,58 @@ import api from '@/services/axios'
 export const useAuthStore = defineStore('auth', () => {
     // ── State ──────────────────────────────────────────────────────────────
     const token = ref(null)
-    const user = ref(null) // { name, surname, email, ... }
-    const role = ref(null) // 'conductor' | 'funcionario' | 'admin' | 'paciente'
+    const user = ref(null) // { id, email, name, role }
+    const role = ref(null) // 'ADMIN' | 'PATIENT' | 'DRIVER' | 'EMPLOYEE'
+    const VALID_ROLES = ['ADMIN', 'PATIENT', 'DRIVER', 'EMPLOYEE']
 
     // ── Getters ────────────────────────────────────────────────────────────
     const isAuthenticated = computed(() => !!token.value)
     const userRole = computed(() => role.value)
-    const isConductor = computed(() => role.value === 'conductor')
-    const isFuncionario = computed(() => role.value === 'funcionario')
-    const isAdmin = computed(() => role.value === 'admin')
-    const isPaciente = computed(() => role.value === 'paciente')
+    const isConductor = computed(() => role.value === 'DRIVER')
+    const isFuncionario = computed(() => role.value === 'EMPLOYEE')
+    const isAdmin = computed(() => role.value === 'ADMIN')
+    const isPaciente = computed(() => role.value === 'PATIENT')
 
     const fullName = computed(() =>
-        user.value ? `${user.value.name} ${user.value.surname}` : ''
+        user.value ? `${user.value.name ?? ''}`.trim() : ''
     )
-    const initials = computed(() =>
-        user.value ? `${user.value.name[0]}${user.value.surname[0]}` : ''
-    )
+    const initials = computed(() => {
+        if (!user.value?.name) return ''
+        const parts = user.value.name.trim().split(' ').filter(Boolean)
+        if (parts.length === 0) return ''
+        if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? ''
+        return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+    })
 
     // ── Helpers ────────────────────────────────────────────────────────────
-    function decodeJWT(jwt) {
-        try {
-            const payload = JSON.parse(atob(jwt.split('.')[1]))
-            return payload
-        } catch {
-            return null
+    function normalizeRole(rawRole) {
+        const roleMap = {
+            ADMIN: 'ADMIN',
+            PATIENT: 'PATIENT',
+            DRIVER: 'DRIVER',
+            EMPLOYEE: 'EMPLOYEE',
         }
+
+        return roleMap[rawRole] ?? null
     }
 
-    function setSession(jwt) {
+    function setSession(jwt, backendUser = null, normalizedRole = null) {
         token.value = jwt
         localStorage.setItem('token', jwt)
 
-        const payload = decodeJWT(jwt)
-        if (payload) {
-            role.value = payload.role || payload.rol || null
+        if (backendUser) {
             user.value = {
-                name: payload.name || payload.nombre || 'Usuario',
-                surname: payload.surname || payload.apellido || '',
-                email: payload.email || payload.correo || '',
+                id: backendUser.id,
+                email: backendUser.email,
+                name: backendUser.name || 'Usuario',
+                role: backendUser.role,
             }
+            localStorage.setItem('user', JSON.stringify(user.value))
+        }
+
+        if (normalizedRole) {
+            role.value = normalizedRole
+            localStorage.setItem('role', normalizedRole)
         }
     }
 
@@ -54,12 +66,27 @@ export const useAuthStore = defineStore('auth', () => {
      * Intenta cargar la sesión desde localStorage al iniciar la app.
      */
     function loadFromStorage() {
-        const saved = localStorage.getItem('token')
-        if (saved) {
-            setSession(saved)
-            // Si el token no tiene un rol válido, limpiar sesión
-            const validRoles = ['conductor', 'funcionario', 'admin', 'paciente']
-            if (!role.value || !validRoles.includes(role.value)) {
+        const savedToken = localStorage.getItem('token')
+        const savedRole = localStorage.getItem('role')
+        const savedUserRaw = localStorage.getItem('user')
+
+        if (!savedToken) {
+            return
+        }
+
+        token.value = savedToken
+
+        if (!savedRole || !VALID_ROLES.includes(savedRole)) {
+            logout()
+            return
+        }
+
+        role.value = savedRole
+
+        if (savedUserRaw) {
+            try {
+                user.value = JSON.parse(savedUserRaw)
+            } catch {
                 logout()
             }
         }
@@ -67,51 +94,30 @@ export const useAuthStore = defineStore('auth', () => {
 
     /**
      * Login: llama al backend y guarda la sesión.
-     * TODO: ajustar el endpoint real cuando el backend esté listo.
      */
     async function login(email, password) {
-        // ── Mock mode (quitar cuando el backend esté conectado) ────────────
-        // Para probar roles sin backend, descomentar uno de los bloques:
-        const MOCK_MODE = true
-
-        if (MOCK_MODE) {
-            // ── Usuarios de prueba por rol ────────────────────────────
-            // Email               | Contraseña | Rol
-            // conductor@test.com  | 123456     | conductor
-            // funcionario@test.com| 123456     | funcionario
-            // admin@test.com      | 123456     | admin
-            // paciente@test.com   | 123456     | paciente
-            const mockUsers = {
-                'conductor@test.com': { name: 'Juan', surname: 'Pérez', role: 'conductor' },
-                'funcionario@test.com': { name: 'María', surname: 'González', role: 'funcionario' },
-                'admin@test.com': { name: 'Carlos', surname: 'Admin', role: 'admin' },
-                'paciente@test.com': { name: 'Ana', surname: 'López', role: 'paciente' },
-            }
-
-            const mockUser = mockUsers[email.toLowerCase()]
-            if (!mockUser) {
-                return { success: false, message: 'Usuario no encontrado. Usa: conductor@test.com, funcionario@test.com, admin@test.com o paciente@test.com' }
-            }
-
-            const mockPayload = {
-                name: mockUser.name,
-                surname: mockUser.surname,
-                email: email,
-                role: mockUser.role,
-            }
-            const fakeJWT = 'header.' + btoa(JSON.stringify(mockPayload)) + '.signature'
-            setSession(fakeJWT)
-            return { success: true }
-        }
-        // ── Fin mock mode ─────────────────────────────────────────────────
-
         try {
             const response = await api.post('/auth/login', { email, password })
-            const jwt = response.data.token
-            setSession(jwt)
+
+            const jwt = response.data?.accessToken
+            const backendUser = response.data?.user
+
+            if (!jwt || !backendUser) {
+                return { success: false, message: 'Respuesta inválida del servidor' }
+            }
+
+            const normalizedRole = normalizeRole(backendUser.role)
+            if (!normalizedRole || !VALID_ROLES.includes(normalizedRole)) {
+                return { success: false, message: 'Rol de usuario no soportado por el frontend' }
+            }
+
+            setSession(jwt, backendUser, normalizedRole)
             return { success: true }
         } catch (error) {
-            const message = error.response?.data?.message || 'Credenciales incorrectas'
+            const backendMessage = error.response?.data?.message
+            const message = Array.isArray(backendMessage)
+                ? backendMessage.join(', ')
+                : backendMessage || 'Credenciales incorrectas'
             return { success: false, message }
         }
     }
@@ -124,6 +130,8 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = null
         role.value = null
         localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        localStorage.removeItem('role')
     }
 
     return {

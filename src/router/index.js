@@ -49,7 +49,7 @@ const router = createRouter({
             path: '/dashboard',
             name: 'dashboard',
             component: DashboardView,
-            meta: { requiresAuth: true, roles: ['conductor', 'funcionario', 'admin'] }
+            meta: { requiresAuth: true, roles: ['DRIVER', 'EMPLOYEE', 'ADMIN'] }
         },
 
         // ── Rutas del conductor ───────────────────────────────
@@ -57,13 +57,13 @@ const router = createRouter({
             path: '/registro-diario',
             name: 'daily-registration',
             component: DailyRegistrationView,
-            meta: { requiresAuth: true, roles: ['conductor', 'admin'] }
+            meta: { requiresAuth: true, roles: ['DRIVER', 'ADMIN'] }
         },
         {
             path: '/historial-viajes',
             name: 'travel-history',
             component: TravelHistoryView,
-            meta: { requiresAuth: true, roles: ['conductor', 'admin'] }
+            meta: { requiresAuth: true, roles: ['DRIVER', 'ADMIN'] }
         },
 
         // ── Rutas del funcionario ─────────────────────────────
@@ -71,13 +71,13 @@ const router = createRouter({
             path: '/registro-diario-funcionario',
             name: 'daily-registration-funcionario',
             component: DailyRegistrationFuncionarioView,
-            meta: { requiresAuth: true, roles: ['funcionario', 'admin'] }
+            meta: { requiresAuth: true, roles: ['EMPLOYEE', 'ADMIN'] }
         },
         {
             path: '/historial-viajes-funcionario',
             name: 'travel-history-funcionario',
             component: TravelHistoryFuncionarioView,
-            meta: { requiresAuth: true, roles: ['funcionario', 'admin'] }
+            meta: { requiresAuth: true, roles: ['EMPLOYEE', 'ADMIN'] }
         },
 
         // ── Rutas del admin ───────────────────────────────────
@@ -85,7 +85,7 @@ const router = createRouter({
             path: '/dashboard-admin',
             name: 'dashboard-admin',
             component: DashboardAdminView,
-            meta: { requiresAuth: true, roles: ['admin'] }
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
 
         // ── Rutas del paciente ────────────────────────────────
@@ -93,7 +93,7 @@ const router = createRouter({
             path: '/dashboard-paciente',
             name: 'dashboard-paciente',
             component: DashboardPacienteView,
-            meta: { requiresAuth: true, roles: ['paciente', 'admin'] }
+            meta: { requiresAuth: true, roles: ['PATIENT', 'ADMIN'] }
         },
 
         // ── Acceso denegado ───────────────────────────────────
@@ -129,10 +129,10 @@ router.beforeEach((to, from, next) => {
     // Si el usuario ya está autenticado e intenta ir al login
     if (to.name === 'login' && auth.isAuthenticated) {
         const roleRoutes = {
-            conductor: 'dashboard',
-            funcionario: 'dashboard',
-            admin: 'dashboard-admin',
-            paciente: 'dashboard-paciente',
+            DRIVER: 'dashboard',
+            EMPLOYEE: 'dashboard',
+            ADMIN: 'dashboard-admin',
+            PATIENT: 'dashboard-paciente',
         }
         return next({ name: roleRoutes[auth.userRole] || 'dashboard' })
     }

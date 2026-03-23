@@ -23,10 +23,10 @@ const handleSubmit = async () => {
   if (result.success) {
     // Redirigir según el rol
     const roleRoutes = {
-      conductor:   '/dashboard',
-      funcionario: '/dashboard',
-      admin:       '/dashboard-admin',
-      paciente:    '/dashboard-paciente',
+      DRIVER: '/dashboard',
+      EMPLOYEE: '/dashboard',
+      ADMIN: '/dashboard-admin',
+      PATIENT: '/dashboard-paciente',
     }
     const target = roleRoutes[auth.userRole] || '/dashboard'
     router.push(target)

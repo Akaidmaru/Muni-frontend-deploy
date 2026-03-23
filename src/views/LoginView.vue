@@ -22,10 +22,10 @@ const handleSubmit = async () => {
 
     if (result.success) {
         const roleRoutes = {
-            conductor:   '/dashboard',
-            funcionario: '/dashboard',
-            admin:       '/dashboard-admin',
-            paciente:    '/dashboard-paciente',
+         DRIVER: '/dashboard',
+         EMPLOYEE: '/dashboard',
+         ADMIN: '/dashboard-admin',
+         PATIENT: '/dashboard-paciente',
         }
         router.push(roleRoutes[auth.userRole] || '/dashboard')
     } else {

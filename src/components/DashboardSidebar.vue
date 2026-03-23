@@ -13,18 +13,18 @@ const open = ref(false)
 
 // Definir items de navegación según rol
 const allNavItems = {
-  conductor: [
+  DRIVER: [
     { label: 'Registro\ndiario',    path: '/registro-diario',  icon: registroIcon,  alt: 'Registro diario' },
     { label: 'Historial de\nviajes', path: '/historial-viajes', icon: historialIcon, alt: 'Historial de viajes' }
   ],
-  funcionario: [
+  EMPLOYEE: [
     { label: 'Registro\ndiario',    path: '/registro-diario-funcionario',  icon: registroIcon,  alt: 'Registro diario' },
     { label: 'Historial de\nviajes', path: '/historial-viajes-funcionario', icon: historialIcon, alt: 'Historial de viajes' }
   ],
 }
 
 // Usar items del rol actual, o un set por defecto
-const navItems = allNavItems[auth.userRole] || allNavItems.conductor
+const navItems = allNavItems[auth.userRole] || allNavItems.DRIVER
 
 const isActive = (path) => route.path === path
 
