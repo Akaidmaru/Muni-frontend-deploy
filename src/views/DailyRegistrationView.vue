@@ -1,10 +1,11 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTripsStore } from '@/stores/trips'
 import UserMenu from '@/components/UserMenu.vue'
+import api from '@/services/axios'
 
 const auth = useAuthStore()
 const tripsStore = useTripsStore()
@@ -23,29 +24,66 @@ const mockDestinations = [
   'Mercado Centenario',
 ]
 
-const mockEmployees = [
-  { id: 1,  name: 'Funcionario 1'  },
-  { id: 2,  name: 'Funcionario 2'  },
-  { id: 3,  name: 'Funcionario 3'  },
-  { id: 4,  name: 'Funcionario 4'  },
-  { id: 5,  name: 'Funcionario 5'  },
-  { id: 6,  name: 'Funcionario 6'  },
-  { id: 7,  name: 'Funcionario 7'  },
-  { id: 8,  name: 'Funcionario 8'  },
-  { id: 9,  name: 'Funcionario 9'  },
-  { id: 10, name: 'Funcionario 10' },
-  { id: 11, name: 'Funcionario 11' },
-  { id: 12, name: 'Funcionario 12' },
-]
+const employees = ref([])
+const isLoadingEmployees = ref(false)
+const employeesError = ref('')
+
+const loadEmployees = async () => {
+  isLoadingEmployees.value = true
+  employeesError.value = ''
+
+  try {
+    const { data } = await api.get('/users/by-roles', {
+      params: { roles: 'EMPLOYEE' },
+    })
+
+    employees.value = Array.isArray(data)
+      ? data
+          .filter((user) => user?.id)
+          .map((user) => ({
+            id: user.id,
+            name: user.name || user.email || `Funcionario ${user.id}`,
+          }))
+      : []
+  } catch (error) {
+    const backendMessage = error.response?.data?.message
+    employeesError.value = Array.isArray(backendMessage)
+      ? backendMessage.join(', ')
+      : backendMessage || 'No se pudieron cargar los funcionarios.'
+    employees.value = []
+  } finally {
+    isLoadingEmployees.value = false
+  }
+}
 
 // ── User (desde auth store) ───────────────────────────────────────────
 
-// ── License plates ────────────────────────────────────────────────────
-const licensePlates = [
-  { id: 1, plate: 'LSXL80' }, { id: 2, plate: 'VFDG52' }, { id: 3, plate: 'SZKH24' },
-  { id: 4, plate: 'RCTP11' }, { id: 5, plate: 'DVDX13' }, { id: 6, plate: 'HFHG40' },
-  { id: 7, plate: 'SZKX78' }, { id: 8, plate: 'TLLS35' }, { id: 9, plate: 'RJBS30' },
-]
+// ── License plates (desde API) ───────────────────────────────────────
+const licensePlates = ref([])
+const isLoadingPlates = ref(false)
+const platesError = ref('')
+
+const loadAssignedTrucks = async () => {
+  isLoadingPlates.value = true
+  platesError.value = ''
+
+  try {
+    const { data } = await api.get('/users/me/trucks')
+    licensePlates.value = Array.isArray(data)
+      ? data
+          .filter((truck) => truck?.id && truck?.plate)
+          .map((truck) => ({ id: truck.id, plate: truck.plate }))
+      : []
+  } catch (error) {
+    const backendMessage = error.response?.data?.message
+    platesError.value = Array.isArray(backendMessage)
+      ? backendMessage.join(', ')
+      : backendMessage || 'No se pudieron cargar las patentes asignadas.'
+    licensePlates.value = []
+  } finally {
+    isLoadingPlates.value = false
+  }
+}
 
 const selectedPlate = ref('')
 const confirmed     = ref(false)
@@ -162,15 +200,27 @@ const closeEmpModal = () => {
 }
 
 const filteredEmployees = computed(() =>
-  mockEmployees.filter(e =>
+  employees.value.filter(e =>
     e.name.toLowerCase().includes(empModal.value.search.toLowerCase())
   )
 )
+
+const getEmployeeAvatarLabel = (name) => {
+  const parts = String(name || '').trim().split(' ').filter(Boolean)
+  if (parts.length >= 2) return parts[1].charAt(0).toUpperCase()
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase()
+  return '?'
+}
 
 const selectEmployee = (emp) => {
   if (empModal.value.trip) empModal.value.trip.employee = emp
   closeEmpModal()
 }
+
+onMounted(() => {
+  loadAssignedTrucks()
+  loadEmployees()
+})
 </script>
 
 <template>
@@ -210,8 +260,17 @@ const selectEmployee = (emp) => {
                   v-model="selectedPlate"
                   class="w-full px-6 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-primary focus:border-primary font-body text-sm bg-white appearance-none cursor-pointer text-center"
                   :class="selectedPlate ? 'text-text-title' : 'text-gray-400'"
+                  :disabled="isLoadingPlates || licensePlates.length === 0"
                 >
-                  <option value="" disabled>Seleccione la patente asignada</option>
+                  <option value="" disabled>
+                    {{
+                      isLoadingPlates
+                        ? 'Cargando patentes...'
+                        : licensePlates.length === 0
+                          ? 'No tiene patentes asignadas'
+                          : 'Seleccione la patente asignada'
+                    }}
+                  </option>
                   <option v-for="lp in licensePlates" :key="lp.id" :value="lp.plate" class="text-text-title">{{ lp.plate }}</option>
                 </select>
                 <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none">
@@ -220,12 +279,15 @@ const selectEmployee = (emp) => {
                   </svg>
                 </div>
               </div>
+              <p v-if="platesError" class="mt-2 text-xs text-red-600 text-center">
+                {{ platesError }}
+              </p>
             </div>
 
             <div class="flex justify-center">
               <button
                 @click="handleConfirm"
-                :disabled="!selectedPlate"
+                :disabled="!selectedPlate || isLoadingPlates"
                 class="px-12 py-3 bg-[#215179] hover:bg-blue-900 text-white font-bold rounded-xl shadow-md transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Confirmar
@@ -497,7 +559,14 @@ const selectEmployee = (emp) => {
 
           <!-- Lista de resultados -->
           <ul class="max-h-60 overflow-y-auto divide-y divide-gray-50">
+            <li v-if="isLoadingEmployees" class="px-5 py-6 text-center text-sm text-gray-400">
+              Cargando funcionarios...
+            </li>
+            <li v-else-if="employeesError" class="px-5 py-6 text-center text-sm text-red-600">
+              {{ employeesError }}
+            </li>
             <li
+              v-else
               v-for="emp in filteredEmployees"
               :key="emp.id"
               @click="selectEmployee(emp)"
@@ -510,14 +579,14 @@ const selectEmployee = (emp) => {
                   ? 'bg-primary text-white'
                   : 'bg-gray-100 text-gray-500 group-hover:bg-primary group-hover:text-white'"
               >
-                {{ emp.name.split(' ')[1] }}
+                {{ getEmployeeAvatarLabel(emp.name) }}
               </div>
               <span
                 class="text-sm font-body transition-colors"
                 :class="empModal.trip?.employee?.id === emp.id ? 'text-primary font-semibold' : 'text-text-title'"
               >{{ emp.name }}</span>
             </li>
-            <li v-if="filteredEmployees.length === 0" class="px-5 py-6 text-center text-sm text-gray-400">
+            <li v-if="!isLoadingEmployees && !employeesError && filteredEmployees.length === 0" class="px-5 py-6 text-center text-sm text-gray-400">
               Sin resultados para "{{ empModal.search }}"
             </li>
           </ul>
