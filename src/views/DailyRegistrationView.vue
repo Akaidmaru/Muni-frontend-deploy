@@ -9,6 +9,7 @@ import api from '@/services/axios'
 
 const auth = useAuthStore()
 const tripsStore = useTripsStore()
+const tripActionError = ref('')
 
 const destinations = ref([])
 const isLoadingDestinations = ref(false)
@@ -19,7 +20,7 @@ const loadDestinations = async () => {
   destinationsError.value = ''
 
   try {
-    const { data } = await api.get('/destinations')
+    const { data } = await api.get('/destinations/active')
     destinations.value = Array.isArray(data)
       ? data
           .filter((destination) => destination?.id && destination?.name)
@@ -118,6 +119,7 @@ const getCurrentTime = () => {
 // ── Step 1 → 2 ────────────────────────────────────────────────────────
 const handleConfirm = () => {
   if (!selectedPlate.value) return
+  tripActionError.value = ''
   trips.value = [newTrip()]
   confirmed.value = true
 }
@@ -160,24 +162,44 @@ const openStopTrip = (trip) => {
   stopTripModal.value = { open: true, trip }
 }
 
-const confirmStopTrip = () => {
+const confirmStopTrip = async () => {
   const trip = stopTripModal.value.trip
   if (trip) {
-    trip.status = 'done'
-    trip.endTime = getCurrentTime()
+    tripActionError.value = ''
 
-    // Enviar viaje completado al store para mostrar en el historial
-    tripsStore.addCompletedTrip({
-      date: currentDate.value,
-      licensePlate: selectedPlate.value,
-      startTime: trip.startTime,
-      endTime: trip.endTime,
-      destination: trip.destination,
-      startKm: null, // Hardcoded for this iteration
-      endKm: null,
-      official: trip.employee ? trip.employee.name : null,
-      signature: true, // Auto-signed
-    })
+    try {
+      if (!trip.historyId) {
+        tripActionError.value = 'Este viaje no tiene ID en base de datos. Inícielo nuevamente para poder finalizarlo.'
+        return
+      }
+
+      const endTime = getCurrentTime()
+      const { data } = await api.patch(`/trip-history/${trip.historyId}/finish`, {
+        endTime,
+      })
+      trip.endTime = data?.endTime || endTime
+
+      trip.status = 'done'
+
+      // Enviar viaje completado al store para mostrar en el historial
+      tripsStore.addCompletedTrip({
+        date: currentDate.value,
+        licensePlate: selectedPlate.value,
+        startTime: trip.startTime,
+        endTime: trip.endTime,
+        destination: getDestinationNameById(trip.destination),
+        startKm: null,
+        endKm: null,
+        official: trip.employee ? trip.employee.name : null,
+        signature: true,
+      })
+    } catch (error) {
+      const backendMessage = error.response?.data?.message
+      tripActionError.value = Array.isArray(backendMessage)
+        ? backendMessage.join(', ')
+        : backendMessage || 'No se pudo finalizar el viaje.'
+      return
+    }
   }
   stopTripModal.value = { open: false, trip: null }
 }
@@ -190,17 +212,56 @@ const cancelStopTrip = () => {
 let tripCounter = 1
 const newTrip = () => ({
   id:          tripCounter++,
-  destination: '',
+  destination: null,
   employee:    null, // { id, name }
+  historyId:   null,
+  startTime:   null,
+  endTime:     null,
+  isSaving:    false,
   status:      'idle', // 'idle' | 'running' | 'done'
 })
 
 const trips = ref([])
 
 const addTrip   = () => trips.value.push(newTrip())
-const startTrip = (trip) => { 
-  trip.status = 'running' 
-  trip.startTime = getCurrentTime()
+const canStartTrip = (trip) => Boolean(trip.destination && trip.employee)
+
+const getDestinationNameById = (destinationId) => {
+  const destination = destinations.value.find((dest) => dest.id === destinationId)
+  return destination?.name || 'Sin destino'
+}
+
+const startTrip = async (trip) => {
+  if (!canStartTrip(trip) || trip.isSaving) return
+
+  const startTime = getCurrentTime()
+  tripActionError.value = ''
+  trip.isSaving = true
+
+  try {
+    const { data } = await api.post('/trip-history/start', {
+      plate: selectedPlate.value,
+      destinationId: Number(trip.destination),
+      employeeId: Number(trip.employee.id),
+      startTime,
+    })
+
+    const createdHistoryId = Number(data?.id)
+    if (!Number.isInteger(createdHistoryId) || createdHistoryId <= 0) {
+      throw new Error('La respuesta del backend no contiene un ID de viaje válido.')
+    }
+
+    trip.historyId = createdHistoryId
+    trip.startTime = data.startTime || startTime
+    trip.status = 'running'
+  } catch (error) {
+    const backendMessage = error.response?.data?.message
+    tripActionError.value = Array.isArray(backendMessage)
+      ? backendMessage.join(', ')
+      : backendMessage || 'No se pudo iniciar el viaje.'
+  } finally {
+    trip.isSaving = false
+  }
 }
 
 // ── Funcionario modal ─────────────────────────────────────────────────
@@ -337,6 +398,9 @@ onMounted(() => {
                   Cambiar patente
                 </button>
               </div>
+              <p v-if="tripActionError" class="text-sm text-red-600 font-body">
+                {{ tripActionError }}
+              </p>
             </div>
 
             <!-- Tabla -->
@@ -365,8 +429,12 @@ onMounted(() => {
                       <button
                         v-if="trip.status === 'idle'"
                         @click="startTrip(trip)"
+                        :disabled="!canStartTrip(trip) || trip.isSaving"
                         title="Iniciar viaje"
-                        class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-green-500 hover:bg-green-600 text-white shadow transition-all duration-200 hover:scale-110"
+                        class="inline-flex items-center justify-center w-9 h-9 rounded-full text-white shadow transition-all duration-200"
+                        :class="!canStartTrip(trip) || trip.isSaving
+                          ? 'bg-green-300 cursor-not-allowed'
+                          : 'bg-green-500 hover:bg-green-600 hover:scale-110'"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M8 5v14l11-7z"/>
@@ -398,12 +466,12 @@ onMounted(() => {
                     <!-- Destino: select -->
                     <td class="px-6 py-4 border-l border-gray-200">
                       <select
-                        v-model="trip.destination"
+                        v-model.number="trip.destination"
                         :disabled="trip.status === 'done' || isLoadingDestinations || destinations.length === 0"
                         class="w-full bg-transparent outline-none cursor-pointer font-body text-sm disabled:text-gray-400"
                         :class="trip.destination ? 'text-text-title' : 'text-gray-300'"
                       >
-                        <option value="" disabled>
+                        <option :value="null" disabled>
                           {{
                             isLoadingDestinations
                               ? 'Cargando destinos...'
@@ -412,7 +480,7 @@ onMounted(() => {
                                 : 'Nombre del destino'
                           }}
                         </option>
-                        <option v-for="dest in destinations" :key="dest.id" :value="dest.name" class="text-text-title">{{ dest.name }}</option>
+                        <option v-for="dest in destinations" :key="dest.id" :value="dest.id" class="text-text-title">{{ dest.name }}</option>
                       </select>
                       <p v-if="destinationsError" class="mt-2 text-xs text-red-600">
                         {{ destinationsError }}
