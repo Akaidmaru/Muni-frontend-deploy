@@ -10,19 +10,34 @@ import api from '@/services/axios'
 const auth = useAuthStore()
 const tripsStore = useTripsStore()
 
-// ── Mock data (reemplazar con llamadas a API) ──────────────────────────
-const mockDestinations = [
-  'Terminal de buses',
-  'Hospital Regional',
-  'Municipalidad Centro',
-  'Aeropuerto Diego Aracena',
-  'Puerto de Iquique',
-  'Zona Franca ZOFRI',
-  'Estadio Municipal',
-  'Universidad Arturo Prat',
-  'Cementerio General',
-  'Mercado Centenario',
-]
+const destinations = ref([])
+const isLoadingDestinations = ref(false)
+const destinationsError = ref('')
+
+const loadDestinations = async () => {
+  isLoadingDestinations.value = true
+  destinationsError.value = ''
+
+  try {
+    const { data } = await api.get('/destinations')
+    destinations.value = Array.isArray(data)
+      ? data
+          .filter((destination) => destination?.id && destination?.name)
+          .map((destination) => ({
+            id: destination.id,
+            name: destination.name,
+          }))
+      : []
+  } catch (error) {
+    const backendMessage = error.response?.data?.message
+    destinationsError.value = Array.isArray(backendMessage)
+      ? backendMessage.join(', ')
+      : backendMessage || 'No se pudieron cargar los destinos.'
+    destinations.value = []
+  } finally {
+    isLoadingDestinations.value = false
+  }
+}
 
 const employees = ref([])
 const isLoadingEmployees = ref(false)
@@ -220,6 +235,7 @@ const selectEmployee = (emp) => {
 onMounted(() => {
   loadAssignedTrucks()
   loadEmployees()
+  loadDestinations()
 })
 </script>
 
@@ -383,13 +399,24 @@ onMounted(() => {
                     <td class="px-6 py-4 border-l border-gray-200">
                       <select
                         v-model="trip.destination"
-                        :disabled="trip.status === 'done'"
+                        :disabled="trip.status === 'done' || isLoadingDestinations || destinations.length === 0"
                         class="w-full bg-transparent outline-none cursor-pointer font-body text-sm disabled:text-gray-400"
                         :class="trip.destination ? 'text-text-title' : 'text-gray-300'"
                       >
-                        <option value="" disabled>Nombre del destino</option>
-                        <option v-for="dest in mockDestinations" :key="dest" :value="dest" class="text-text-title">{{ dest }}</option>
+                        <option value="" disabled>
+                          {{
+                            isLoadingDestinations
+                              ? 'Cargando destinos...'
+                              : destinations.length === 0
+                                ? 'No hay destinos disponibles'
+                                : 'Nombre del destino'
+                          }}
+                        </option>
+                        <option v-for="dest in destinations" :key="dest.id" :value="dest.name" class="text-text-title">{{ dest.name }}</option>
                       </select>
+                      <p v-if="destinationsError" class="mt-2 text-xs text-red-600">
+                        {{ destinationsError }}
+                      </p>
                     </td>
 
                     <!-- Funcionario: abre modal de búsqueda -->
