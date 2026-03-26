@@ -21,6 +21,12 @@ const allNavItems = {
     { label: 'Registro\ndiario',    path: '/registro-diario-funcionario',  icon: registroIcon,  alt: 'Registro diario' },
     { label: 'Historial de\nviajes', path: '/historial-viajes-funcionario', icon: historialIcon, alt: 'Historial de viajes' }
   ],
+  ADMIN: [
+    { label: 'Gestión de\nusuarios', path: '/admin/gestion-usuarios', icon: registroIcon,  alt: 'Gestión de usuarios' },
+    { label: 'Historial de\nviajes', path: '/historial-viajes-admin', icon: historialIcon, alt: 'Historial de viajes' }
+    ,{ label: 'Reportes',            path: '/admin/reportes',         emoji: '📊', alt: 'Reportes' }
+    ,{ label: 'Mantención\nvehicular', path: '/admin/mantencion-vehicular', emoji: '🚚', alt: 'Mantención vehicular' }
+  ],
 }
 
 // Usar items del rol actual, o un set por defecto
@@ -89,10 +95,17 @@ const handleLogout = () => {
               : 'text-text-title hover:bg-gray-50 hover:text-primary'"
           >
             <img
+              v-if="item.icon"
               :src="item.icon"
               :alt="item.alt"
               class="w-8 h-8 shrink-0 object-contain transition-transform duration-150 group-hover:scale-110"
             />
+            <span
+              v-else
+              class="w-8 h-8 shrink-0 flex items-center justify-center text-xl transition-transform duration-150 group-hover:scale-110"
+            >
+              {{ item.emoji }}
+            </span>
             <span
               class="text-sm font-titles font-semibold leading-tight whitespace-pre-line"
               :class="isActive(item.path) ? 'text-primary' : 'text-text-title'"

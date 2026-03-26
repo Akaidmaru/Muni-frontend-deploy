@@ -10,6 +10,10 @@ import DailyRegistrationView from '../views/DailyRegistrationView.vue'
 import DailyRegistrationFuncionarioView from '../views/DailyRegistrationFuncionarioView.vue'
 import TravelHistoryView from '../views/TravelHistoryView.vue'
 import TravelHistoryFuncionarioView from '../views/TravelHistoryFuncionarioView.vue'
+import TravelHistoryAdminView from '../views/TravelHistoryAdminView.vue'
+import AdminUsersView from '../views/AdminUsersView.vue'
+import AdminReportsView from '../views/AdminReportsView.vue'
+import AdminMaintenanceView from '../views/AdminMaintenanceView.vue'
 import AccessDeniedView from '../views/AccessDeniedView.vue'
 import DashboardAdminView from '../views/DashboardAdminView.vue'
 import DashboardPacienteView from '../views/DashboardPacienteView.vue'
@@ -85,6 +89,30 @@ const router = createRouter({
             path: '/dashboard-admin',
             name: 'dashboard-admin',
             component: DashboardAdminView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+        {
+            path: '/historial-viajes-admin',
+            name: 'travel-history-admin',
+            component: TravelHistoryAdminView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+        {
+            path: '/admin/gestion-usuarios',
+            name: 'admin-users',
+            component: AdminUsersView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+        {
+            path: '/admin/reportes',
+            name: 'admin-reports',
+            component: AdminReportsView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+        {
+            path: '/admin/mantencion-vehicular',
+            name: 'admin-maintenance',
+            component: AdminMaintenanceView,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
 

@@ -99,12 +99,12 @@ const clearFilters = () => {
       <DashboardSidebar />
 
       <!-- Main content -->
-      <main class="flex-1 p-6 md:p-8 overflow-hidden flex flex-col">
-        <div class="flex flex-1 gap-6 w-full mx-auto h-full min-h-0">
+      <main class="flex-1 py-10 px-6 overflow-hidden flex items-start justify-center">
+        <div class="flex gap-6 w-full max-w-5xl h-full min-h-0">
           
           <!-- Main Card (Table) -->
           <div :class="[
-            'bg-white rounded-[2rem] shadow-xl border border-gray-100 flex-1 flex flex-col overflow-hidden transition-all duration-300 relative',
+            'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative',
             isFilterOpen ? 'max-w-[calc(100%-24rem)]' : 'w-full'
           ]">
             <!-- Top section: Title and Filter Button -->
@@ -125,7 +125,7 @@ const clearFilters = () => {
             </div>
 
             <!-- Table Container -->
-            <div class="flex-1 overflow-auto px-12 md:px-16 relative mt-6">
+            <div class="flex-1 overflow-auto px-12 md:px-16 relative mt-6 pb-6">
               <div class="min-w-[800px]">
                 <table class="history-table w-full text-sm text-center" style="border-collapse: separate; border-spacing: 0;">
                   <thead class="text-[13px] text-text-title font-bold sticky top-0 bg-white z-10">
@@ -134,9 +134,9 @@ const clearFilters = () => {
                       <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Patente</th>
                       <th colspan="2" style="border: 1px solid #555; border-bottom: none; padding: 10px 12px;">Hora</th>
                       <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Destino</th>
-                      <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Firma</th>
+                      <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Firma Funcionario</th>
                       <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Paciente</th>
-                      <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Firma</th>
+                      <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Evidencia</th>
                     </tr>
                     <tr>
                       <th class="text-xs font-semibold" style="border: 1px solid #555; border-top: 1px solid #999; padding: 8px 12px;">Inicio</th>
@@ -188,7 +188,7 @@ const clearFilters = () => {
             </div>
 
             <!-- Footer Pagination -->
-            <div class="px-12 md:px-16 py-4 bg-white flex justify-between items-center text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-[2rem]">
+            <div class="px-12 md:px-16 py-4 bg-white flex md:hidden justify-between items-center text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
               <div class="flex items-center gap-2">
                 <span>Filas por páginas</span>
                 <div class="relative">

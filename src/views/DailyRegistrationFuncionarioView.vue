@@ -332,13 +332,13 @@ const nextPage = () => {
     </div>
 
     <!-- Body -->
-    <div class="flex flex-1">
+    <div class="flex flex-1 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 py-10 px-6 flex items-start justify-center">
-        <div class="w-full max-w-5xl">
+      <main class="flex-1 py-10 px-6 overflow-hidden flex items-start justify-center">
+        <div class="flex gap-6 w-full max-w-5xl h-full min-h-0">
           <div
-            class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm overflow-visible"
+            class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm overflow-hidden flex-1 flex flex-col"
           >
             <!-- Encabezado -->
             <div class="px-8 pt-8 pb-4">
@@ -359,18 +359,18 @@ const nextPage = () => {
             </div>
 
             <!-- Tabla -->
-            <div class="overflow-x-auto">
-              <table class="w-full text-sm font-body border-t border-gray-200">
+            <div class="overflow-x-auto px-12 md:px-16 relative mt-6 pb-6">
+              <table class="history-table w-full text-sm font-body">
                 <thead>
                   <tr
-                    class="border-b border-gray-200 bg-gray-50 text-text-title font-semibold"
+                    class="border-b border-gray-200 text-text-title font-semibold"
                   >
                     <th
                       class="px-2 py-3 text-center align-middle w-14"
                       rowspan="2"
                       title="Guardar registro del viaje"
                     >
-                      <span class="text-xs font-body font-semibold text-text-secondary"
+                      <span class="font-semibold text-text-title"
                         >Estado</span
                       >
                     </th>
@@ -393,7 +393,7 @@ const nextPage = () => {
                       class="px-4 py-3 text-center border-l border-gray-200"
                       rowspan="2"
                     >
-                      Firma
+                      Firma Funcionario
                     </th>
                     <th
                       class="px-4 py-3 text-center border-l border-gray-200"
@@ -405,11 +405,11 @@ const nextPage = () => {
                       class="px-4 py-3 text-center border-l border-gray-200"
                       rowspan="2"
                     >
-                      Firma
+                      Evidencia
                     </th>
                   </tr>
                   <tr
-                    class="border-b border-gray-200 bg-gray-50 text-text-title text-xs"
+                    class="border-b border-gray-200 text-text-title text-xs"
                   >
                     <th class="px-4 py-1 text-center border-l border-gray-200">
                       Inicio
@@ -617,7 +617,7 @@ const nextPage = () => {
                               d="M7 16V8a2 2 0 012-2h6a2 2 0 012 2v8m-10 0h10m-10 0l-2 2m12-2l2 2"
                             />
                           </svg>
-                          Pendiente por adjuntar evidencia del paciente
+                          Pendiente por adjuntar evidencia
                         </button>
 
                         <div
@@ -662,7 +662,7 @@ const nextPage = () => {
 
             <!-- Pagination -->
             <div
-              class="px-8 py-4 flex items-center justify-between border-t border-gray-100"
+              class="px-8 py-4 flex md:hidden items-center justify-between border-t border-gray-100"
             >
               <!-- Scroll indicator (visual) -->
               <div class="flex items-center gap-2">
@@ -1082,3 +1082,22 @@ const nextPage = () => {
 
   </div>
 </template>
+
+<style scoped>
+.history-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.history-table thead th {
+  border: 1px solid #555 !important;
+  padding: 10px 12px !important;
+  letter-spacing: 0.02em;
+  background: #fff !important;
+}
+
+.history-table tbody td {
+  border: 1px solid #d1d1d1 !important;
+  padding: 12px 8px;
+}
+</style>
