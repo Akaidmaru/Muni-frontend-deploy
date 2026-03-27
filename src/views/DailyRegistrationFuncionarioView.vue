@@ -1,30 +1,14 @@
 <script setup>
-import { ref, computed, nextTick } from "vue";
+import { ref, computed, nextTick, onMounted } from "vue";
 import logoCompleto from "@/assets/images/Logo-completo.png";
 import DashboardSidebar from "@/components/DashboardSidebar.vue";
 import { useAuthStore } from "@/stores/auth";
-import { useTripsStore } from "@/stores/trips";
 import UserMenu from "@/components/UserMenu.vue";
+import api from "@/services/axios";
 
 const auth = useAuthStore();
-const tripsStore = useTripsStore();
-
-// ── Mock data (reemplazar con API) ────────────────────────────────────
-const mockPatients = [
-  { id: 1, name: "Paciente 1" },
-  { id: 2, name: "Paciente 2" },
-  { id: 3, name: "Paciente 3" },
-  { id: 4, name: "Paciente 4" },
-  { id: 5, name: "Paciente 5" },
-  { id: 6, name: "Paciente 6" },
-  { id: 7, name: "Paciente 7" },
-  { id: 8, name: "Paciente 8" },
-  { id: 9, name: "Paciente 9" },
-  { id: 10, name: "Paciente 10" },
-];
-
-// Patente asignada (viene del backend, mock por ahora)
-const assignedPlate = ref("Patente 1");
+const isLoadingRows = ref(false);
+const rowsError = ref("");
 
 // ── Date & Time ────────────────────────────────────────────────────────
 const currentDate = computed(() => {
@@ -33,31 +17,59 @@ const currentDate = computed(() => {
 });
 
 // ── Rows (registros del funcionario) ──────────────────────────────────
-let rowCounter = 1;
-const newRow = () => ({
-  id: rowCounter++,
-  horaInicio: "",
-  horaFinal: "",
-  patente: "",
-  destino: "",
-  firma: "",
-  paciente: null,
-  firmaPaciente: "",
-  firmaPacienteUrl: "",
-});
+const rows = ref([]);
 
-const rows = ref([newRow()]);
-const addRow = () => rows.value.push(newRow());
+const loadRows = async () => {
+  isLoadingRows.value = true;
+  rowsError.value = "";
 
-const saveRow = (row) => {
-  // Patente, destino y horas las completa el conductor; el funcionario no debe
-  // verse bloqueado si aún no están en la fila. Usamos fallback para el historial.
-  const licensePlate =
-    (row.patente && String(row.patente).trim()) ||
-    assignedPlate.value ||
-    "Pendiente";
-  const destination =
-    (row.destino && String(row.destino).trim()) || "Pendiente de conductor";
+  try {
+    const { data } = await api.get("/trip-history", {
+      params: {
+        page: 1,
+        pageSize: 200,
+      },
+    });
+
+    const payloadItems = Array.isArray(data?.items)
+      ? data.items.filter((trip) => trip?.status === "EMPLOYEE_SIGNED")
+      : [];
+
+    rows.value = payloadItems.map((trip) => ({
+      id: trip.id,
+      historyId: trip.id,
+      status: trip.status || "DRIVER_FILLING",
+      horaInicio: trip.startTime || "",
+      horaFinal: trip.endTime || "",
+      patente: trip.truck?.plate || "",
+      destino: trip.destination?.name || "",
+      firma: "",
+      paciente: trip.patient || null,
+      patientOptions: Array.isArray(trip.destination?.patients)
+        ? trip.destination.patients
+        : [],
+      firmaPaciente: "",
+      firmaPacienteUrl: "",
+      isSaved: trip.status === "COMPLETED",
+      isSaving: false,
+    }));
+    currentPage.value = 1;
+  } catch (error) {
+    const backendMessage = error.response?.data?.message;
+    rowsError.value = Array.isArray(backendMessage)
+      ? backendMessage.join(", ")
+      : backendMessage || "No se pudieron cargar los viajes del funcionario.";
+    rows.value = [];
+  } finally {
+    isLoadingRows.value = false;
+  }
+};
+
+const saveRow = async (row) => {
+  if (row.status !== "EMPLOYEE_SIGNED") {
+    alert("Este viaje debe estar finalizado por el conductor para firmarse.");
+    return false;
+  }
 
   if (!row.paciente || !row.firma || !row.firmaPaciente) {
     alert(
@@ -66,20 +78,27 @@ const saveRow = (row) => {
     return false;
   }
 
-  tripsStore.addCompletedTrip({
-    date: currentDate.value,
-    licensePlate,
-    startTime: row.horaInicio,
-    endTime: row.horaFinal,
-    destination,
-    patient: row.paciente ? row.paciente.name : null,
-    patientSignature: Boolean(row.firmaPaciente),
-    signature: Boolean(row.firma),
-  });
+  row.isSaving = true;
 
-  // Opcional: Marcar la fila como guardada para UI feedback
-  row.isSaved = true;
-  return true;
+  try {
+    await api.patch(`/trip-history/${row.historyId}/patient`, {
+      patientId: Number(row.paciente.id),
+    });
+
+    row.status = "COMPLETED";
+    row.isSaved = true;
+    return true;
+  } catch (error) {
+    const backendMessage = error.response?.data?.message;
+    alert(
+      Array.isArray(backendMessage)
+        ? backendMessage.join(", ")
+        : backendMessage || "No se pudo guardar el paciente para este viaje.",
+    );
+    return false;
+  } finally {
+    row.isSaving = false;
+  }
 };
 
 // ── Paciente modal ────────────────────────────────────────────────────
@@ -94,10 +113,27 @@ const closePatientModal = () => {
 };
 
 const filteredPatients = computed(() =>
-  mockPatients.filter((p) =>
+  (patientModal.value.row?.patientOptions || []).filter((p) =>
     p.name.toLowerCase().includes(patientModal.value.search.toLowerCase()),
   ),
 );
+
+const getPatientAvatarLabel = (name) => {
+  const parts = String(name || "")
+    .trim()
+    .split(" ")
+    .filter(Boolean);
+
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+
+  if (parts.length === 1) {
+    return parts[0][0].toUpperCase();
+  }
+
+  return "?";
+};
 
 const selectPatient = (patient) => {
   if (patientModal.value.row) patientModal.value.row.paciente = patient;
@@ -288,7 +324,7 @@ const confirmEvidenceForRow = () => {
 // ── Pagination ────────────────────────────────────────────────────────
 const currentPage = ref(1);
 const rowsPerPage = ref(100);
-const totalRows = ref(200); // mock total
+const totalRows = computed(() => rows.value.length);
 
 const paginatedRows = computed(() => {
   const start = (currentPage.value - 1) * rowsPerPage.value;
@@ -301,6 +337,10 @@ const totalPages = computed(() =>
 );
 
 const paginationLabel = computed(() => {
+  if (totalRows.value === 0) {
+    return "0-0 de 0";
+  }
+
   const start = (currentPage.value - 1) * rowsPerPage.value + 1;
   const end = Math.min(currentPage.value * rowsPerPage.value, totalRows.value);
   return `${start}-${end} de ${totalRows.value}`;
@@ -312,6 +352,10 @@ const prevPage = () => {
 const nextPage = () => {
   if (currentPage.value < totalPages.value) currentPage.value++;
 };
+
+onMounted(() => {
+  loadRows();
+});
 </script>
 
 <template>
@@ -350,7 +394,7 @@ const nextPage = () => {
 
               <div class="flex items-center justify-between mb-3">
                 <span class="font-titles font-semibold text-text-title">
-                  Patente: <span class="text-primary">{{ assignedPlate }}</span>
+                  Funcionario: <span class="text-primary">{{ auth.fullName || auth.user?.email || 'Usuario' }}</span>
                 </span>
                 <span class="text-gray-500 font-body text-sm">{{
                   currentDate
@@ -420,8 +464,21 @@ const nextPage = () => {
                   </tr>
                 </thead>
                 <tbody>
+                  <tr v-if="isLoadingRows">
+                    <td colspan="8" class="px-6 py-12 text-center text-text-secondary">
+                      Cargando viajes...
+                    </td>
+                  </tr>
+
+                  <tr v-else-if="rowsError">
+                    <td colspan="8" class="px-6 py-12 text-center text-red-600">
+                      {{ rowsError }}
+                    </td>
+                  </tr>
+
                   <tr
                     v-for="row in paginatedRows"
+                    v-show="!isLoadingRows && !rowsError"
                     :key="row.id"
                     class="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                   >
@@ -497,24 +554,16 @@ const nextPage = () => {
 
                     <!-- Patente -->
                     <td class="px-4 py-3 border-l border-gray-200 text-center">
-                      <input
-                        type="text"
-                        v-model="row.patente"
-                        :disabled="row.isSaved"
-                        class="bg-transparent outline-none text-sm w-full font-body text-center disabled:text-gray-400 disabled:cursor-not-allowed"
-                        placeholder="Patente"
-                      />
+                      <span class="text-sm font-body" :class="row.patente ? 'text-text-title' : 'text-gray-400'">
+                        {{ row.patente || 'Patente' }}
+                      </span>
                     </td>
 
                     <!-- Destino -->
                     <td class="px-4 py-3 border-l border-gray-200 text-center">
-                      <input
-                        type="text"
-                        v-model="row.destino"
-                        :disabled="row.isSaved"
-                        class="bg-transparent outline-none text-sm w-full font-body text-center disabled:text-gray-400 disabled:cursor-not-allowed"
-                        placeholder="Destino"
-                      />
+                      <span class="text-sm font-body" :class="row.destino ? 'text-text-title' : 'text-gray-400'">
+                        {{ row.destino || 'Destino' }}
+                      </span>
                     </td>
 
                     <!-- Firma -->
@@ -658,6 +707,10 @@ const nextPage = () => {
                   </tr>
                 </tbody>
               </table>
+            </div>
+
+            <div v-if="!isLoadingRows && !rowsError && paginatedRows.length === 0" class="px-8 pb-8 text-center text-text-secondary">
+              No hay viajes disponibles para registrar paciente.
             </div>
 
             <!-- Pagination -->
@@ -866,7 +919,7 @@ const nextPage = () => {
                     : 'bg-gray-100 text-gray-500 group-hover:bg-primary group-hover:text-white'
                 "
               >
-                {{ patient.id }}
+                {{ getPatientAvatarLabel(patient.name) }}
               </div>
               <span
                 class="text-sm font-body transition-colors"

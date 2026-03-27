@@ -1,13 +1,15 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
-import { useAuthStore } from '@/stores/auth'
-import { useTripsStore } from '@/stores/trips'
+import api from '@/services/axios'
 
-const auth = useAuthStore()
-const tripsStore = useTripsStore()
+const travels = ref([])
+const isLoadingTravels = ref(false)
+const travelsError = ref('')
+const totalItems = ref(0)
+const totalPages = ref(1)
 
 // Filter state
 const isFilterOpen = ref(false)
@@ -27,57 +29,118 @@ const filters = ref({
 // Applied state (when user clicks Apply)
 const appliedFilters = ref({ ...filters.value })
 
-// All trips from global store (newest first)
-const allTrips = computed(() => {
-  return [...tripsStore.completedTrips].reverse()
-})
+const formatDate = (value) => {
+  const parsedDate = new Date(value)
+  if (Number.isNaN(parsedDate.getTime())) return ''
 
-// Helper: converts "DD/MM/YYYY" → Date
-const parseDate = (str) => {
-  const [d, m, y] = str.split('/')
-  return new Date(`${y}-${m}-${d}`)
+  const day = String(parsedDate.getDate()).padStart(2, '0')
+  const month = String(parsedDate.getMonth() + 1).padStart(2, '0')
+  const year = parsedDate.getFullYear()
+
+  return `${day}/${month}/${year}`
+}
+
+const loadTravels = async () => {
+  isLoadingTravels.value = true
+  travelsError.value = ''
+
+  try {
+    const { data } = await api.get('/trip-history', {
+      params: {
+        page: currentPage.value,
+        pageSize: Number(itemsPerPage.value),
+        from: appliedFilters.value.from || undefined,
+        to: appliedFilters.value.to || undefined,
+        patient: appliedFilters.value.patient || undefined,
+        license: appliedFilters.value.license || undefined,
+      },
+    })
+
+    const payloadItems = Array.isArray(data?.items)
+      ? data.items.filter((travel) => travel?.status === 'COMPLETED')
+      : []
+
+    travels.value = payloadItems.map((travel) => ({
+      id: travel.id,
+      status: travel.status || 'DRIVER_FILLING',
+      date: formatDate(travel.date),
+      licensePlate: travel.truck?.plate || '-',
+      startTime: travel.startTime || '--:--',
+      endTime: travel.endTime || '--:--',
+      destination: travel.destination?.name || 'Sin destino',
+      signature: travel.status === 'COMPLETED',
+      patient: travel.patient?.name || '-',
+      evidence:
+        travel.evidenceUrl ||
+        travel.evidence?.url ||
+        travel.evidence ||
+        null,
+    }))
+
+    totalItems.value = Number(data?.total) || 0
+    totalPages.value = Math.max(Number(data?.totalPages) || 1, 1)
+    currentPage.value = Number(data?.page) || 1
+  } catch (error) {
+    const backendMessage = error.response?.data?.message
+    travelsError.value = Array.isArray(backendMessage)
+      ? backendMessage.join(', ')
+      : backendMessage || 'No se pudo cargar el historial de viajes.'
+    travels.value = []
+    totalItems.value = 0
+    totalPages.value = 1
+  } finally {
+    isLoadingTravels.value = false
+  }
 }
 
 // Computed filtered travels
-const filteredTravels = computed(() => {
-  return allTrips.value.filter(travel => {
-    let match = true
+const filteredTravels = computed(() => travels.value)
 
-    // Filter by license
-    if (appliedFilters.value.license && travel.licensePlate !== appliedFilters.value.license) {
-      match = false
-    }
-
-    // Filter by patient name (case insensitive)
-    if (appliedFilters.value.patient && (!travel.patient || !travel.patient.toLowerCase().includes(appliedFilters.value.patient.toLowerCase()))) {
-      match = false
-    }
-
-    // Filter by date range (input gives YYYY-MM-DD, data is DD/MM/YYYY)
-    const travelDate = parseDate(travel.date)
-    if (appliedFilters.value.from) {
-      const fromDate = new Date(appliedFilters.value.from)
-      if (travelDate < fromDate) match = false
-    }
-    if (appliedFilters.value.to) {
-      const toDate = new Date(appliedFilters.value.to)
-      if (travelDate > toDate) match = false
-    }
-
-    return match
-  })
+const firstVisibleRow = computed(() => {
+  if (totalItems.value === 0) return 0
+  return (currentPage.value - 1) * Number(itemsPerPage.value) + 1
 })
+
+const lastVisibleRow = computed(() => {
+  if (totalItems.value === 0) return 0
+  return Math.min(currentPage.value * Number(itemsPerPage.value), totalItems.value)
+})
+
+const goToPreviousPage = () => {
+  if (currentPage.value <= 1 || isLoadingTravels.value) return
+  currentPage.value -= 1
+}
+
+const goToNextPage = () => {
+  if (currentPage.value >= totalPages.value || isLoadingTravels.value) return
+  currentPage.value += 1
+}
 
 const applyFilters = () => {
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
+  loadTravels()
 }
 
 const clearFilters = () => {
   filters.value = { from: '', to: '', patient: '', license: '' }
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
+  loadTravels()
 }
+
+onMounted(() => {
+  loadTravels()
+})
+
+watch(itemsPerPage, () => {
+  currentPage.value = 1
+  loadTravels()
+})
+
+watch(currentPage, () => {
+  loadTravels()
+})
 </script>
 
 <template>
@@ -144,20 +207,20 @@ const clearFilters = () => {
                     </tr>
                   </thead>
                   <tbody class="text-center font-body">
-                    <!-- Placeholder Row -->
-                    <tr class="border-b border-gray-200 hover:bg-gray-50/50 transition-colors text-text-secondary">
-                      <td class="px-2 py-6 text-[13px] opacity-60">00/00/0000</td>
-                      <td class="px-2 py-6"></td>
-                      <td class="px-2 py-6 text-xs opacity-60">00:00</td>
-                      <td class="px-2 py-6 border-r border-transparent text-xs opacity-60">00:00</td>
-                      <td class="px-2 py-6 opacity-60 text-sm">Nombre del destino</td>
-                      <td class="px-2 py-6"></td>
-                      <td class="px-4 py-6 text-sm opacity-60 font-medium">Nombre Apellido</td>
-                      <td class="px-4 py-6"></td>
+                    <tr v-if="isLoadingTravels">
+                      <td colspan="8" class="px-3 py-20 text-center text-text-secondary font-medium">
+                        Cargando viajes...
+                      </td>
+                    </tr>
+
+                    <tr v-else-if="travelsError">
+                      <td colspan="8" class="px-3 py-20 text-center text-red-600 font-medium">
+                        {{ travelsError }}
+                      </td>
                     </tr>
 
                     <!-- Actual Data Rows -->
-                    <tr v-for="(travel, index) in filteredTravels" :key="index" class="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                    <tr v-else v-for="travel in filteredTravels" :key="travel.id" class="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                       <td class="px-2 py-5 text-gray-500 text-sm">{{ travel.date }}</td>
                       <td class="px-2 py-5 font-semibold text-text-title">{{ travel.licensePlate }}</td>
                       <td class="px-2 py-5 text-gray-500">{{ travel.startTime }}</td>
@@ -170,14 +233,15 @@ const clearFilters = () => {
                       </td>
                       <td class="px-4 py-5 text-gray-700">{{ travel.patient }}</td>
                       <td class="px-4 py-5">
-                        <div v-if="travel.patientSignature" class="w-full flex justify-center">
-                          <div class="h-1 w-12 bg-primary rounded-full opacity-60 rotate-[-10deg]"></div>
-                        </div>
+                        <a v-if="travel.evidence" :href="travel.evidence" target="_blank" rel="noopener noreferrer" class="text-primary font-semibold hover:underline">
+                          Ver
+                        </a>
+                        <span v-else>-</span>
                       </td>
                     </tr>
                     
                     <!-- Empty State -->
-                    <tr v-if="filteredTravels.length === 0">
+                    <tr v-if="!isLoadingTravels && !travelsError && filteredTravels.length === 0">
                       <td colspan="8" class="px-3 py-20 text-center text-text-secondary font-medium">
                         No hay viajes que coincidan con la búsqueda.
                       </td>
@@ -188,14 +252,14 @@ const clearFilters = () => {
             </div>
 
             <!-- Footer Pagination -->
-            <div class="px-12 md:px-16 py-4 bg-white flex md:hidden justify-between items-center text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
+            <div class="px-12 md:px-16 py-4 bg-white flex justify-between items-center text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
               <div class="flex items-center gap-2">
                 <span>Filas por páginas</span>
                 <div class="relative">
-                  <select v-model="itemsPerPage" class="appearance-none border border-gray-300 rounded-md px-3 py-1.5 pr-8 bg-white outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer">
-                    <option value="10">10</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
+                  <select v-model.number="itemsPerPage" class="appearance-none border border-gray-300 rounded-md px-3 py-1.5 pr-8 bg-white outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer">
+                    <option :value="10">10</option>
+                    <option :value="50">50</option>
+                    <option :value="100">100</option>
                   </select>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
                     <polyline points="6 9 12 15 18 9"></polyline>
@@ -204,14 +268,22 @@ const clearFilters = () => {
               </div>
 
               <div class="font-semibold content-center pl-10">
-                1-{{ Math.min(itemsPerPage, filteredTravels.length) }} de {{ filteredTravels.length > 0 ? filteredTravels.length : 200 }}
+                {{ firstVisibleRow }}-{{ lastVisibleRow }} de {{ totalItems }}
               </div>
 
               <div class="flex items-center gap-1">
-                <button class="p-1.5 hover:bg-gray-100 rounded-md text-gray-600 disabled:opacity-40 transition-colors">
+                <button
+                  @click="goToPreviousPage"
+                  :disabled="currentPage <= 1 || isLoadingTravels"
+                  class="p-1.5 hover:bg-gray-100 rounded-md text-gray-600 disabled:opacity-40 transition-colors"
+                >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
                 </button>
-                <button class="p-1.5 hover:bg-gray-100 rounded-md text-gray-600 disabled:opacity-40 transition-colors">
+                <button
+                  @click="goToNextPage"
+                  :disabled="currentPage >= totalPages || isLoadingTravels"
+                  class="p-1.5 hover:bg-gray-100 rounded-md text-gray-600 disabled:opacity-40 transition-colors"
+                >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                 </button>
               </div>

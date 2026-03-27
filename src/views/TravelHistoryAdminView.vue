@@ -20,7 +20,7 @@ const currentPage = ref(1)
 const filters = ref({
   from: '',
   to: '',
-  name: '',
+  patient: '',
   license: '',
 })
 
@@ -47,7 +47,7 @@ const loadTravels = async () => {
         pageSize: Number(itemsPerPage.value),
         from: appliedFilters.value.from || undefined,
         to: appliedFilters.value.to || undefined,
-        name: appliedFilters.value.name || undefined,
+        patient: appliedFilters.value.patient || undefined,
         license: appliedFilters.value.license || undefined,
       },
     })
@@ -56,6 +56,7 @@ const loadTravels = async () => {
 
     travels.value = payloadItems.map((travel) => ({
       id: travel.id,
+      status: travel.status || 'DRIVER_FILLING',
       date: formatDate(travel.date),
       licensePlate: travel.truck?.plate || '-',
       startTime: travel.startTime || '--:--',
@@ -65,12 +66,8 @@ const loadTravels = async () => {
       endKm: travel.endKm ?? null,
       driver: travel.driver?.name || travel.driver?.email || 'Sin conductor',
       official: travel.employee?.name || travel.employee?.email || 'Sin funcionario',
-      signature: Boolean(travel.endTime),
-      patient:
-        travel.patient?.name ||
-        travel.patient?.fullName ||
-        travel.patientName ||
-        '-',
+      signature: travel.status === 'COMPLETED',
+      patient: travel.patient?.name || '-',
       evidence:
         travel.evidenceUrl ||
         travel.evidence?.url ||
@@ -128,7 +125,7 @@ const applyFilters = () => {
 }
 
 const clearFilters = () => {
-  filters.value = { from: '', to: '', name: '', license: '' }
+  filters.value = { from: '', to: '', patient: '', license: '' }
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
   loadTravels()
@@ -401,12 +398,12 @@ watch(currentPage, () => {
               </div>
 
               <div class="flex flex-col mt-2 relative">
-                <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Nombres</label>
+                <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Paciente</label>
                 <div class="relative">
                   <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                   </div>
-                  <input type="text" v-model="filters.name" placeholder="Escribe el nombre..." class="pl-8 pr-3 py-2.5 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-700 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary placeholder-gray-400" />
+                  <input type="text" v-model="filters.patient" placeholder="Escribe el nombre..." class="pl-8 pr-3 py-2.5 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-700 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary placeholder-gray-400" />
                 </div>
               </div>
 
