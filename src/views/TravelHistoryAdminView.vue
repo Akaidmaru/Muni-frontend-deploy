@@ -41,7 +41,7 @@ const loadTravels = async () => {
   travelsError.value = ''
 
   try {
-    const { data } = await api.get('/trip-history', {
+    const { data } = await api.get('/trip-history/admin', {
       params: {
         page: currentPage.value,
         pageSize: Number(itemsPerPage.value),
