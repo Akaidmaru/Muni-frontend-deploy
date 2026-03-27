@@ -6,8 +6,11 @@ export const useAuthStore = defineStore('auth', () => {
     // ── State ──────────────────────────────────────────────────────────────
     const token = ref(null)
     const user = ref(null) // { id, email, name, role }
-    const role = ref(null) // 'ADMIN' | 'PATIENT' | 'DRIVER' | 'EMPLOYEE'
-    const VALID_ROLES = ['ADMIN', 'PATIENT', 'DRIVER', 'EMPLOYEE']
+    const role = ref(null) // 'ADMIN' | 'DRIVER' | 'EMPLOYEE'
+    const VALID_ROLES = ['ADMIN', 'DRIVER', 'EMPLOYEE']
+    const SESSION_SYNC_INTERVAL_MS = 15000
+    const lastSessionSyncAt = ref(0)
+    const isSyncingSession = ref(false)
 
     // ── Getters ────────────────────────────────────────────────────────────
     const isAuthenticated = computed(() => !!token.value)
@@ -32,7 +35,6 @@ export const useAuthStore = defineStore('auth', () => {
     function normalizeRole(rawRole) {
         const roleMap = {
             ADMIN: 'ADMIN',
-            PATIENT: 'PATIENT',
             DRIVER: 'DRIVER',
             EMPLOYEE: 'EMPLOYEE',
         }
@@ -58,6 +60,8 @@ export const useAuthStore = defineStore('auth', () => {
             role.value = normalizedRole
             localStorage.setItem('role', normalizedRole)
         }
+
+        lastSessionSyncAt.value = Date.now()
     }
 
     // ── Actions ────────────────────────────────────────────────────────────
@@ -89,6 +93,47 @@ export const useAuthStore = defineStore('auth', () => {
             } catch {
                 logout()
             }
+        }
+
+        lastSessionSyncAt.value = 0
+    }
+
+    async function syncCurrentUser(force = false) {
+        if (!token.value) {
+            return { success: false, message: 'Sin token de sesión' }
+        }
+
+        if (isSyncingSession.value) {
+            return { success: true }
+        }
+
+        const now = Date.now()
+        if (
+            !force &&
+            lastSessionSyncAt.value > 0 &&
+            now - lastSessionSyncAt.value < SESSION_SYNC_INTERVAL_MS
+        ) {
+            return { success: true }
+        }
+
+        isSyncingSession.value = true
+
+        try {
+            const { data } = await api.get('/auth/me')
+            const normalizedRole = normalizeRole(data?.role)
+
+            if (!data?.id || !data?.email || !normalizedRole) {
+                logout()
+                return { success: false, message: 'Sesión inválida' }
+            }
+
+            setSession(token.value, data, normalizedRole)
+            return { success: true }
+        } catch {
+            logout()
+            return { success: false, message: 'Sesión expirada o inválida' }
+        } finally {
+            isSyncingSession.value = false
         }
     }
 
@@ -132,6 +177,7 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.removeItem('token')
         localStorage.removeItem('user')
         localStorage.removeItem('role')
+        lastSessionSyncAt.value = 0
     }
 
     return {
@@ -150,6 +196,7 @@ export const useAuthStore = defineStore('auth', () => {
         initials,
         // actions
         loadFromStorage,
+        syncCurrentUser,
         login,
         logout,
     }

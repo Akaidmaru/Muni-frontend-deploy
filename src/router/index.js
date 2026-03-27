@@ -134,12 +134,19 @@ const router = createRouter({
 })
 
 // ── Navigation Guard ──────────────────────────────────────────────────────
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
     const auth = useAuthStore()
 
     // Cargar sesión si hay token guardado
     if (!auth.isAuthenticated) {
         auth.loadFromStorage()
+    }
+    
+    if (auth.isAuthenticated) {
+        const syncResult = await auth.syncCurrentUser()
+        if (!syncResult.success && to.name !== 'login') {
+            return next({ name: 'login' })
+        }
     }
 
     // Si la ruta requiere autenticación
@@ -160,7 +167,6 @@ router.beforeEach((to, from, next) => {
             DRIVER: 'dashboard',
             EMPLOYEE: 'dashboard',
             ADMIN: 'dashboard-admin',
-            PATIENT: 'dashboard-paciente',
         }
         return next({ name: roleRoutes[auth.userRole] || 'dashboard' })
     }
