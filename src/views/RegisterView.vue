@@ -63,8 +63,8 @@ const handleSubmit = async () => {
          occupationId: Number(occupation.value),
       })
 
-      successMessage.value = 'Registro exitoso. Ahora inicia sesión.'
-      setTimeout(() => router.push('/clientes'), 1200)
+      // Navigate to email verification after successful registration
+      router.push({ name: 'verify-email', query: { email: email.value } })
    } catch (err) {
       const backendMessage = err.response?.data?.message
       error.value = Array.isArray(backendMessage)

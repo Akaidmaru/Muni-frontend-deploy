@@ -8,7 +8,7 @@ import WhatsAppFAB from './components/WhatsAppFAB.vue'
 const route = useRoute()
 
 // Páginas donde NO se muestra Navbar/Footer/FAB
-const hiddenPaths = ['/clientes', '/registro']
+const hiddenPaths = ['/clientes', '/registro', '/verificar-correo']
 const isPublicPage = computed(() =>
   !route.meta.requiresAuth && !hiddenPaths.includes(route.path)
 )
