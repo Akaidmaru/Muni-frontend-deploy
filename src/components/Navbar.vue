@@ -20,7 +20,7 @@ import { RouterLink } from 'vue-router'
           Servicios
         </router-link>
          <router-link 
-          v-if="!['/clientes', '/registro'].includes($route.path)"
+          v-if="!['/clientes', '/registro', '/VerifyEmail'].includes($route.path)"
           to="/clientes" 
           class="bg-primary hover:bg-primary-hover text-button text-white font-button text-btn font-bold px-6 py-2 rounded-lg transition-all duration-200 text-center min-w-[120px] hover:shadow-[0_4px_14px_0_rgba(0,0,0,0.39)] hover:-translate-y-1 active:scale-95 transform"
         >

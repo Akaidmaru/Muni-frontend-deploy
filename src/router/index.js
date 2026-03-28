@@ -4,6 +4,7 @@ import HomeView from '../views/HomeView.vue'
 import ServicesView from '../views/ServicesView.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
+import VerifyEmailView from '../views/VerifyEmailView.vue'
 import ContactView from '../views/ContactView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import DailyRegistrationView from '../views/DailyRegistrationView.vue'
@@ -41,6 +42,11 @@ const router = createRouter({
             path: '/registro',
             name: 'register',
             component: RegisterView
+        },
+        {
+            path: '/verificar-correo',
+            name: 'verify-email',
+            component: VerifyEmailView
         },
         {
             path: '/contacto',
