@@ -63,8 +63,22 @@ const handleSubmit = async () => {
          occupationId: Number(occupation.value),
       })
 
+      let verificationSent = false
+      try {
+         await api.post('/auth/send-verification-code', { email: email.value })
+         verificationSent = true
+      } catch {
+         verificationSent = false
+      }
+
       // Navigate to email verification after successful registration
-      router.push({ name: 'verify-email', query: { email: email.value } })
+      router.push({
+         name: 'verify-email',
+         query: {
+            email: email.value,
+            sent: verificationSent ? '1' : '0',
+         },
+      })
    } catch (err) {
       const backendMessage = err.response?.data?.message
       error.value = Array.isArray(backendMessage)
