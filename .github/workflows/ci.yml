@@ -1,0 +1,34 @@
+# Compila la imagen Docker en cada push/PR. No publica en GHCR ni despliega a servidores.
+#
+# VITE_API_BASE_URL (opcional en GitHub → Secrets: VITE_API_BASE_URL):
+#   URL pública del API para empaquetar en el bundle. Si no está definida en CI, se usa
+#   un valor por defecto solo para validar el build (no uses ese default en producción).
+
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-frontend-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Docker build (valida Dockerfile + Vite)
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+        run: |
+          set -euo pipefail
+          URL="${VITE_API_BASE_URL:-http://127.0.0.1:3000}"
+          docker build \
+            --build-arg "VITE_API_BASE_URL=${URL}" \
+            -t transport-frontend:ci .
