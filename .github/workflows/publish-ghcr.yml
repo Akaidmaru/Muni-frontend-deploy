@@ -1,9 +1,12 @@
-# Publicación manual a GHCR. Requiere secret VITE_API_BASE_URL (URL del API en producción).
-# No despliega a EC2/Ansible. Ejecutar: Actions → "Publish to GHCR" → Run workflow.
+# Publicación automática a GHCR en push a refactor/structure
+# También se puede ejecutar manualmente desde Actions
 
 name: Publish to GHCR
 
 on:
+  push:
+    branches:
+      - refactor/structure
   workflow_dispatch:
 
 permissions:
