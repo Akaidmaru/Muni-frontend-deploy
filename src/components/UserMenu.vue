@@ -10,6 +10,8 @@ const open   = ref(false)
 const toggle = () => { open.value = !open.value }
 const close  = () => { open.value = false }
 
+
+
 const handleLogout = () => {
   auth.logout()
   router.push('/')
@@ -55,6 +57,8 @@ const handleLogout = () => {
           <p class="text-sm font-semibold text-text-title font-titles">{{ auth.fullName }}</p>
           <p class="text-xs text-text-secondary font-body mt-0.5">{{ auth.user?.email }}</p>
         </div>
+
+
 
         <!-- Cerrar sesión -->
         <button

@@ -166,7 +166,7 @@ watch(currentPage, () => {
       <DashboardSidebar />
 
       <!-- Main content -->
-      <main class="flex-1 py-10 px-6 overflow-hidden flex items-start justify-center">
+      <main class="flex-1 pt-16 pb-10 px-3 overflow-hidden flex items-start justify-center">
         <div class="flex gap-6 w-full max-w-5xl h-full min-h-0">
           
           <!-- Main Card (Table) -->

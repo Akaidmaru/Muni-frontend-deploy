@@ -213,7 +213,7 @@ watch(currentPage, () => {
     <div class="flex flex-1 overflow-hidden min-w-0">
       <DashboardSidebar />
 
-      <main class="flex-1 py-10 px-4 md:px-6 overflow-hidden flex items-start justify-center min-w-0">
+      <main class="flex-1 pt-16 pb-10 px-2 md:px-3 overflow-hidden flex items-start justify-center min-w-0">
         <div class="flex gap-6 w-full h-full min-h-0 min-w-0">
         <div :class="[
           'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative min-w-0',
