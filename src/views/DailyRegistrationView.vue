@@ -806,7 +806,10 @@ onMounted(() => {
 
                     <!-- Firma -->
                     <td class="px-6 py-4 border-l border-gray-200 text-center align-middle">
-                      <div v-if="trip.signature || trip.signatureDataUrl" class="flex flex-col items-center justify-center text-green-500" title="Firmado">
+                      <div v-if="trip.signatureDataUrl" class="flex justify-center items-center w-full" title="Firmado">
+                        <img :src="trip.signatureDataUrl" alt="Firma" class="h-10 w-auto object-contain bg-white rounded shadow-sm border border-gray-100" />
+                      </div>
+                      <div v-else-if="trip.signature" class="flex flex-col items-center justify-center text-green-500" title="Firmado">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                       </div>
                       <button 
