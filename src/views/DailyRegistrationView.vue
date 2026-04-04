@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, nextTick } from "vue";
 import logoCompleto from "@/assets/images/Logo-completo.png";
 import DashboardSidebar from "@/components/DashboardSidebar.vue";
 import { useAuthStore } from "@/stores/auth";
@@ -27,6 +27,7 @@ const loadDestinations = async () => {
           .map((destination) => ({
             id: destination.id,
             name: destination.name,
+            patients: destination.patients || [],
           }))
       : [];
   } catch (error) {
@@ -155,6 +156,167 @@ const cancelStep2 = () => {
   changePlateModal.value.step = 0;
 };
 
+// --- Signature Canvas Logic ---
+const signatureCanvas = ref(null);
+let isDrawing = false;
+let ctx = null;
+const signatureError = ref("");
+let hasSignature = false;
+
+const initCanvas = () => {
+  if (!signatureCanvas.value) return;
+  const canvas = signatureCanvas.value;
+  // Fit canvas to parent container or fixed size
+  canvas.width = canvas.offsetWidth || 400;
+  canvas.height = 200;
+  ctx = canvas.getContext("2d");
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  
+  // Clear background properly
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  hasSignature = false;
+  signatureError.value = "";
+};
+
+const getPointerPos = (e) => {
+  const canvas = signatureCanvas.value;
+  const rect = canvas.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return {
+    x: clientX - rect.left,
+    y: clientY - rect.top,
+  };
+};
+
+const startDrawing = (e) => {
+  if (!ctx) return;
+  e.preventDefault(); // prevent scrolling on touch
+  isDrawing = true;
+  const pos = getPointerPos(e);
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+};
+
+const draw = (e) => {
+  if (!isDrawing || !ctx) return;
+  e.preventDefault();
+  const pos = getPointerPos(e);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+  hasSignature = true;
+};
+
+const stopDrawing = () => {
+  if (!isDrawing) return;
+  isDrawing = false;
+  if (ctx) ctx.closePath();
+};
+
+const clearSignature = () => {
+  if (!signatureCanvas.value || !ctx) return;
+  const canvas = signatureCanvas.value;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  hasSignature = false;
+  signatureError.value = "";
+};
+
+// ── Modal de Pacientes ────────────────────────────────────────────────
+const patientModal = ref({ open: false, trip: null });
+const tempSelectedPatients = ref([]);
+
+const openPatientModal = (trip) => {
+  if (!trip.destination) {
+    tripActionError.value = "Seleccione un destino primero para agregar pacientes.";
+    return;
+  }
+  patientModal.value = { open: true, trip };
+  tempSelectedPatients.value = [...(trip.patients || [])];
+};
+
+const closePatientModal = () => {
+  patientModal.value = { open: false, trip: null };
+  tempSelectedPatients.value = [];
+};
+
+const togglePatientSelection = (patientId) => {
+  const index = tempSelectedPatients.value.indexOf(patientId);
+  if (index === -1) {
+    tempSelectedPatients.value.push(patientId);
+  } else {
+    tempSelectedPatients.value.splice(index, 1);
+  }
+};
+
+const savePatientModal = () => {
+  if (patientModal.value.trip) {
+    patientModal.value.trip.patients = [...tempSelectedPatients.value];
+  }
+  closePatientModal();
+};
+
+const getDestinationPatients = (destId) => {
+  const dest = destinations.value.find((d) => d.id === destId);
+  return dest?.patients || [];
+};
+
+const getPatientNames = (trip) => {
+  if (!trip.patients || trip.patients.length === 0) return "Seleccionar Pacientes";
+  const allPatients = getDestinationPatients(trip.destination);
+  const names = trip.patients.map((id) => allPatients.find((p) => p.id === id)?.name).filter(Boolean);
+  return names.length > 0 ? names.join(", ") : "Seleccionar Pacientes";
+};
+
+const getPatientNamesAsArray = (trip) => {
+  if (!trip.patients || trip.patients.length === 0) return [];
+  const allPatients = getDestinationPatients(trip.destination);
+  return trip.patients.map((id) => allPatients.find((p) => p.id === id)?.name).filter(Boolean);
+};
+
+// ── Modal de Firma Independiente ──────────────────────────────────────
+const signatureModal = ref({ open: false, trip: null, autoConfirm: false });
+
+const openSignatureModal = (trip, autoConfirm = false) => {
+  if (stopTripModal.value.open) {
+    stopTripModal.value.open = false;
+  }
+  signatureModal.value = { open: true, trip, autoConfirm };
+  signatureError.value = "";
+  nextTick(() => {
+    initCanvas();
+  });
+};
+
+const closeSignatureModal = () => {
+  signatureModal.value = { open: false, trip: null, autoConfirm: false };
+};
+
+const saveSignatureBtn = () => {
+  const trip = signatureModal.value.trip;
+  if (!trip) return;
+  if (!hasSignature) {
+    signatureError.value = "Por favor firme antes de guardar.";
+    return;
+  }
+  trip.signatureDataUrl = signatureCanvas.value.toDataURL("image/png");
+  trip.signature = true;
+  
+  const autoConfirm = signatureModal.value.autoConfirm;
+  closeSignatureModal();
+
+  if (autoConfirm) {
+    setTimeout(() => {
+      openStopTrip(trip);
+    }, 200);
+  }
+};
+
 // ── Detener viaje modal ──────────────────────────────────────────────
 const stopTripModal = ref({ open: false, trip: null });
 
@@ -174,13 +336,28 @@ const confirmStopTrip = async () => {
         return;
       }
 
+      if (!trip.signatureDataUrl) {
+        return; // Debe firmar primero
+      }
+      
       const endTime = getCurrentTime();
       const { data } = await api.patch(
         `/trip-history/${trip.historyId}/finish`,
         {
           endTime,
+          signature: trip.signatureDataUrl,
         },
       );
+
+      // Asignar pacientes si los hay
+      /*
+      if (trip.patients && trip.patients.length > 0) {
+        await api.patch(`/trip-history/${trip.historyId}/patient`, {
+          patientIds: trip.patients,
+        });
+      }
+      */
+
       trip.endTime = data?.endTime || endTime;
 
       trip.status = "done";
@@ -223,6 +400,9 @@ const newTrip = () => ({
   endTime: null,
   isSaving: false,
   status: "idle", // 'idle' | 'running' | 'done'
+  patients: [],
+  signature: false,
+  signatureDataUrl: null,
 });
 
 const trips = ref([]);
@@ -470,6 +650,12 @@ onMounted(() => {
                     <th class="px-6 py-3 text-center border-l border-gray-200">
                       Funcionario
                     </th>
+                    <th class="px-6 py-3 text-center border-l border-gray-200">
+                      Firma
+                    </th>
+                    <!-- <th class="px-6 py-3 text-center border-l border-gray-200 w-48">
+                      Paciente
+                    </th> -->
                   </tr>
                 </thead>
                 <tbody>
@@ -617,6 +803,65 @@ onMounted(() => {
                         {{ trip.employee ? trip.employee.name : "—" }}
                       </span>
                     </td>
+
+                    <!-- Firma -->
+                    <td class="px-6 py-4 border-l border-gray-200 text-center align-middle">
+                      <div v-if="trip.signature || trip.signatureDataUrl" class="flex flex-col items-center justify-center text-green-500" title="Firmado">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                      </div>
+                      <button 
+                        v-else 
+                        @click="openSignatureModal(trip)"
+                        class="text-sm font-semibold text-[#215179] hover:text-blue-700 underline transition-colors"
+                      >
+                        Firmar
+                      </button>
+                    </td>
+
+                    <!-- Paciente -->
+                    <!-- 
+                    <td class="px-6 py-4 border-l border-gray-200 align-middle">
+                      <button
+                        v-if="trip.status !== 'done'"
+                        type="button"
+                        @click="openPatientModal(trip)"
+                        class="flex w-full text-sm outline-none group"
+                        :class="
+                           trip.patients?.length ? 'text-text-title font-semibold' : 'text-gray-300'
+                        "
+                      >
+                        <div class="flex flex-wrap gap-1 w-full text-left">
+                           <span v-if="!trip.patients || trip.patients.length === 0">Seleccionar Pacientes</span>
+                           <template v-else>
+                             <span v-for="(pName, i) in getPatientNamesAsArray(trip)" :key="i" class="inline-block bg-blue-50 text-[#215179] px-2 py-0.5 rounded text-xs border border-blue-200">
+                               {{ pName }}
+                             </span>
+                           </template>
+                        </div>
+                        <svg
+                          class="w-3 h-3 text-gray-400 ml-1 mt-1 shrink-0 group-hover:text-primary transition-colors"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"
+                          />
+                        </svg>
+                      </button>
+                      <div v-else class="flex flex-wrap gap-1 w-full">
+                         <span v-if="!trip.patients || trip.patients.length === 0" class="text-sm text-gray-400">Sin Pacientes</span>
+                         <template v-else>
+                             <span v-for="(pName, i) in getPatientNamesAsArray(trip)" :key="i" class="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs border border-gray-200">
+                               {{ pName }}
+                             </span>
+                         </template>
+                      </div>
+                    </td> 
+                    -->
                   </tr>
                 </tbody>
               </table>
@@ -649,6 +894,82 @@ onMounted(() => {
         </div>
       </main>
     </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- MODAL: Seleccionar Paciente(s) (COMENTADO) -->
+    <!-- ═══════════════════════════════════════ -->
+    <!--
+    <transition
+      enter-active-class="transition duration-150 ease-out"
+      enter-from-class="opacity-0 scale-95"
+      enter-to-class="opacity-100 scale-100"
+      leave-active-class="transition duration-100 ease-in"
+      leave-from-class="opacity-100 scale-100"
+      leave-to-class="opacity-0 scale-95"
+    >
+      <div
+        v-if="patientModal.open"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+      >
+        <div class="absolute inset-0 bg-black/40" @click="closePatientModal" />
+        <div
+          class="relative bg-white rounded-2xl w-full max-w-sm z-10 p-6 flex flex-col max-h-[80vh] shadow-[0_30px_80px_-5px_rgba(0,0,0,0.5),0_0_0_1px_rgba(0,0,0,0.06)]"
+        >
+          <button
+            @click="closePatientModal"
+            class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+          
+          <h3 class="font-titles font-bold text-text-title text-center text-xl mb-4">
+            Seleccionar Pacientes
+          </h3>
+
+          <div class="flex-1 overflow-y-auto mb-4 custom-scrollbar pr-2">
+            <div v-if="getDestinationPatients(patientModal.trip?.destination).length === 0" class="text-sm text-gray-500 text-center py-4">
+              Actualmente no hay pacientes registrados para este destino. 
+            </div>
+            <div
+              v-else
+              v-for="p in getDestinationPatients(patientModal.trip?.destination)"
+              :key="p.id"
+              class="flex items-center gap-3 p-3 mb-2 rounded-xl transition-all duration-200 cursor-pointer border border-transparent hover:bg-gray-50"
+              @click="togglePatientSelection(p.id)"
+            >
+              <input 
+                type="checkbox" 
+                :checked="tempSelectedPatients.includes(p.id)"
+                class="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary cursor-pointer pointer-events-none"
+              />
+              <span class="text-sm font-body text-text-title font-medium flex-1">
+                {{ p.name }}
+              </span>
+            </div>
+          </div>
+
+          <button
+            @click="savePatientModal"
+            class="w-full py-3 bg-[#215179] hover:bg-blue-900 text-white font-bold rounded-lg shadow transition-all duration-200"
+          >
+            Confirmar Selección
+          </button>
+        </div>
+      </div>
+    </transition>
+    -->
 
     <!-- ═══════════════════════════════════════ -->
     <!-- MODAL PASO 1: ¿Está seguro?             -->
@@ -827,26 +1148,144 @@ onMounted(() => {
             </svg>
           </button>
           <!-- Título -->
-          <h3
-            class="font-titles font-bold text-text-title text-center text-2xl mb-5"
-          >
+          <h3 class="font-titles font-bold text-text-title text-center text-2xl mb-5">
             Detener viaje
           </h3>
-          <!-- Texto -->
-          <p class="text-base text-text-secondary font-body text-center mb-8">
-            ¿Está seguro de finalizar el viaje?
+          
+          <template v-if="!stopTripModal.trip?.signatureDataUrl">
+            <p class="text-base text-red-600 font-body text-center font-semibold mb-8">
+              Es necesario la recolección de la firma para terminar el viaje.
+            </p>
+            <div class="flex gap-4 justify-center">
+              <button
+                @click="openSignatureModal(stopTripModal.trip, true)"
+                class="px-8 py-3 bg-[#215179] hover:bg-blue-800 text-white font-bold rounded-lg shadow transition-all duration-200"
+              >
+                Firmar ahora
+              </button>
+              <button
+                @click="cancelStopTrip"
+                class="px-8 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold rounded-lg shadow transition-all duration-200"
+              >
+                Cancelar
+              </button>
+            </div>
+          </template>
+
+          <template v-else>
+            <p class="text-base text-text-secondary font-body text-center mb-8">
+              ¿Está seguro de finalizar el viaje?
+            </p>
+            <div class="flex gap-4 justify-center">
+              <button
+                @click="confirmStopTrip"
+                class="px-8 py-3 bg-[#9B2335] hover:bg-red-800 text-white font-bold rounded-lg shadow transition-all duration-200"
+              >
+                Confirmar
+              </button>
+              <button
+                @click="cancelStopTrip"
+                class="px-8 py-3 bg-[#215179] hover:bg-blue-900 text-white font-bold rounded-lg shadow transition-all duration-200"
+              >
+                Cancelar
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- MODAL: Firma del funcionario            -->
+    <!-- ═══════════════════════════════════════ -->
+    <transition
+      enter-active-class="transition duration-150 ease-out"
+      enter-from-class="opacity-0 scale-95"
+      enter-to-class="opacity-100 scale-100"
+      leave-active-class="transition duration-100 ease-in"
+      leave-from-class="opacity-100 scale-100"
+      leave-to-class="opacity-0 scale-95"
+    >
+      <div
+        v-if="signatureModal.open"
+        class="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      >
+        <div class="absolute inset-0 bg-black/40" @click="closeSignatureModal" />
+        <div
+          class="relative bg-white rounded-2xl w-full max-w-lg z-10 p-10 shadow-[0_30px_80px_-5px_rgba(0,0,0,0.5),0_0_0_1px_rgba(0,0,0,0.06)]"
+        >
+          <!-- X -->
+          <button
+            @click="closeSignatureModal"
+            class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+          
+          <h3 class="font-titles font-bold text-text-title text-center text-2xl mb-5">
+            Firma del funcionario
+          </h3>
+          <p class="text-base text-text-secondary font-body text-center mb-4">
+            Por favor, firme a continuación en el recuadro:
           </p>
+          
+          <!-- Canvas de firma -->
+          <div class="mb-6">
+            <div class="border-2 border-dashed border-gray-300 rounded-xl overflow-hidden bg-gray-50 touch-none relative">
+              <canvas
+                ref="signatureCanvas"
+                class="w-full cursor-crosshair touch-none block"
+                @mousedown="startDrawing"
+                @mousemove="draw"
+                @mouseup="stopDrawing"
+                @mouseleave="stopDrawing"
+                @touchstart="startDrawing"
+                @touchmove="draw"
+                @touchend="stopDrawing"
+                @touchcancel="stopDrawing"
+              ></canvas>
+              <div v-if="!hasSignature" class="absolute inset-0 flex flex-col items-center justify-center font-body text-gray-300 pointer-events-none select-none">
+                <svg class="w-8 h-8 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                <span>Firme aquí</span>
+              </div>
+            </div>
+            <div class="flex justify-between items-center mt-2">
+              <p v-if="signatureError" class="text-sm text-red-600 font-body m-0">
+                {{ signatureError }}
+              </p>
+              <button
+                type="button"
+                @click="clearSignature"
+                class="text-sm text-gray-500 hover:text-red-600 underline font-body transition-colors ml-auto"
+              >
+                Limpiar firma
+              </button>
+            </div>
+          </div>
+          
           <!-- Botones -->
           <div class="flex gap-4 justify-center">
             <button
-              @click="confirmStopTrip"
-              class="px-8 py-3 bg-[#9B2335] hover:bg-red-800 text-white font-bold rounded-lg shadow transition-all duration-200"
+              @click="saveSignatureBtn"
+              class="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow transition-all duration-200"
             >
-              Confirmar
+              Guardar Firma
             </button>
             <button
-              @click="cancelStopTrip"
-              class="px-8 py-3 bg-[#215179] hover:bg-blue-900 text-white font-bold rounded-lg shadow transition-all duration-200"
+              @click="closeSignatureModal"
+              class="px-8 py-3 bg-gray-400 hover:bg-gray-500 text-white font-bold rounded-lg shadow transition-all duration-200"
             >
               Cancelar
             </button>
