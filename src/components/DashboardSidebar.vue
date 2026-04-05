@@ -4,6 +4,13 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import registroIcon from '@/assets/images/Registro.png'
 import historialIcon from '@/assets/images/Historial.png'
+import tableIcon from '@/assets/images/Images admin nabvar left/table.png'
+import warningIcon from '@/assets/images/admin/warning.png'
+import repairIcon from '@/assets/images/admin/repair.png'
+import anadirGrupoIcon from '@/assets/images/Images admin nabvar left/anadir-grupo.png'
+import camionIcon from '@/assets/images/Images admin nabvar left/camion.png'
+import destinoIcon from '@/assets/images/Images admin nabvar left/destino.png'
+import viajesIcon from '@/assets/images/Images admin nabvar left/agencia-de-viajes.png'
 import ReportProblemModal from './ReportProblemModal.vue'
 
 const router = useRouter()
@@ -23,10 +30,20 @@ const allNavItems = {
     { label: 'Historial de\nviajes', path: '/historial-viajes-funcionario', icon: historialIcon, alt: 'Historial de viajes' }
   ],
   ADMIN: [
-    { label: 'Gestión de\nusuarios', path: '/admin/gestion-usuarios', icon: registroIcon,  alt: 'Gestión de usuarios' },
-    { label: 'Historial de\nviajes', path: '/historial-viajes-admin', icon: historialIcon, alt: 'Historial de viajes' }
-    ,{ label: 'Reportes',            path: '/admin/reportes',         emoji: '📊', alt: 'Reportes' }
-    ,{ label: 'Mantención\nvehicular', path: '/admin/mantencion-vehicular', emoji: '🚚', alt: 'Mantención vehicular' }
+    { 
+      label: 'Registro', 
+      icon: tableIcon,  
+      alt: 'Registro',
+      subItems: [
+        { label: 'Usuarios', path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Usuarios' },
+        { label: 'Vehículos', path: '/admin/vehiculos', icon: camionIcon, alt: 'Vehículos' },
+        { label: 'Destinos', path: '/admin/destinos', icon: destinoIcon, alt: 'Destinos' },
+        { label: 'Viajes', path: '/admin/viajes', icon: viajesIcon, alt: 'Viajes' }
+      ]
+    },
+    { label: 'Historial de\nviajes', path: '/historial-viajes-admin', icon: historialIcon, alt: 'Historial de viajes' },
+    { label: 'Reportes', path: '/admin/reportes', icon: warningIcon, alt: 'Reportes' },
+    { label: 'Mantenimiento\nvehicular', path: '/admin/mantencion-vehicular', icon: repairIcon, alt: 'Mantenimiento vehicular' }
   ],
 }
 
@@ -34,6 +51,15 @@ const allNavItems = {
 const navItems = allNavItems[auth.userRole] || allNavItems.DRIVER
 
 const isActive = (path) => route.path === path
+const isSubItemActive = (subItems) => subItems.some(sub => route.path === sub.path)
+
+const openDropdowns = ref({
+  'Registro': true // Opcional: Para que inicie abierto si estamos en una ruta de registro
+})
+
+const toggleDropdown = (label) => {
+  openDropdowns.value[label] = !openDropdowns.value[label]
+}
 
 const navigate = (path) => {
   router.push(path)
@@ -87,33 +113,67 @@ const reportProblem = () => {
         </button>
 
         <!-- Items de navegación -->
-        <nav class="flex flex-col gap-1 pt-6 px-2 flex-1">
-          <button
-            v-for="item in navItems"
-            :key="item.path"
-            @click="navigate(item.path)"
-            class="flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-150 w-full text-left group"
-            :class="isActive(item.path)
-              ? 'bg-blue-50 text-primary'
-              : 'text-text-title hover:bg-gray-50 hover:text-primary'"
-          >
-            <img
-              v-if="item.icon"
-              :src="item.icon"
-              :alt="item.alt"
-              class="w-8 h-8 shrink-0 object-contain transition-transform duration-150 group-hover:scale-110"
-            />
-            <span
-              v-else
-              class="w-8 h-8 shrink-0 flex items-center justify-center text-xl transition-transform duration-150 group-hover:scale-110"
+        <nav class="flex flex-col gap-1 pt-6 px-2 flex-1 overflow-y-auto">
+          <template v-for="item in navItems" :key="item.label">
+            <!-- Botón Principal o Padre de Dropdown -->
+            <button
+              @click="item.subItems ? toggleDropdown(item.label) : navigate(item.path)"
+              class="flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-150 w-full text-left group relative"
+              :class="(item.path && isActive(item.path)) || (item.subItems && isSubItemActive(item.subItems))
+                ? 'bg-blue-50 text-primary'
+                : 'text-text-title hover:bg-gray-50 hover:text-primary'"
             >
-              {{ item.emoji }}
-            </span>
-            <span
-              class="text-sm font-titles font-semibold leading-tight whitespace-pre-line"
-              :class="isActive(item.path) ? 'text-primary' : 'text-text-title'"
-            >{{ item.label }}</span>
-          </button>
+              <img
+                v-if="item.icon"
+                :src="item.icon"
+                :alt="item.alt"
+                class="w-8 h-8 shrink-0 object-contain transition-transform duration-150 group-hover:scale-110"
+              />
+              <span
+                v-else-if="item.emoji"
+                class="w-8 h-8 shrink-0 flex items-center justify-center text-xl transition-transform duration-150 group-hover:scale-110"
+              >
+                {{ item.emoji }}
+              </span>
+              <span
+                class="text-sm font-titles font-semibold leading-tight whitespace-pre-line flex-1"
+                :class="(item.path && isActive(item.path)) || (item.subItems && isSubItemActive(item.subItems)) ? 'text-primary' : 'text-text-title'"
+              >{{ item.label }}</span>
+              
+              <!-- Icono flecha para dropdown -->
+              <svg v-if="item.subItems" 
+                   xmlns="http://www.w3.org/2000/svg" 
+                   class="w-4 h-4 text-gray-400 transition-transform duration-200"
+                   :class="openDropdowns[item.label] ? 'rotate-180' : ''"
+                   fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <!-- Contenido del Dropdown -->
+            <div v-if="item.subItems && openDropdowns[item.label]" class="flex flex-col gap-1 mt-1 ml-4 border-l-2 border-gray-100 pl-2">
+              <button
+                v-for="sub in item.subItems"
+                :key="sub.path"
+                @click="navigate(sub.path)"
+                class="flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 w-full text-left group"
+                :class="isActive(sub.path)
+                  ? 'bg-blue-50 text-primary font-semibold'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-primary'"
+              >
+                <img
+                  v-if="sub.icon"
+                  :src="sub.icon"
+                  :alt="sub.alt"
+                  class="w-6 h-6 shrink-0 object-contain transition-transform duration-150 group-hover:scale-110"
+                />
+                <span
+                  class="text-xs font-titles"
+                  :class="isActive(sub.path) ? 'text-primary font-semibold' : 'text-gray-600 group-hover:text-primary'"
+                >{{ sub.label }}</span>
+              </button>
+            </div>
+          </template>
         </nav>
 
         <!-- Reportar un problema -->

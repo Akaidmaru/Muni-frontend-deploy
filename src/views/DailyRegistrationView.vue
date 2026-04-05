@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, nextTick } from "vue";
 import logoCompleto from "@/assets/images/Logo-completo.png";
 import DashboardSidebar from "@/components/DashboardSidebar.vue";
+import TripHistoryTable from "@/components/TripHistoryTable.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useTripsStore } from "@/stores/trips";
 import UserMenu from "@/components/UserMenu.vue";
@@ -638,236 +639,17 @@ onMounted(() => {
 
             <!-- Tabla -->
             <div class="overflow-x-auto px-12 md:px-16 relative mt-6 pb-6">
-              <table class="history-table w-full text-sm font-body">
-                <thead>
-                  <tr
-                    class="border-b border-gray-200 text-text-title font-semibold"
-                  >
-                    <th class="px-6 py-3 text-center w-24">Viaje</th>
-                    <th class="px-6 py-3 text-center border-l border-gray-200">
-                      Destino
-                    </th>
-                    <th class="px-6 py-3 text-center border-l border-gray-200">
-                      Funcionario
-                    </th>
-                    <th class="px-6 py-3 text-center border-l border-gray-200">
-                      Firma
-                    </th>
-                    <!-- <th class="px-6 py-3 text-center border-l border-gray-200 w-48">
-                      Paciente
-                    </th> -->
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="trip in trips"
-                    :key="trip.id"
-                    class="border-b border-gray-100 transition-colors"
-                    :class="{
-                      'bg-green-50': trip.status === 'running',
-                      'bg-gray-50': trip.status === 'done',
-                    }"
-                  >
-                    <!-- Viaje: botón acción -->
-                    <td class="px-6 py-4 text-center">
-                      <!-- Iniciar -->
-                      <button
-                        v-if="trip.status === 'idle'"
-                        @click="startTrip(trip)"
-                        :disabled="!canStartTrip(trip) || trip.isSaving"
-                        title="Iniciar viaje"
-                        class="inline-flex items-center justify-center w-9 h-9 rounded-full text-white shadow transition-all duration-200"
-                        :class="
-                          !canStartTrip(trip) || trip.isSaving
-                            ? 'bg-green-300 cursor-not-allowed'
-                            : 'bg-green-500 hover:bg-green-600 hover:scale-110'
-                        "
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          class="w-4 h-4"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      </button>
-                      <!-- Finalizar -->
-                      <button
-                        v-else-if="trip.status === 'running'"
-                        @click="openStopTrip(trip)"
-                        title="Finalizar viaje"
-                        class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-red-500 hover:bg-red-600 text-white shadow transition-all duration-200 hover:scale-110"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          class="w-4 h-4"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M6 6h12v12H6z" />
-                        </svg>
-                      </button>
-                      <!-- Completado -->
-                      <span
-                        v-else
-                        class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-gray-200 text-gray-400"
-                        title="Viaje finalizado"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          class="w-4 h-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      </span>
-                    </td>
-
-                    <!-- Destino: select -->
-                    <td class="px-6 py-4 border-l border-gray-200">
-                      <select
-                        v-model.number="trip.destination"
-                        :disabled="
-                          trip.status === 'done' ||
-                          isLoadingDestinations ||
-                          destinations.length === 0
-                        "
-                        class="w-full bg-transparent outline-none cursor-pointer font-body text-sm disabled:text-gray-400"
-                        :class="
-                          trip.destination ? 'text-text-title' : 'text-gray-300'
-                        "
-                      >
-                        <option :value="null" disabled>
-                          {{
-                            isLoadingDestinations
-                              ? "Cargando destinos..."
-                              : destinations.length === 0
-                                ? "No hay destinos disponibles"
-                                : "Nombre del destino"
-                          }}
-                        </option>
-                        <option
-                          v-for="dest in destinations"
-                          :key="dest.id"
-                          :value="dest.id"
-                          class="text-text-title"
-                        >
-                          {{ dest.name }}
-                        </option>
-                      </select>
-                      <p
-                        v-if="destinationsError"
-                        class="mt-2 text-xs text-red-600"
-                      >
-                        {{ destinationsError }}
-                      </p>
-                    </td>
-
-                    <!-- Funcionario: abre modal de búsqueda -->
-                    <td class="px-6 py-4 border-l border-gray-200">
-                      <button
-                        v-if="trip.status !== 'done'"
-                        type="button"
-                        @click="openEmpModal(trip)"
-                        class="flex items-center justify-between w-full text-sm outline-none group"
-                        :class="
-                          trip.employee ? 'text-text-title' : 'text-gray-300'
-                        "
-                      >
-                        <span>{{
-                          trip.employee ? trip.employee.name : "Nombre Apellido"
-                        }}</span>
-                        <svg
-                          class="w-3 h-3 text-gray-400 ml-2 shrink-0 group-hover:text-primary transition-colors"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"
-                          />
-                        </svg>
-                      </button>
-                      <span v-else class="text-sm text-gray-400">
-                        {{ trip.employee ? trip.employee.name : "—" }}
-                      </span>
-                    </td>
-
-                    <!-- Firma -->
-                    <td class="px-6 py-4 border-l border-gray-200 text-center align-middle">
-                      <div v-if="trip.signatureDataUrl" class="flex justify-center items-center w-full" title="Firmado">
-                        <img :src="trip.signatureDataUrl" alt="Firma" class="h-10 w-auto object-contain bg-white rounded shadow-sm border border-gray-100" />
-                      </div>
-                      <div v-else-if="trip.signature" class="flex flex-col items-center justify-center text-green-500" title="Firmado">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                      </div>
-                      <button 
-                        v-else 
-                        @click="openSignatureModal(trip)"
-                        class="text-sm font-semibold text-[#215179] hover:text-blue-700 underline transition-colors"
-                      >
-                        Firmar
-                      </button>
-                    </td>
-
-                    <!-- Paciente -->
-                    <!-- 
-                    <td class="px-6 py-4 border-l border-gray-200 align-middle">
-                      <button
-                        v-if="trip.status !== 'done'"
-                        type="button"
-                        @click="openPatientModal(trip)"
-                        class="flex w-full text-sm outline-none group"
-                        :class="
-                           trip.patients?.length ? 'text-text-title font-semibold' : 'text-gray-300'
-                        "
-                      >
-                        <div class="flex flex-wrap gap-1 w-full text-left">
-                           <span v-if="!trip.patients || trip.patients.length === 0">Seleccionar Pacientes</span>
-                           <template v-else>
-                             <span v-for="(pName, i) in getPatientNamesAsArray(trip)" :key="i" class="inline-block bg-blue-50 text-[#215179] px-2 py-0.5 rounded text-xs border border-blue-200">
-                               {{ pName }}
-                             </span>
-                           </template>
-                        </div>
-                        <svg
-                          class="w-3 h-3 text-gray-400 ml-1 mt-1 shrink-0 group-hover:text-primary transition-colors"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"
-                          />
-                        </svg>
-                      </button>
-                      <div v-else class="flex flex-wrap gap-1 w-full">
-                         <span v-if="!trip.patients || trip.patients.length === 0" class="text-sm text-gray-400">Sin Pacientes</span>
-                         <template v-else>
-                             <span v-for="(pName, i) in getPatientNamesAsArray(trip)" :key="i" class="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs border border-gray-200">
-                               {{ pName }}
-                             </span>
-                         </template>
-                      </div>
-                    </td> 
-                    -->
-                  </tr>
-                </tbody>
-              </table>
+              <TripHistoryTable 
+                :trips="trips"
+                role="driver"
+                :destinations="destinations"
+                :isLoadingDestinations="isLoadingDestinations"
+                :destinationsError="destinationsError"
+                @start-trip="startTrip"
+                @stop-trip="openStopTrip"
+                @open-employee="openEmpModal"
+                @open-signature="openSignatureModal"
+              />
             </div>
 
             <!-- Footer: agregar viaje -->
@@ -1431,20 +1213,4 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.history-table {
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
-.history-table thead th {
-  border: 1px solid #555 !important;
-  padding: 10px 12px !important;
-  letter-spacing: 0.02em;
-  background: #fff !important;
-}
-
-.history-table tbody td {
-  border: 1px solid #d1d1d1 !important;
-  padding: 12px 8px;
-}
 </style>

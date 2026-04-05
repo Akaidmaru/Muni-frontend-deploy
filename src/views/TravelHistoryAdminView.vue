@@ -1,8 +1,11 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
+import TripHistoryTable from '@/components/TripHistoryTable.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import api from '@/services/axios'
 
@@ -20,7 +23,8 @@ const currentPage = ref(1)
 const filters = ref({
   from: '',
   to: '',
-  patient: '',
+  searchBy: 'destination',
+  searchValue: '',
   license: '',
 })
 
@@ -47,8 +51,15 @@ const loadTravels = async () => {
         pageSize: Number(itemsPerPage.value),
         from: appliedFilters.value.from || undefined,
         to: appliedFilters.value.to || undefined,
-        patient: appliedFilters.value.patient || undefined,
         license: appliedFilters.value.license || undefined,
+        // Dynamic search filter – maps frontend field key to backend param name:
+        //   'official'    → 'name'        ✅ already supported by backend (filters by employee.name)
+        //   'destination' → 'destination' ⏳ TODO backend: add destination filter (see service)
+        //   'driver'      → 'driver'      ⏳ TODO backend: add driver filter (see service)
+        //   'patient'     → 'patient'     ✅ already supported by backend
+        ...(appliedFilters.value.searchValue ? {
+          [appliedFilters.value.searchBy === 'official' ? 'name' : appliedFilters.value.searchBy]: appliedFilters.value.searchValue
+        } : {}),
       },
     })
 
@@ -96,7 +107,25 @@ const uniquePlates = computed(() => {
   return [...plates]
 })
 
-const filteredTravels = computed(() => travels.value)
+// Normalize string: lowercase + remove diacritics (tildes, etc.)
+const normalize = (str) =>
+  (str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+const filteredTravels = computed(() => {
+  const { searchBy, searchValue } = appliedFilters.value
+  if (!searchValue) return travels.value
+
+  const needle = normalize(searchValue)
+
+  return travels.value.filter(trip => {
+    let haystack = ''
+    if (searchBy === 'destination') haystack = trip.destination
+    else if (searchBy === 'driver') haystack = trip.driver
+    else if (searchBy === 'official') haystack = trip.official
+    // else if (searchBy === 'patient') haystack = trip.patient
+    return normalize(haystack).includes(needle)
+  })
+})
 
 const firstVisibleRow = computed(() => {
   if (totalItems.value === 0) return 0
@@ -125,7 +154,7 @@ const applyFilters = () => {
 }
 
 const clearFilters = () => {
-  filters.value = { from: '', to: '', patient: '', license: '' }
+  filters.value = { from: '', to: '', searchBy: filters.value.searchBy, searchValue: '', license: '' }
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
   loadTravels()
@@ -137,6 +166,88 @@ const goBack = () => {
     return
   }
   router.push('/dashboard-admin')
+}
+
+const handleEditTrip = (trip) => {
+  // handled locally in TripHistoryTable initially
+}
+
+const handleDeleteTrip = (trip) => {
+  console.log('Delete trip clicked:', trip)
+  // TODO: Implement delete logic
+}
+
+const tripTable = ref(null)
+const isSaveModalOpen = ref(false)
+const tripToSave = ref(null)
+
+const handleSaveTripRequest = (editedTrip) => {
+  tripToSave.value = editedTrip
+  isSaveModalOpen.value = true
+}
+
+const confirmSaveTrip = async () => {
+  try {
+    // TODO: Connect with backend patch route
+    const index = travels.value.findIndex(t => t.id === tripToSave.value.id)
+    if (index !== -1) {
+      travels.value[index] = { ...travels.value[index], ...tripToSave.value }
+    }
+  } catch (err) {
+    console.error("Error saving trip", err)
+  } finally {
+    isSaveModalOpen.value = false
+    tripToSave.value = null
+    if (tripTable.value) {
+      tripTable.value.cancelEditing()
+    }
+  }
+}
+
+const cancelSaveTrip = () => {
+  isSaveModalOpen.value = false
+  tripToSave.value = null
+}
+
+const selectedTripForMap = ref(null)
+
+const handleViewMap = (trip) => {
+  console.log('View map clicked:', trip)
+  selectedTripForMap.value = trip
+}
+
+const exportToPDF = () => {
+  // landscape to give horizontal space for so many columns
+  const doc = new jsPDF('landscape')
+  doc.setFontSize(16)
+  doc.text('Historial de Viajes', 14, 20)
+
+  const headers = [['Fecha', 'Patente', 'Salida', 'Llegada', 'Destino', 'Estado', 'Km Inicial', 'Km Final', 'Conductor', 'Funcionario', 'Firma']]
+  
+  const body = filteredTravels.value.map(t => [
+    t.date,
+    t.licensePlate,
+    t.startTime,
+    t.endTime,
+    t.destination,
+    t.status === 'COMPLETED' ? 'Completado' : 'En transcurso',
+    t.startKm ?? '-',
+    t.endKm ?? '-',
+    t.driver,
+    t.official,
+    t.signature ? 'Sí' : 'No'
+  ])
+
+  autoTable(doc, {
+    startY: 25,
+    head: headers,
+    body: body,
+    styles: { fontSize: 8 },
+    theme: 'grid',
+    headStyles: { fillColor: [162, 32, 38] }, // Matches brand red
+  })
+
+  doc.save('historial_viajes.pdf')
 }
 
 const tableScrollRef = ref(null)
@@ -215,7 +326,9 @@ watch(currentPage, () => {
 
       <main class="flex-1 pt-16 pb-10 px-2 md:px-3 overflow-hidden flex items-start justify-center min-w-0">
         <div class="flex gap-6 w-full h-full min-h-0 min-w-0">
-        <div :class="[
+        
+        <!-- MAIN TABLE VIEW -->
+        <div v-if="!selectedTripForMap" :class="[
           'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative min-w-0',
           isFilterOpen ? 'max-w-[calc(100%-24rem)]' : 'w-full'
         ]">
@@ -231,17 +344,23 @@ watch(currentPage, () => {
           <div class="flex items-center justify-between p-8 pb-6 relative min-h-[5rem]">
              <h1 class="text-3xl font-titles font-bold text-text-title text-center m-0 absolute left-1/2 -translate-x-1/2">Historial de viajes</h1>
 
-             <button v-if="!isFilterOpen"
-                     @click="isFilterOpen = true"
-                     class="absolute right-6 top-6 p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors outline-none focus:ring-2 focus:ring-primary z-10 border border-gray-300"
-                     title="Abrir filtros">
-               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                 <line x1="8" y1="5" x2="8" y2="19"></line>
-                 <line x1="16" y1="5" x2="16" y2="19"></line>
-                 <line x1="5" y1="10" x2="11" y2="10"></line>
-                 <line x1="13" y1="14" x2="19" y2="14"></line>
-               </svg>
-             </button>
+             <div class="absolute right-6 top-6 flex items-center gap-3 z-10">
+               <button @click="exportToPDF" class="bg-[#A22026] hover:bg-red-800 text-white font-semibold py-2 px-5 rounded-xl shadow transition-colors outline-none focus:ring-2 focus:ring-red-500 text-sm">
+                 Exportar
+               </button>
+
+               <button v-if="!isFilterOpen"
+                       @click="isFilterOpen = true"
+                       class="p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors outline-none focus:ring-2 focus:ring-primary border border-gray-300"
+                       title="Abrir filtros">
+                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                   <line x1="8" y1="5" x2="8" y2="19"></line>
+                   <line x1="16" y1="5" x2="16" y2="19"></line>
+                   <line x1="5" y1="10" x2="11" y2="10"></line>
+                   <line x1="13" y1="14" x2="19" y2="14"></line>
+                 </svg>
+               </button>
+             </div>
           </div>
 
           <div
@@ -249,72 +368,17 @@ watch(currentPage, () => {
             class="table-scroll flex-1 min-h-0 w-full overflow-x-auto overflow-y-auto px-12 md:px-16 relative mt-6 pb-6 min-w-0 cursor-grab active:cursor-grabbing"
             @mousedown="onTableMouseDown"
           >
-              <table class="history-table w-full text-sm text-center" style="border-collapse: separate; border-spacing: 0;">
-                <thead class="text-[13px] text-text-title font-bold sticky top-0 bg-white z-10">
-                  <tr>
-                    <th rowspan="2" class="align-middle">Fecha</th>
-                    <th rowspan="2" class="align-middle">Patente</th>
-                    <th colspan="2">Hora</th>
-                    <th rowspan="2" class="align-middle">Destino</th>
-                    <th colspan="2">Kilometraje</th>
-                    <th rowspan="2" class="align-middle">Conductor</th>
-                    <th rowspan="2" class="align-middle">Funcionario</th>
-                    <th rowspan="2" class="align-middle">Firma Funcionario</th>
-                    <th rowspan="2" class="align-middle">Paciente</th>
-                    <th rowspan="2" class="align-middle">Evidencia</th>
-                  </tr>
-                  <tr>
-                    <th class="text-xs font-semibold">Inicio</th>
-                    <th class="text-xs font-semibold">Final</th>
-                    <th class="text-xs font-semibold">Inicio</th>
-                    <th class="text-xs font-semibold">Final</th>
-                  </tr>
-                </thead>
-                <tbody class="text-center font-body">
-                  <tr v-if="isLoadingTravels">
-                    <td colspan="12" class="px-3 py-20 text-center text-text-secondary font-medium">
-                      Cargando viajes...
-                    </td>
-                  </tr>
-
-                  <tr v-else-if="travelsError">
-                    <td colspan="12" class="px-3 py-20 text-center text-red-600 font-medium">
-                      {{ travelsError }}
-                    </td>
-                  </tr>
-
-                  <tr v-else v-for="travel in filteredTravels" :key="travel.id" class="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                    <td class="px-2 py-5 text-gray-500 text-sm">{{ travel.date }}</td>
-                    <td class="px-2 py-5 font-semibold text-text-title">{{ travel.licensePlate }}</td>
-                    <td class="px-2 py-5 text-gray-500">{{ travel.startTime }}</td>
-                    <td class="px-2 py-5 text-gray-500">{{ travel.endTime }}</td>
-                    <td class="px-2 py-5 text-gray-700">{{ travel.destination }}</td>
-                    <td class="px-2 py-5 font-medium">{{ travel.startKm?.toLocaleString() ?? '-' }}</td>
-                    <td class="px-2 py-5 font-medium">{{ travel.endKm?.toLocaleString() ?? '-' }}</td>
-                    <td class="px-4 py-5 text-gray-700">{{ travel.driver }}</td>
-                    <td class="px-4 py-5 text-gray-700">{{ travel.official }}</td>
-                    <td class="px-4 py-5">
-                      <div v-if="travel.signature" class="w-full flex justify-center">
-                        <div class="h-1 w-12 bg-primary rounded-full opacity-60 rotate-[-10deg]"></div>
-                      </div>
-                      <span v-else>-</span>
-                    </td>
-                    <td class="px-4 py-5 text-gray-700">{{ travel.patient }}</td>
-                    <td class="px-4 py-5">
-                      <a v-if="travel.evidence" :href="travel.evidence" target="_blank" rel="noopener noreferrer" class="text-primary font-semibold hover:underline">
-                        Ver
-                      </a>
-                      <span v-else>-</span>
-                    </td>
-                  </tr>
-
-                  <tr v-if="!isLoadingTravels && !travelsError && filteredTravels.length === 0">
-                    <td colspan="12" class="px-3 py-20 text-center text-text-secondary font-medium">
-                      No hay viajes que coincidan con la busqueda.
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <TripHistoryTable 
+                ref="tripTable"
+                :trips="filteredTravels"
+                role="admin"
+                :isLoading="isLoadingTravels"
+                :error="travelsError"
+                @edit-trip="handleEditTrip"
+                @delete-trip="handleDeleteTrip"
+                @request-save-trip="handleSaveTripRequest"
+                @view-map="handleViewMap"
+              />
           </div>
 
           <div class="px-12 md:px-16 py-4 bg-white flex justify-between items-center text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
@@ -355,6 +419,42 @@ watch(currentPage, () => {
           </div>
         </div>
 
+        <!-- MAP VIEW CARD -->
+        <div v-else class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative w-full p-8 hidden-scroll">
+          <div class="flex flex-col h-full min-h-0">
+            <!-- Map Header -->
+            <div class="flex flex-col relative w-full mb-8 shrink-0">
+              <button @click="selectedTripForMap = null" class="self-start inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-blue-900 transition-colors mb-4 absolute top-0 left-0 z-10 w-fit">
+                 <span aria-hidden="true">←</span> Volver
+              </button>
+              
+              <div class="flex items-center justify-between w-full relative">
+                <!-- Ícono Mapa  -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-[#215179] ml-14 mt-3" fill="currentColor" viewBox="0 0 24 24">
+                   <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                </svg>
+
+                <h2 class="text-2xl font-bold font-titles absolute left-1/2 -translate-x-1/2 mt-3 text-text-title">Ruta de viaje</h2>
+                
+                <div class="font-bold font-titles text-lg text-text-title mt-3 mr-4 tracking-tight">
+                  Patente: <span class="text-[#215179]">{{ selectedTripForMap.licensePlate }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Map Placeholder -->
+            <div class="flex-1 bg-gray-300 rounded-xl w-full h-full min-h-0 flex items-center justify-center relative overflow-hidden shadow-inner">
+               <div class="text-center">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                 </svg>
+                 <span class="text-gray-500 font-semibold text-lg">Mapa no disponible</span>
+                 <p class="text-gray-500 text-sm mt-1">(Esperando integración de coordenadas de ruta por Backend)</p>
+               </div>
+            </div>
+          </div>
+        </div>
+
         <Transition name="slide">
           <div v-show="isFilterOpen" class="w-[22rem] bg-[#EBEBEB] rounded-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 shrink-0 z-20 h-full overflow-y-auto relative">
             <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent">
@@ -370,6 +470,10 @@ watch(currentPage, () => {
               <h2 class="text-xl font-titles font-bold text-[#1b2533]">Filtros</h2>
             </div>
 
+            <!-- Empty datalist: forces browsers to use THIS list (empty) for suggestions
+                 instead of their saved form history. Works in Firefox, Chrome, Safari. -->
+            <datalist id="no-suggestions"></datalist>
+
             <div class="flex flex-col gap-5 flex-1 mt-2">
               <div class="flex justify-end relative z-10 w-full mb-2">
                 <button @click="clearFilters" class="px-5 py-1.5 bg-transparent border border-[#b2b2b2] rounded-3xl text-[11px] font-bold text-[#5c5c5c] hover:bg-gray-200 transition-colors flex items-center justify-center gap-1.5 w-28">
@@ -382,28 +486,41 @@ watch(currentPage, () => {
                 <div class="flex flex-col relative">
                   <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Desde</label>
                   <div class="relative">
-                    <input type="date" v-model="filters.from" class="text-xs px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" style="color:transparent; text-shadow: 0 0 0 #4b5563;" />
-                    <svg width="14" height="14" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                    <span v-if="!filters.from" class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">00/00/0000</span>
+                    <input type="date" v-model="filters.from" class="text-[11px] px-3 py-[9px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors" />
                   </div>
                 </div>
                 <div class="flex flex-col relative">
                   <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Hasta</label>
                   <div class="relative">
-                    <input type="date" v-model="filters.to" class="text-xs px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" style="color:transparent; text-shadow: 0 0 0 #4b5563;" />
-                    <svg width="14" height="14" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                    <span v-if="!filters.to" class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">00/00/0000</span>
+                    <input type="date" v-model="filters.to" class="text-[11px] px-3 py-[9px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors" />
                   </div>
                 </div>
               </div>
 
-              <div class="flex flex-col mt-2 relative">
-                <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Paciente</label>
+              <!-- Dynamic Search Field -->
+              <div class="flex flex-col mt-2 gap-2">
+                <!-- Campo selector -->
                 <div class="relative">
+                  <label class="text-[10px] text-gray-500 font-bold bg-[#EBEBEB] w-fit px-1 mb-1 block">Buscar por</label>
+                  <select v-model="filters.searchBy" class="px-3 py-2.5 pr-8 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary appearance-none cursor-pointer">
+                    <option value="destination">Destino</option>
+                    <option value="driver">Conductor</option>
+                    <option value="official">Funcionario</option>
+                    <!-- <option value="patient">Paciente</option> -->
+                  </select>
+                  <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500" style="top: 22px;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </div>
+                </div>
+
+                <!-- Input de búsqueda -->
+                <div class="relative mt-1">
                   <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                   </div>
-                  <input type="text" v-model="filters.patient" placeholder="Escribe el nombre..." class="pl-8 pr-3 py-2.5 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-700 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary placeholder-gray-400" />
+                  <input list="no-suggestions" type="text" v-model="filters.searchValue" autocomplete="off"
+                    :placeholder="filters.searchBy === 'destination' ? 'Nombre del destino...' : filters.searchBy === 'driver' ? 'Nombre del conductor...' : filters.searchBy === 'official' ? 'Nombre del funcionario...' : 'Nombre del paciente...'"
+                    class="pl-8 pr-3 py-2.5 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-700 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary placeholder-gray-400" />
                 </div>
               </div>
 
@@ -431,6 +548,35 @@ watch(currentPage, () => {
       </div>
     </main>
     </div>
+
+    <!-- Modal Confirmar Guardar Edición -->
+    <Teleport to="body">
+      <div v-if="isSaveModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200">
+          <div class="relative p-6 pt-8 pb-10 text-center">
+            <button @click="cancelSaveTrip" class="absolute right-4 top-4 text-gray-500 hover:text-gray-700 border border-gray-200 rounded p-0.5 outline-none transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h3 class="text-2xl font-titles font-bold text-gray-900 mb-6">Guardar</h3>
+            <p class="text-sm font-titles font-semibold text-gray-700 mb-8 whitespace-pre-line tracking-wide">
+              ¿Está seguro de guardar los
+              cambios realizados?
+            </p>
+            
+            <div class="flex justify-center gap-10 mt-4 font-titles font-bold tracking-wide">
+              <button @click="confirmSaveTrip" class="px-6 py-2.5 bg-[#A61919] text-white text-[13px] rounded-xl shadow-sm hover:bg-red-800 transition-all w-36 focus:ring-2 focus:ring-red-400 outline-none">
+                Confirmar
+              </button>
+              <button @click="cancelSaveTrip" class="px-6 py-2.5 bg-[#215179] text-white text-[13px] rounded-xl shadow-sm hover:bg-blue-900 transition-all w-36 focus:ring-2 focus:ring-blue-400 outline-none">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -449,19 +595,7 @@ watch(currentPage, () => {
   padding-right: 0;
 }
 
-.history-table {
-  border-collapse: separate !important;
-  border-spacing: 0 !important;
-}
-.history-table thead th {
-  border: 1px solid #555 !important;
-  padding: 10px 12px !important;
-  letter-spacing: 0.02em;
-}
-.history-table tbody td {
-  border: 1px solid #d1d1d1 !important;
-  padding: 12px 8px;
-}
+
 
 .table-scroll {
   /* Solo muestra scroll si realmente hay desborde */
