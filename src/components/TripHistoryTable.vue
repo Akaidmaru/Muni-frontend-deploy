@@ -31,6 +31,18 @@ const props = defineProps({
   destinationsError: {
     type: String,
     default: ''
+  },
+  adminDrivers: {
+    type: Array,
+    default: () => []
+  },
+  adminDestinations: {
+    type: Array,
+    default: () => []
+  },
+  adminTrucksByDriver: {
+    type: Object,
+    default: () => ({})
   }
 });
 
@@ -52,6 +64,19 @@ const editingTripData = ref({});
 const startEditing = (trip) => {
   editingTripId.value = trip.id;
   editingTripData.value = { ...trip };
+  editingTripData.value.date = trip.dateIso || '';
+
+  if (editingTripData.value.driverId) {
+    const trucks = getDriverTrucks(editingTripData.value.driverId);
+    const hasCurrentTruck = trucks.some(
+      (truck) => truck.id === editingTripData.value.truckId,
+    );
+
+    if (!hasCurrentTruck) {
+      editingTripData.value.truckId = null;
+      editingTripData.value.licensePlate = '';
+    }
+  }
 };
 
 const cancelEditing = () => {
@@ -60,6 +85,7 @@ const cancelEditing = () => {
 };
 
 const saveEditing = () => {
+  if (!isAdminEditComplete.value) return;
   emit('request-save-trip', editingTripData.value);
 };
 
@@ -72,6 +98,65 @@ const canStartTrip = (trip) => Boolean(trip.destination && trip.employee);
 // Cross-browser fix: remove readonly on focus prevents Firefox & Chrome
 // from showing autocomplete history suggestions
 const makeEditable = (e) => e.target.removeAttribute('readonly');
+
+const getDriverTrucks = (driverId) => {
+  if (!driverId) return [];
+  return props.adminTrucksByDriver[driverId] || [];
+};
+
+const onAdminDriverChange = () => {
+  const trucks = getDriverTrucks(editingTripData.value.driverId);
+  const hasCurrentTruck = trucks.some((truck) => truck.id === editingTripData.value.truckId);
+
+  if (!hasCurrentTruck) {
+    editingTripData.value.truckId = null;
+    editingTripData.value.licensePlate = '';
+  }
+};
+
+const onAdminTruckChange = () => {
+  const selectedTruck = getDriverTrucks(editingTripData.value.driverId).find(
+    (truck) => truck.id === editingTripData.value.truckId,
+  );
+  editingTripData.value.licensePlate = selectedTruck?.plate || '';
+};
+
+const onAdminDestinationChange = () => {
+  const selectedDestination = props.adminDestinations.find(
+    (destination) => destination.id === editingTripData.value.destinationId,
+  );
+  editingTripData.value.destination = selectedDestination?.name || '';
+};
+
+const hasValue = (value) => {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') {
+    const trimmedValue = value.trim();
+    return trimmedValue.length > 0 && trimmedValue !== '--:--';
+  }
+  return true;
+};
+
+const isValidNumberField = (value) => {
+  if (!hasValue(value)) return false;
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue);
+};
+
+const isAdminEditComplete = computed(() => {
+  const current = editingTripData.value;
+  return (
+    hasValue(current.date) &&
+    hasValue(current.driverId) &&
+    hasValue(current.truckId) &&
+    hasValue(current.destinationId) &&
+    hasValue(current.startTime) &&
+    hasValue(current.endTime) &&
+    hasValue(current.status) &&
+    isValidNumberField(current.startKm) &&
+    isValidNumberField(current.endKm)
+  );
+});
 </script>
 
 <template>
@@ -139,7 +224,13 @@ const makeEditable = (e) => e.target.removeAttribute('readonly');
           <!-- Edit/Delete & Save/Cancel buttons slot -->
           <td class="px-2 py-5 text-gray-400 no-border-cell w-10">
             <div v-if="editingTripId === trip.id" class="flex flex-col gap-3 items-center justify-center">
-              <button @click="saveEditing" class="text-green-600 hover:text-green-700 transition-colors focus:outline-none" title="Guardar cambios">
+              <button
+                @click="saveEditing"
+                :disabled="!isAdminEditComplete"
+                class="transition-colors focus:outline-none"
+                :class="isAdminEditComplete ? 'text-green-600 hover:text-green-700' : 'text-green-300 cursor-not-allowed'"
+                :title="isAdminEditComplete ? 'Guardar cambios' : 'Completa todos los campos para guardar'"
+              >
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                 </svg>
@@ -161,22 +252,51 @@ const makeEditable = (e) => e.target.removeAttribute('readonly');
 
           <template v-if="editingTripId === trip.id">
             <td class="px-2 py-5 text-gray-500 text-sm">
-              <input list="trip-no-suggestions" type="text" v-model="editingTripData.date" readonly @focus="makeEditable" autocomplete="off" class="w-[85px] text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary">
+              <input type="date" v-model="editingTripData.date" autocomplete="off" class="w-[140px] text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary bg-white cursor-pointer">
             </td>
             <td class="px-2 py-5 font-semibold text-text-title">
-              <input list="trip-no-suggestions" type="text" v-model="editingTripData.licensePlate" readonly @focus="makeEditable" autocomplete="off" class="w-full text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary">
+              <select
+                v-model.number="editingTripData.truckId"
+                @change="onAdminTruckChange"
+                :disabled="!editingTripData.driverId"
+                class="w-full text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary bg-white cursor-pointer disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                <option :value="null" disabled>
+                  {{ editingTripData.driverId ? 'Selecciona patente...' : 'Selecciona conductor...' }}
+                </option>
+                <option
+                  v-for="truck in getDriverTrucks(editingTripData.driverId)"
+                  :key="truck.id"
+                  :value="truck.id"
+                >
+                  {{ truck.plate }}
+                </option>
+              </select>
             </td>
             <td class="px-2 py-5 text-gray-500">
-              <input type="time" v-model="editingTripData.startTime" autocomplete="off" class="w-full text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary">
+              <input type="time" v-model="editingTripData.startTime" autocomplete="off" class="w-full text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary cursor-pointer">
             </td>
             <td class="px-2 py-5 text-gray-500">
-              <input type="time" v-model="editingTripData.endTime" autocomplete="off" class="w-full text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary">
+              <input type="time" v-model="editingTripData.endTime" autocomplete="off" class="w-full text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary cursor-pointer">
             </td>
             <td class="px-2 py-5 text-gray-700 text-xs">
-              <input list="trip-no-suggestions" type="text" v-model="editingTripData.destination" readonly @focus="makeEditable" autocomplete="off" class="w-full min-w-[120px] text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary">
+              <select
+                v-model.number="editingTripData.destinationId"
+                @change="onAdminDestinationChange"
+                class="w-full min-w-[120px] text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary bg-white cursor-pointer"
+              >
+                <option :value="null" disabled>Selecciona destino...</option>
+                <option
+                  v-for="destination in adminDestinations"
+                  :key="destination.id"
+                  :value="destination.id"
+                >
+                  {{ destination.name }}
+                </option>
+              </select>
             </td>
             <td class="px-2 py-5 text-gray-700 text-xs">
-              <select v-model="editingTripData.status" class="w-full border border-gray-300 rounded px-1 py-1 text-[11px] outline-none focus:border-primary bg-white">
+              <select v-model="editingTripData.status" class="w-full border border-gray-300 rounded px-1 py-1 text-[11px] outline-none focus:border-primary bg-white cursor-pointer">
                 <option value="DRIVER_FILLING">En transcurso</option>
                 <option value="COMPLETED">Completado</option>
               </select>
@@ -188,7 +308,20 @@ const makeEditable = (e) => e.target.removeAttribute('readonly');
               <input list="trip-no-suggestions" type="number" v-model="editingTripData.endKm" readonly @focus="makeEditable" autocomplete="off" class="w-[60px] text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary">
             </td>
             <td class="px-4 py-5 text-gray-700 text-xs">
-              <input list="trip-no-suggestions" type="text" v-model="editingTripData.driver" readonly @focus="makeEditable" autocomplete="off" class="w-full min-w-[120px] text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary">
+              <select
+                v-model.number="editingTripData.driverId"
+                @change="onAdminDriverChange"
+                class="w-full min-w-[120px] text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary bg-white cursor-pointer"
+              >
+                <option :value="null" disabled>Selecciona conductor...</option>
+                <option
+                  v-for="driver in adminDrivers"
+                  :key="driver.id"
+                  :value="driver.id"
+                >
+                  {{ driver.name || driver.email }}
+                </option>
+              </select>
             </td>
             <td class="px-4 py-5 text-gray-700 text-xs">
               <input list="trip-no-suggestions" type="text" v-model="editingTripData.official" readonly @focus="makeEditable" autocomplete="off" class="w-full min-w-[120px] text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary">

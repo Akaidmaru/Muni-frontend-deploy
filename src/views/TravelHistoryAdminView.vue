@@ -15,6 +15,9 @@ const isLoadingTravels = ref(false)
 const travelsError = ref('')
 const totalItems = ref(0)
 const totalPages = ref(1)
+const adminDrivers = ref([])
+const adminDestinations = ref([])
+const adminTrucksByDriver = ref({})
 
 const isFilterOpen = ref(false)
 const itemsPerPage = ref(100)
@@ -38,6 +41,120 @@ const formatDate = (value) => {
   const month = String(parsedDate.getMonth() + 1).padStart(2, '0')
   const year = parsedDate.getFullYear()
   return `${day}/${month}/${year}`
+}
+
+const formatDateIso = (value) => {
+  const parsedDate = new Date(value)
+  if (Number.isNaN(parsedDate.getTime())) return ''
+
+  const year = parsedDate.getFullYear()
+  const month = String(parsedDate.getMonth() + 1).padStart(2, '0')
+  const day = String(parsedDate.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const mapTravelFromApi = (travel) => ({
+  id: travel.id,
+  truckId: travel.truck?.id ?? null,
+  destinationId: travel.destination?.id ?? null,
+  driverId: travel.driver?.id ?? null,
+  status: travel.status || 'DRIVER_FILLING',
+  date: formatDate(travel.date),
+  dateIso: formatDateIso(travel.date),
+  licensePlate: travel.truck?.plate || '-',
+  startTime: travel.startTime || '--:--',
+  endTime: travel.endTime || '--:--',
+  destination: travel.destination?.name || 'Sin destino',
+  startKm: travel.startKm ?? null,
+  endKm: travel.endKm ?? null,
+  driver: travel.driver?.name || travel.driver?.email || 'Sin conductor',
+  official: travel.employee?.name || travel.employee?.email || 'Sin funcionario',
+  signature: travel.status === 'COMPLETED',
+  patient: travel.patient?.name || '-',
+  evidence:
+    travel.evidenceUrl ||
+    travel.evidence?.url ||
+    travel.evidence ||
+    null,
+})
+
+const buildUpdateTripPayload = (editedTrip) => {
+  const payload = {}
+
+  if (editedTrip.date) {
+    payload.date = editedTrip.date
+  }
+
+  if (editedTrip.startTime && editedTrip.startTime !== '--:--') {
+    payload.startTime = editedTrip.startTime
+  }
+
+  if (editedTrip.endTime && editedTrip.endTime !== '--:--') {
+    payload.endTime = editedTrip.endTime
+  }
+
+  if (editedTrip.status) {
+    payload.status = editedTrip.status
+  }
+
+  if (editedTrip.startKm !== '' && editedTrip.startKm !== null && editedTrip.startKm !== undefined) {
+    payload.startKm = Number(editedTrip.startKm)
+  }
+
+  if (editedTrip.endKm !== '' && editedTrip.endKm !== null && editedTrip.endKm !== undefined) {
+    payload.endKm = Number(editedTrip.endKm)
+  }
+
+  if (editedTrip.truckId !== '' && editedTrip.truckId !== null && editedTrip.truckId !== undefined) {
+    payload.truckId = Number(editedTrip.truckId)
+  }
+
+  if (editedTrip.destinationId !== '' && editedTrip.destinationId !== null && editedTrip.destinationId !== undefined) {
+    payload.destinationId = Number(editedTrip.destinationId)
+  }
+
+  return payload
+}
+
+const loadAdminEditCatalogs = async () => {
+  try {
+    const [driversRes, destinationsRes] = await Promise.all([
+      api.get('/users/by-roles', {
+        params: {
+          roles: 'DRIVER',
+        },
+      }),
+      api.get('/destinations'),
+    ])
+
+    const driversPayload = Array.isArray(driversRes?.data) ? driversRes.data : []
+    const destinationsPayload = Array.isArray(destinationsRes?.data) ? destinationsRes.data : []
+
+    adminDrivers.value = driversPayload.map((driver) => ({
+      id: driver.id,
+      name: driver.name || '',
+      email: driver.email || '',
+    }))
+
+    adminDestinations.value = destinationsPayload.map((destination) => ({
+      id: destination.id,
+      name: destination.name,
+    }))
+
+    const trucksEntries = await Promise.all(
+      adminDrivers.value.map(async (driver) => {
+        const { data } = await api.get(`/users/${driver.id}/trucks`)
+        const trucks = Array.isArray(data)
+          ? data.map((truck) => ({ id: truck.id, plate: truck.plate }))
+          : []
+        return [driver.id, trucks]
+      }),
+    )
+
+    adminTrucksByDriver.value = Object.fromEntries(trucksEntries)
+  } catch (error) {
+    console.error('No se pudieron cargar catalogos de edición admin', error)
+  }
 }
 
 const loadTravels = async () => {
@@ -65,26 +182,7 @@ const loadTravels = async () => {
 
     const payloadItems = Array.isArray(data?.items) ? data.items : []
 
-    travels.value = payloadItems.map((travel) => ({
-      id: travel.id,
-      status: travel.status || 'DRIVER_FILLING',
-      date: formatDate(travel.date),
-      licensePlate: travel.truck?.plate || '-',
-      startTime: travel.startTime || '--:--',
-      endTime: travel.endTime || '--:--',
-      destination: travel.destination?.name || 'Sin destino',
-      startKm: travel.startKm ?? null,
-      endKm: travel.endKm ?? null,
-      driver: travel.driver?.name || travel.driver?.email || 'Sin conductor',
-      official: travel.employee?.name || travel.employee?.email || 'Sin funcionario',
-      signature: travel.status === 'COMPLETED',
-      patient: travel.patient?.name || '-',
-      evidence:
-        travel.evidenceUrl ||
-        travel.evidence?.url ||
-        travel.evidence ||
-        null,
-    }))
+    travels.value = payloadItems.map(mapTravelFromApi)
 
     totalItems.value = Number(data?.total) || 0
     totalPages.value = Math.max(Number(data?.totalPages) || 1, 1)
@@ -187,14 +285,24 @@ const handleSaveTripRequest = (editedTrip) => {
 }
 
 const confirmSaveTrip = async () => {
+  if (!tripToSave.value) return
+
   try {
-    // TODO: Connect with backend patch route
+    const payload = buildUpdateTripPayload(tripToSave.value)
+    const { data } = await api.patch(`/trip-history/${tripToSave.value.id}`, payload)
+
     const index = travels.value.findIndex(t => t.id === tripToSave.value.id)
     if (index !== -1) {
-      travels.value[index] = { ...travels.value[index], ...tripToSave.value }
+      travels.value[index] = mapTravelFromApi(data)
     }
+
+    travelsError.value = ''
   } catch (err) {
-    console.error("Error saving trip", err)
+    const backendMessage = err?.response?.data?.message
+    travelsError.value = Array.isArray(backendMessage)
+      ? backendMessage.join(', ')
+      : backendMessage || 'No se pudo guardar el viaje.'
+    console.error('Error saving trip', err)
   } finally {
     isSaveModalOpen.value = false
     tripToSave.value = null
@@ -288,6 +396,7 @@ const onTableMouseUp = () => {
 }
 
 onMounted(() => {
+  void loadAdminEditCatalogs()
   loadTravels()
 
   // Eventos globales para que el drag funcione incluso si el cursor sale del contenedor.
@@ -374,6 +483,9 @@ watch(currentPage, () => {
                 role="admin"
                 :isLoading="isLoadingTravels"
                 :error="travelsError"
+                :adminDrivers="adminDrivers"
+                :adminDestinations="adminDestinations"
+                :adminTrucksByDriver="adminTrucksByDriver"
                 @edit-trip="handleEditTrip"
                 @delete-trip="handleDeleteTrip"
                 @request-save-trip="handleSaveTripRequest"
