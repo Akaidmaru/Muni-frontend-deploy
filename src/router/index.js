@@ -7,7 +7,8 @@ import RegisterView from '../views/RegisterView.vue'
 import VerifyEmailView from '../views/VerifyEmailView.vue'
 import ContactView from '../views/ContactView.vue'
 import DashboardView from '../views/DashboardView.vue'
-import DailyRegistrationView from '../views/DailyRegistrationView.vue'
+import DailyRegistrationDriverView from '../views/DailyRegistrationDriverView.vue'
+import DailyRegistrationMaintenanceView from '../views/DailyRegistrationManteinenceView.vue'
 import DailyRegistrationFuncionarioView from '../views/DailyRegistrationFuncionarioView.vue'
 import TravelHistoryView from '../views/TravelHistoryView.vue'
 import TravelHistoryFuncionarioView from '../views/TravelHistoryFuncionarioView.vue'
@@ -65,8 +66,14 @@ const router = createRouter({
         // ── Rutas del conductor ───────────────────────────────
         {
             path: '/registro-diario',
-            name: 'daily-registration',
-            component: DailyRegistrationView,
+            name: 'daily-registration-driver',
+            component: DailyRegistrationDriverView,
+            meta: { requiresAuth: true, roles: ['DRIVER', 'ADMIN'] }
+        },
+        {
+            path: '/registro-diario-mantencion',
+            name: 'daily-registration-maintenance',
+            component: DailyRegistrationMaintenanceView,
             meta: { requiresAuth: true, roles: ['DRIVER', 'ADMIN'] }
         },
         {

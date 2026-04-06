@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from "vue";
+import { useRouter, useRoute } from "vue-router";
 import logoCompleto from "@/assets/images/Logo-completo.png";
 import DashboardSidebar from "@/components/DashboardSidebar.vue";
 import TripHistoryTable from "@/components/TripHistoryTable.vue";
@@ -10,6 +11,8 @@ import api from "@/services/axios";
 
 const auth = useAuthStore();
 const tripsStore = useTripsStore();
+const router = useRouter();
+const route = useRoute();
 const tripActionError = ref("");
 
 const destinations = ref([]);
@@ -118,12 +121,19 @@ const getCurrentTime = () => {
   return `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
 };
 
+const plateFromRoute = computed(() => {
+  const plate = route.query.plate;
+  return Array.isArray(plate) ? plate[0] : plate || "";
+});
+
 // ── Step 1 → 2 ────────────────────────────────────────────────────────
 const handleConfirm = () => {
   if (!selectedPlate.value) return;
   tripActionError.value = "";
-  trips.value = [newTrip()];
-  confirmed.value = true;
+  router.push({
+    name: 'daily-registration-maintenance',
+    query: { plate: selectedPlate.value }
+  });
 };
 // ── Cambiar patente modales ───────────────────────────────────────────
 const changePlateModal = ref({ step: 0 }); // 0=cerrado, 1=confirmar, 2=motivo
@@ -485,10 +495,15 @@ const selectEmployee = (emp) => {
   closeEmpModal();
 };
 
-onMounted(() => {
-  loadAssignedTrucks();
+onMounted(async () => {
+  await loadAssignedTrucks();
   loadEmployees();
   loadDestinations();
+
+  if (plateFromRoute.value) {
+    selectedPlate.value = plateFromRoute.value;
+    confirmed.value = true;
+  }
 });
 </script>
 
