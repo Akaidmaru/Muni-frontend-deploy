@@ -200,6 +200,14 @@ const getCurrentTime = () => {
   return `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
 };
 
+const getLocalDateParam = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const plateFromRoute = computed(() => {
   const plate = route.query.plate;
   return Array.isArray(plate) ? plate[0] : plate || "";
@@ -233,7 +241,7 @@ const checkDailyMaintenanceByDriverAndTruck = async () => {
     const { data } = await api.get(
       `/vehicle-maintenance-records/driver/${auth.user.id}/truck/${selectedTruckId.value}/date`,
       {
-        params: { date: new Date().toISOString() },
+        params: { date: getLocalDateParam() },
       },
     );
 
@@ -387,7 +395,7 @@ const saveMaintenanceForm = () => {
   const payload = {
     truckId: selectedTruckId.value,
     driverId: auth.user?.id,
-    inspectionDate: new Date().toISOString(),
+    inspectionDate: getLocalDateParam(),
     inspectionTime: maintenanceForm.value.inspectionTime,
     municipalLicense: maintenanceForm.value.licMunicipal,
     currentMileage: Number(maintenanceForm.value.kilometraje),

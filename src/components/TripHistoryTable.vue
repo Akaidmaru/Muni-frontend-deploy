@@ -347,8 +347,20 @@ const isAdminEditComplete = computed(() => {
           </template>
 
           <td class="px-4 py-5 border-l-0 border-r-0">
-            <div v-if="trip.signature" class="w-full flex justify-center">
-              <div class="h-1 w-12 bg-primary rounded-full opacity-60 rotate-[-10deg]"></div>
+            <div v-if="trip.signatureUrl" class="w-full flex justify-center">
+              <a
+                :href="trip.signatureUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Ver firma"
+                class="inline-block"
+              >
+                <img
+                  :src="trip.signatureUrl"
+                  alt="Firma"
+                  class="h-7 max-w-[90px] object-contain opacity-90"
+                />
+              </a>
             </div>
             <span v-else>-</span>
           </td>

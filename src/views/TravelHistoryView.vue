@@ -72,7 +72,8 @@ const loadTravels = async () => {
           startKm: travel.startKm ?? null,
           endKm: travel.endKm ?? null,
           official: travel.employee?.name || travel.employee?.email || 'Sin funcionario',
-          signature: Boolean(travel.endTime),
+          signature: Boolean(travel.signatureKey),
+          signatureUrl: travel.signatureUrl || null,
         }))
 
     totalItems.value = Number(data?.total) || 0
@@ -237,9 +238,17 @@ watch(currentPage, () => {
                       <td class="px-2 py-5 font-medium">{{ travel.endKm?.toLocaleString() ?? '-' }}</td>
                       <td class="px-4 py-5 text-gray-700">{{ travel.official }}</td>
                       <td class="px-4 py-5">
-                         <div v-if="travel.signature" class="w-full flex justify-center">
+                         <div v-if="travel.signatureUrl" class="w-full flex justify-center">
+                           <img
+                             :src="travel.signatureUrl"
+                             alt="Firma funcionario"
+                             class="h-10 w-auto object-contain bg-white rounded border border-gray-200"
+                           />
+                         </div>
+                         <div v-else-if="travel.signature" class="w-full flex justify-center">
                            <div class="h-1 w-12 bg-primary rounded-full opacity-60 rotate-[-10deg]"></div>
                          </div>
+                         <span v-else class="text-gray-400">-</span>
                       </td>
                     </tr>
                     

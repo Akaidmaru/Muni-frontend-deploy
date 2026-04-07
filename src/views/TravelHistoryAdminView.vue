@@ -69,7 +69,8 @@ const mapTravelFromApi = (travel) => ({
   endKm: travel.endKm ?? null,
   driver: travel.driver?.name || travel.driver?.email || 'Sin conductor',
   official: travel.employee?.name || travel.employee?.email || 'Sin funcionario',
-  signature: travel.status === 'COMPLETED',
+  signature: Boolean(travel.signatureUrl),
+  signatureUrl: travel.signatureUrl || null,
   patient: travel.patient?.name || '-',
   evidence:
     travel.evidenceUrl ||
