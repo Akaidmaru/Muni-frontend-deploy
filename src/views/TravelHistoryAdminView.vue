@@ -709,10 +709,6 @@ watch(currentPage, () => {
 
 
 
-.table-scroll {
-  /* Solo muestra scroll si realmente hay desborde */
-}
-
 .table-scroll::-webkit-scrollbar {
   height: 10px;
 }
