@@ -116,10 +116,12 @@ const loadAssignedTrucks = async () => {
 };
 
 const selectedPlate = ref("");
-const selectedTruck = computed(() =>
-  licensePlates.value.find((truck) => truck.plate === selectedPlate.value),
-);
+const plateSelectRef = ref(null);
+const selectedPlateStable = ref("");
 const confirmed = ref(false);
+const suggestedMileage = ref(0);
+const selectedTruckId = ref(null);
+const alreadyRegisteredToday = ref(false);
 
 // ── Date ──────────────────────────────────────────────────────────────
 const currentDate = computed(() => {
@@ -151,7 +153,7 @@ const createDefaultMaintenanceForm = (mileage = "") => ({
   inspectionDate: currentDate.value,
   inspectionTime: getCurrentTime(),
   kilometraje:
-    mileage !== null && mileage !== undefined && mileage > 0 ? String(mileage) : "10",
+    mileage !== null && mileage !== undefined ? String(mileage) : "",
   items: [
     { id: "systemLights", label: "1. SISTEMA DE LUCES", type: "section" },
     { id: "estacionamiento", label: "Estacionamiento", exists: "", state: "", note: "", hasError: false },
@@ -203,13 +205,95 @@ const plateFromRoute = computed(() => {
   return Array.isArray(plate) ? plate[0] : plate || "";
 });
 
-// ── Step 1 → 2 ────────────────────────────────────────────────────────
-const handleConfirm = () => {
-  if (!selectedPlate.value) return;
+const loadMileageSuggestionByPlate = async (plate) => {
+  try {
+    const { data } = await api.get(`/vehicle-maintenance-records/mileage-suggestion/plate/${encodeURIComponent(plate)}`);
+    suggestedMileage.value = data.suggestedMileage || 0;
+    selectedTruckId.value = data.truckId || null;
+    if (maintenanceForm.value) {
+      maintenanceForm.value.kilometraje = String(suggestedMileage.value);
+    }
+    return suggestedMileage.value;
+  } catch (error) {
+    suggestedMileage.value = 0;
+    selectedTruckId.value = null;
+    if (maintenanceForm.value) {
+      maintenanceForm.value.kilometraje = "";
+    }
+    return 0;
+  }
+};
+
+const checkDailyMaintenanceByDriverAndTruck = async () => {
+  if (!auth.user?.id || !selectedTruckId.value) return false;
+
+  alreadyRegisteredToday.value = false;
+
+  try {
+    const { data } = await api.get(
+      `/vehicle-maintenance-records/driver/${auth.user.id}/truck/${selectedTruckId.value}/date`,
+      {
+        params: { date: new Date().toISOString() },
+      },
+    );
+
+    if (data) {
+      alreadyRegisteredToday.value = true;
+      return true;
+    }
+
+    alreadyRegisteredToday.value = false;
+    return false;
+  } catch {
+    alreadyRegisteredToday.value = false;
+    return false;
+  }
+};
+
+const onPlateChange = async (event) => {
+  const plate = event?.target?.value || selectedPlate.value;
+  selectedPlate.value = plate;
+  selectedPlateStable.value = plate;
+
+  if (!plate) {
+    alreadyRegisteredToday.value = false;
+    selectedTruckId.value = null;
+    suggestedMileage.value = 0;
+    return;
+  }
+
+  alreadyRegisteredToday.value = false;
+  await loadMileageSuggestionByPlate(plate);
+};
+
+const handleConfirm = async () => {
+  await nextTick();
+  let plate = selectedPlateStable.value || selectedPlate.value;
+
+  // Fallback para el primer clic: tomar el valor directo del select si v-model aun no sincroniza
+  if (!plate && plateSelectRef.value?.value) {
+    plate = plateSelectRef.value.value;
+    selectedPlate.value = plate;
+    selectedPlateStable.value = plate;
+    await nextTick();
+  }
+
+  if (!plate) return;
   tripActionError.value = "";
-  maintenanceForm.value = createDefaultMaintenanceForm(
-    selectedTruck.value?.mileage,
-  );
+
+  // Asegura datos del vehículo en este mismo click (evita depender del watcher)
+  await loadMileageSuggestionByPlate(plate);
+
+  await checkDailyMaintenanceByDriverAndTruck();
+  if (alreadyRegisteredToday.value) {
+    await router.push({
+      name: 'daily-registration-driver',
+      query: { plate }
+    });
+    return;
+  }
+
+  maintenanceForm.value = createDefaultMaintenanceForm(suggestedMileage.value);
   confirmed.value = true;
 };
 
@@ -234,7 +318,6 @@ const toggleState = (item, value) => {
 };
 
 const saveMaintenanceForm = () => {
-  console.log("saveMaintenanceForm clicked");
   maintenanceFormError.value = "";
   maintenanceFormSuccess.value = "";
   formErrors.value = [];
@@ -280,13 +363,55 @@ const saveMaintenanceForm = () => {
     return;
   }
 
-  maintenanceFormSuccess.value = "Formulario de mantenimiento guardado correctamente.";
-  console.log("Formulario de mantenimiento guardado:", maintenanceForm.value);
+  if (!selectedTruckId.value) {
+    maintenanceFormError.value = "No se pudo identificar el camión seleccionado.";
+    return;
+  }
 
-  router.push({
-    name: 'daily-registration-driver',
-    query: { plate: maintenanceForm.value.identificationVehicle }
-  });
+  if (!auth.user?.id) {
+    maintenanceFormError.value = "No se pudo identificar el conductor autenticado.";
+    return;
+  }
+
+  const maintenanceItems = maintenanceForm.value.items
+    .filter((item) => item.type !== "section")
+    .map((item) => ({
+      itemCode: item.id,
+      itemName: item.label,
+      category: item.id,
+      exists: item.exists,
+      status: item.state,
+      notes: item.note || undefined,
+    }));
+
+  const payload = {
+    truckId: selectedTruckId.value,
+    driverId: auth.user?.id,
+    inspectionDate: new Date().toISOString(),
+    inspectionTime: maintenanceForm.value.inspectionTime,
+    municipalLicense: maintenanceForm.value.licMunicipal,
+    currentMileage: Number(maintenanceForm.value.kilometraje),
+    technicalReviewStatus: maintenanceForm.value.annex.revisionTecnica,
+    circulationPermitStatus: maintenanceForm.value.annex.permisoCirculacion,
+    insuranceStatus: maintenanceForm.value.annex.seguroObligatorio,
+    maintenanceItems,
+  };
+
+  api
+    .post("/vehicle-maintenance-records", payload)
+    .then(() => {
+      maintenanceFormSuccess.value = "Formulario de mantenimiento guardado correctamente.";
+      router.push({
+        name: 'daily-registration-driver',
+        query: { plate: maintenanceForm.value.identificationVehicle }
+      });
+    })
+    .catch((error) => {
+      const backendMessage = error.response?.data?.message;
+      maintenanceFormError.value = Array.isArray(backendMessage)
+        ? backendMessage.join(", ")
+        : backendMessage || "No se pudo guardar el registro de mantenimiento.";
+    });
 };
 
 // ── Cambiar patente modales ───────────────────────────────────────────
@@ -309,7 +434,6 @@ const cancelStep1 = () => {
 const confirmStep2 = () => {
   // TODO: enviar motivo al backend → POST /api/plate-change-reasons
   // { plate: selectedPlate.value, reason: changePlateReason.value, date: currentDate }
-  console.log("Motivo cambio de patente:", changePlateReason.value);
   changePlateModal.value.step = 0;
   confirmed.value = false;
   selectedPlate.value = "";
@@ -649,15 +773,15 @@ const selectEmployee = (emp) => {
   closeEmpModal();
 };
 
-onMounted(() => {
-  loadAssignedTrucks();
+onMounted(async () => {
+  await loadAssignedTrucks();
   loadEmployees();
   loadDestinations();
 
   if (plateFromRoute.value) {
     selectedPlate.value = plateFromRoute.value;
-    maintenanceForm.value = createDefaultMaintenanceForm();
-    confirmed.value = true;
+    selectedPlateStable.value = plateFromRoute.value;
+    await handleConfirm();
   }
 });
 </script>
@@ -709,7 +833,9 @@ onMounted(() => {
             <div class="max-w-xs mx-auto mb-12">
               <div class="relative">
                 <select
+                  ref="plateSelectRef"
                   v-model="selectedPlate"
+                  @change="onPlateChange"
                   class="w-full px-6 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-primary focus:border-primary font-body text-sm bg-white appearance-none cursor-pointer text-center"
                   :class="selectedPlate ? 'text-text-title' : 'text-gray-400'"
                   :disabled="isLoadingPlates || licensePlates.length === 0"
@@ -761,7 +887,7 @@ onMounted(() => {
             <div class="flex justify-center">
               <button
                 @click="handleConfirm"
-                :disabled="!selectedPlate || isLoadingPlates"
+                :disabled="isLoadingPlates"
                 class="px-12 py-3 bg-[#215179] hover:bg-blue-900 text-white font-bold rounded-xl shadow-md transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Confirmar
