@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import logoCompleto from "@/assets/images/Logo-completo.png";
 import DashboardSidebar from "@/components/DashboardSidebar.vue";
@@ -107,7 +107,9 @@ const loadAssignedTrucks = async () => {
 };
 
 const selectedPlate = ref("");
+const plateSelectRef = ref(null);
 const confirmed = ref(false);
+const isConfirming = ref(false);
 
 // ── Date ──────────────────────────────────────────────────────────────
 const currentDate = computed(() => {
@@ -126,14 +128,65 @@ const plateFromRoute = computed(() => {
   return Array.isArray(plate) ? plate[0] : plate || "";
 });
 
+const resolveTruckIdByPlate = async (plate) => {
+  try {
+    const { data } = await api.get(
+      `/vehicle-maintenance-records/mileage-suggestion/plate/${encodeURIComponent(plate)}`,
+    );
+    return data?.truckId || null;
+  } catch {
+    return null;
+  }
+};
+
+const hasMaintenanceToday = async (driverId, truckId) => {
+  if (!driverId || !truckId) return false;
+
+  try {
+    const { data } = await api.get(
+      `/vehicle-maintenance-records/driver/${driverId}/truck/${truckId}/date`,
+      {
+        params: { date: new Date().toISOString() },
+      },
+    );
+    return !!data;
+  } catch {
+    return false;
+  }
+};
+
 // ── Step 1 → 2 ────────────────────────────────────────────────────────
-const handleConfirm = () => {
-  if (!selectedPlate.value) return;
+const handleConfirm = async () => {
+  if (isConfirming.value) return;
+
+  let plate = selectedPlate.value;
+  if (!plate && plateSelectRef.value?.value) {
+    plate = plateSelectRef.value.value;
+    selectedPlate.value = plate;
+  }
+
+  if (!plate) return;
   tripActionError.value = "";
-  router.push({
-    name: 'daily-registration-maintenance',
-    query: { plate: selectedPlate.value }
-  });
+
+  isConfirming.value = true;
+
+  try {
+    const truckId = await resolveTruckIdByPlate(plate);
+    const alreadyFilled = await hasMaintenanceToday(auth.user?.id, truckId);
+
+    if (alreadyFilled) {
+      selectedPlate.value = plate;
+      confirmed.value = true;
+      return;
+    }
+
+    await router.push({
+      name: 'daily-registration-maintenance',
+      query: { plate }
+    });
+  } finally {
+    isConfirming.value = false;
+  }
 };
 // ── Cambiar patente modales ───────────────────────────────────────────
 const changePlateModal = ref({ step: 0 }); // 0=cerrado, 1=confirmar, 2=motivo
@@ -155,7 +208,6 @@ const cancelStep1 = () => {
 const confirmStep2 = () => {
   // TODO: enviar motivo al backend → POST /api/plate-change-reasons
   // { plate: selectedPlate.value, reason: changePlateReason.value, date: currentDate }
-  console.log("Motivo cambio de patente:", changePlateReason.value);
   changePlateModal.value.step = 0;
   confirmed.value = false;
   selectedPlate.value = "";
@@ -554,6 +606,7 @@ onMounted(async () => {
             <div class="max-w-xs mx-auto mb-12">
               <div class="relative">
                 <select
+                  ref="plateSelectRef"
                   v-model="selectedPlate"
                   class="w-full px-6 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-primary focus:border-primary font-body text-sm bg-white appearance-none cursor-pointer text-center"
                   :class="selectedPlate ? 'text-text-title' : 'text-gray-400'"
@@ -606,7 +659,7 @@ onMounted(async () => {
             <div class="flex justify-center">
               <button
                 @click="handleConfirm"
-                :disabled="!selectedPlate || isLoadingPlates"
+                :disabled="isLoadingPlates || isConfirming"
                 class="px-12 py-3 bg-[#215179] hover:bg-blue-900 text-white font-bold rounded-xl shadow-md transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Confirmar

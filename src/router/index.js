@@ -147,30 +147,30 @@ const router = createRouter({
 })
 
 // ── Navigation Guard ──────────────────────────────────────────────────────
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to) => {
     const auth = useAuthStore()
 
     // Cargar sesión si hay token guardado
     if (!auth.isAuthenticated) {
         auth.loadFromStorage()
     }
-    
+
     if (auth.isAuthenticated) {
         const syncResult = await auth.syncCurrentUser()
         if (!syncResult.success && to.name !== 'login') {
-            return next({ name: 'login' })
+            return { name: 'login' }
         }
     }
 
     // Si la ruta requiere autenticación
     if (to.meta.requiresAuth) {
         if (!auth.isAuthenticated) {
-            return next({ name: 'login' })
+            return { name: 'login' }
         }
 
         // Si la ruta requiere roles específicos
         if (to.meta.roles && !to.meta.roles.includes(auth.userRole)) {
-            return next({ name: 'access-denied' })
+            return { name: 'access-denied' }
         }
     }
 
@@ -181,10 +181,10 @@ router.beforeEach(async (to, from, next) => {
             EMPLOYEE: 'dashboard',
             ADMIN: 'dashboard-admin',
         }
-        return next({ name: roleRoutes[auth.userRole] || 'dashboard' })
+        return { name: roleRoutes[auth.userRole] || 'dashboard' }
     }
 
-    next()
+    return true
 })
 
 export default router
