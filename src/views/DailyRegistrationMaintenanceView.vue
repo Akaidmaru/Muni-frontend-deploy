@@ -6,11 +6,13 @@ import DashboardSidebar from "@/components/DashboardSidebar.vue";
 import TripHistoryTable from "@/components/TripHistoryTable.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useTripsStore } from "@/stores/trips";
+import { useVehicleAlertsStore } from "@/stores/vehicleAlerts";
 import UserMenu from "@/components/UserMenu.vue";
 import api from "@/services/axios";
 
 const auth = useAuthStore();
 const tripsStore = useTripsStore();
+const vehicleAlertsStore = useVehicleAlertsStore();
 const router = useRouter();
 const route = useRoute();
 const tripActionError = ref("");
@@ -122,6 +124,7 @@ const confirmed = ref(false);
 const suggestedMileage = ref(0);
 const selectedTruckId = ref(null);
 const alreadyRegisteredToday = ref(false);
+const existingMaintenanceRecordId = ref(null);
 
 // ── Date ──────────────────────────────────────────────────────────────
 const currentDate = computed(() => {
@@ -194,6 +197,50 @@ const createDefaultMaintenanceForm = (mileage = "") => ({
   },
 });
 
+const formatDisplayDate = (dateValue) => {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return currentDate.value;
+
+  return `${String(date.getDate()).padStart(2, "0")}/${String(
+    date.getMonth() + 1,
+  ).padStart(2, "0")}/${date.getFullYear()}`;
+};
+
+const populateMaintenanceFormFromRecord = (record) => {
+  const form = createDefaultMaintenanceForm(record?.currentMileage ?? "");
+  const itemsByCode = new Map(
+    (record?.maintenanceItems || []).map((item) => [item.itemCode, item]),
+  );
+
+  form.identificationVehicle = selectedPlate.value || form.identificationVehicle;
+  form.licMunicipal = record?.municipalLicense || "";
+  form.inspectionDate = formatDisplayDate(record?.inspectionDate);
+  form.inspectionTime = record?.inspectionTime || getCurrentTime();
+  form.kilometraje =
+    record?.currentMileage !== null && record?.currentMileage !== undefined
+      ? String(record.currentMileage)
+      : "";
+  form.annex.revisionTecnica = record?.technicalReviewStatus || "";
+  form.annex.permisoCirculacion = record?.circulationPermitStatus || "";
+  form.annex.seguroObligatorio = record?.insuranceStatus || "";
+  form.items = form.items.map((item) => {
+    if (item.type === "section") return item;
+
+    const existingItem = itemsByCode.get(item.id);
+    if (!existingItem) return item;
+
+    return {
+      ...item,
+      exists: existingItem.exists || "",
+      state: existingItem.status || "",
+      note: existingItem.notes || "",
+      hasError: false,
+    };
+  });
+
+  maintenanceForm.value = form;
+};
+
 // Obtains current time HH:MM
 const getCurrentTime = () => {
   const t = new Date();
@@ -239,6 +286,7 @@ const checkDailyMaintenanceByDriverAndTruck = async () => {
   if (!auth.user?.id || !selectedTruckId.value) return false;
 
   alreadyRegisteredToday.value = false;
+  existingMaintenanceRecordId.value = null;
 
   try {
     const { data } = await api.get(
@@ -250,6 +298,8 @@ const checkDailyMaintenanceByDriverAndTruck = async () => {
 
     if (data) {
       alreadyRegisteredToday.value = true;
+      existingMaintenanceRecordId.value = data.id || null;
+      populateMaintenanceFormFromRecord(data);
       return true;
     }
 
@@ -296,15 +346,9 @@ const handleConfirm = async () => {
   await loadMileageSuggestionByPlate(plate);
 
   await checkDailyMaintenanceByDriverAndTruck();
-  if (alreadyRegisteredToday.value) {
-    await router.push({
-      name: 'daily-registration-driver',
-      query: { plate }
-    });
-    return;
+  if (!alreadyRegisteredToday.value) {
+    maintenanceForm.value = createDefaultMaintenanceForm(suggestedMileage.value);
   }
-
-  maintenanceForm.value = createDefaultMaintenanceForm(suggestedMileage.value);
   confirmed.value = true;
 };
 
@@ -328,7 +372,23 @@ const toggleState = (item, value) => {
   validateItem(item);
 };
 
-const saveMaintenanceForm = () => {
+const buildAnnexAlertReason = (form) => {
+  const alertLines = [];
+
+  if (["Vencido", "No tiene"].includes(form.annex.revisionTecnica)) {
+    alertLines.push(`Revisión técnica: ${form.annex.revisionTecnica}`);
+  }
+  if (["Vencido", "No tiene"].includes(form.annex.permisoCirculacion)) {
+    alertLines.push(`Permiso de circulación: ${form.annex.permisoCirculacion}`);
+  }
+  if (["Vencido", "No tiene"].includes(form.annex.seguroObligatorio)) {
+    alertLines.push(`Seguro obligatorio: ${form.annex.seguroObligatorio}`);
+  }
+
+  return alertLines.join("\n");
+};
+
+const saveMaintenanceForm = async () => {
   maintenanceFormError.value = "";
   maintenanceFormSuccess.value = "";
   formErrors.value = [];
@@ -408,21 +468,40 @@ const saveMaintenanceForm = () => {
     maintenanceItems,
   };
 
-  api
-    .post("/vehicle-maintenance-records", payload)
-    .then(() => {
-      maintenanceFormSuccess.value = "Formulario de mantenimiento guardado correctamente.";
-      router.push({
-        name: 'daily-registration-driver',
-        query: { plate: maintenanceForm.value.identificationVehicle }
+  try {
+    if (existingMaintenanceRecordId.value) {
+      await api.patch(
+        `/vehicle-maintenance-records/${existingMaintenanceRecordId.value}`,
+        payload,
+      );
+    } else {
+      const { data } = await api.post("/vehicle-maintenance-records", payload);
+      existingMaintenanceRecordId.value = data?.id || null;
+    }
+
+    const annexAlertReason = buildAnnexAlertReason(maintenanceForm.value);
+    if (annexAlertReason) {
+      vehicleAlertsStore.addOutOfServiceAlert({
+        plate: maintenanceForm.value.identificationVehicle,
+        driver: auth.fullName || auth.user?.email || "Conductor sin nombre",
+        reason: annexAlertReason,
+        category: "Checklist",
       });
-    })
-    .catch((error) => {
-      const backendMessage = error.response?.data?.message;
-      maintenanceFormError.value = Array.isArray(backendMessage)
-        ? backendMessage.join(", ")
-        : backendMessage || "No se pudo guardar el registro de mantenimiento.";
+    }
+
+    maintenanceFormSuccess.value = existingMaintenanceRecordId.value
+      ? "Formulario de mantenimiento actualizado correctamente."
+      : "Formulario de mantenimiento guardado correctamente.";
+    router.push({
+      name: 'daily-registration-driver',
+      query: { plate: maintenanceForm.value.identificationVehicle }
     });
+  } catch (error) {
+    const backendMessage = error.response?.data?.message;
+    maintenanceFormError.value = Array.isArray(backendMessage)
+      ? backendMessage.join(", ")
+      : backendMessage || "No se pudo guardar el registro de mantenimiento.";
+  }
 };
 
 
@@ -1078,7 +1157,7 @@ onMounted(async () => {
               </div>
 
               <div class="mt-8">
-                <h2 class="text-xl font-titles font-bold text-text-title mb-4">ANEXO II</h2>
+                <h2 class="text-xl font-titles font-bold text-text-title mb-4">ANEXO II. Fechas de Vencimiento Documentación</h2>
                 <div class="grid gap-4 md:grid-cols-3">
                   <div>
                     <label class="block text-[11px] font-bold text-gray-500 mb-2">REVISIÓN TÉCNICA</label>

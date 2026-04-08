@@ -586,6 +586,15 @@ const selectEmployee = (emp) => {
   closeEmpModal();
 };
 
+const goToChecklist = () => {
+  if (!selectedPlate.value) return;
+
+  router.push({
+    name: "daily-registration-maintenance",
+    query: { plate: selectedPlate.value },
+  });
+};
+
 onMounted(async () => {
   await loadAssignedTrucks();
   loadEmployees();
@@ -731,12 +740,18 @@ onMounted(async () => {
                 }}</span>
               </div>
 
-              <div class="mb-4">
+              <div class="mb-4 flex items-center justify-between gap-4">
                 <button
                   @click="openChangePlate"
                   class="px-5 py-2 bg-[#215179] hover:bg-blue-900 text-white text-sm font-bold rounded-lg shadow transition-all duration-200"
                 >
                   Cambiar patente
+                </button>
+                <button
+                  @click="goToChecklist"
+                  class="px-5 py-2 bg-[#1E7F43] hover:bg-green-700 text-white text-sm font-bold rounded-lg shadow transition-all duration-200"
+                >
+                  Check list
                 </button>
               </div>
               <p v-if="tripActionError" class="text-sm text-red-600 font-body">
