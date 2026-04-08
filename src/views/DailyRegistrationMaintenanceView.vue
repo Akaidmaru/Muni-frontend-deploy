@@ -214,17 +214,20 @@ const plateFromRoute = computed(() => {
 });
 
 const loadMileageSuggestionByPlate = async (plate) => {
+  const foundTruck = licensePlates.value.find((t) => t.plate === plate);
+  const fallbackTruckId = foundTruck ? foundTruck.id : null;
+
   try {
     const { data } = await api.get(`/vehicle-maintenance-records/mileage-suggestion/plate/${encodeURIComponent(plate)}`);
     suggestedMileage.value = data.suggestedMileage || 0;
-    selectedTruckId.value = data.truckId || null;
+    selectedTruckId.value = data.truckId || fallbackTruckId;
     if (maintenanceForm.value) {
       maintenanceForm.value.kilometraje = String(suggestedMileage.value);
     }
     return suggestedMileage.value;
   } catch (error) {
     suggestedMileage.value = 0;
-    selectedTruckId.value = null;
+    selectedTruckId.value = fallbackTruckId;
     if (maintenanceForm.value) {
       maintenanceForm.value.kilometraje = "";
     }
@@ -422,36 +425,7 @@ const saveMaintenanceForm = () => {
     });
 };
 
-// ── Cambiar patente modales ───────────────────────────────────────────
-const changePlateModal = ref({ step: 0 }); // 0=cerrado, 1=confirmar, 2=motivo
-const changePlateReason = ref("");
 
-const openChangePlate = () => {
-  changePlateReason.value = "";
-  changePlateModal.value.step = 1;
-};
-
-const confirmStep1 = () => {
-  changePlateModal.value.step = 2;
-};
-
-const cancelStep1 = () => {
-  changePlateModal.value.step = 0;
-};
-
-const confirmStep2 = () => {
-  // TODO: enviar motivo al backend → POST /api/plate-change-reasons
-  // { plate: selectedPlate.value, reason: changePlateReason.value, date: currentDate }
-  changePlateModal.value.step = 0;
-  confirmed.value = false;
-  selectedPlate.value = "";
-  trips.value = [];
-};
-
-const cancelStep2 = () => {
-  // Cancela: NO redirige al selector de patente
-  changePlateModal.value.step = 0;
-};
 
 // --- Signature Canvas Logic ---
 const signatureCanvas = ref(null);
@@ -921,14 +895,7 @@ onMounted(async () => {
                 <span class="text-gray-500 font-body text-sm">{{ currentDate }}</span>
               </div>
 
-              <div class="mb-4">
-                <button
-                  @click="openChangePlate"
-                  class="px-5 py-2 bg-[#215179] hover:bg-blue-900 text-white text-sm font-bold rounded-lg shadow transition-all duration-200"
-                >
-                  Cambiar patente
-                </button>
-              </div>
+
               <p v-if="maintenanceFormError" class="text-sm text-red-600 font-body">
                 {{ maintenanceFormError }}
               </p>
@@ -1092,6 +1059,11 @@ onMounted(async () => {
                           </div>
                         </td>
                         <td class="border border-slate-200 px-3 py-3">
+                          <label
+                            class="mb-1 block text-left text-sm font-bold text-text-title"
+                          >
+                            Observación
+                          </label>
                           <input
                             type="text"
                             v-model="item.note"
@@ -1244,143 +1216,9 @@ onMounted(async () => {
     </transition>
     -->
 
-    <!-- ═══════════════════════════════════════ -->
-    <!-- MODAL PASO 1: ¿Está seguro?             -->
-    <!-- ═══════════════════════════════════════ -->
-    <transition
-      enter-active-class="transition duration-150 ease-out"
-      enter-from-class="opacity-0 scale-95"
-      enter-to-class="opacity-100 scale-100"
-      leave-active-class="transition duration-100 ease-in"
-      leave-from-class="opacity-100 scale-100"
-      leave-to-class="opacity-0 scale-95"
-    >
-      <div
-        v-if="changePlateModal.step === 1"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4"
-      >
-        <div class="absolute inset-0 bg-black/40" @click="cancelStep1" />
-        <div
-          class="relative bg-white rounded-2xl w-full max-w-lg z-10 p-10 shadow-[0_30px_80px_-5px_rgba(0,0,0,0.5),0_0_0_1px_rgba(0,0,0,0.06)]"
-        >
-          <!-- X -->
-          <button
-            @click="cancelStep1"
-            class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-          <!-- Título -->
-          <h3
-            class="font-titles font-bold text-text-title text-center text-2xl mb-5"
-          >
-            Cambiar patente
-          </h3>
-          <!-- Texto -->
-          <p class="text-base text-text-secondary font-body text-center mb-8">
-            ¿Está seguro de cambiar de patente?
-          </p>
-          <!-- Botones -->
-          <div class="flex gap-4 justify-center">
-            <button
-              @click="confirmStep1"
-              class="px-8 py-3 bg-[#9B2335] hover:bg-red-800 text-white font-bold rounded-lg shadow transition-all duration-200"
-            >
-              Confirmar
-            </button>
-            <button
-              @click="cancelStep1"
-              class="px-8 py-3 bg-[#215179] hover:bg-blue-900 text-white font-bold rounded-lg shadow transition-all duration-200"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      </div>
-    </transition>
 
-    <!-- ═══════════════════════════════════════ -->
-    <!-- MODAL PASO 2: Motivo del cambio         -->
-    <!-- ═══════════════════════════════════════ -->
-    <transition
-      enter-active-class="transition duration-150 ease-out"
-      enter-from-class="opacity-0 scale-95"
-      enter-to-class="opacity-100 scale-100"
-      leave-active-class="transition duration-100 ease-in"
-      leave-from-class="opacity-100 scale-100"
-      leave-to-class="opacity-0 scale-95"
-    >
-      <div
-        v-if="changePlateModal.step === 2"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4"
-      >
-        <div class="absolute inset-0 bg-black/40" @click="cancelStep2" />
-        <div
-          class="relative bg-white rounded-2xl w-full max-w-lg z-10 p-10 shadow-[0_30px_80px_-5px_rgba(0,0,0,0.5),0_0_0_1px_rgba(0,0,0,0.06)]"
-        >
-          <!-- X -->
-          <button
-            @click="cancelStep2"
-            class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-          <!-- Título -->
-          <h3
-            class="font-titles font-bold text-text-title text-center text-2xl mb-5"
-          >
-            Cambiar patente
-          </h3>
-          <!-- Textarea -->
-          <textarea
-            v-model="changePlateReason"
-            placeholder="Por favor especifique el motivo del cambio de la patente."
-            rows="5"
-            class="w-full text-sm font-body border border-gray-200 rounded-xl bg-gray-50 px-4 py-3 outline-none focus:border-primary resize-none mb-8 placeholder-gray-400"
-          />
-          <!-- Botones -->
-          <div class="flex gap-4 justify-center">
-            <button
-              @click="confirmStep2"
-              :disabled="!changePlateReason.trim()"
-              class="px-8 py-3 bg-[#9B2335] hover:bg-red-800 text-white font-bold rounded-lg shadow transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Confirmar
-            </button>
-            <button
-              @click="cancelStep2"
-              class="px-8 py-3 bg-[#215179] hover:bg-blue-900 text-white font-bold rounded-lg shadow transition-all duration-200"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      </div>
-    </transition>
+
+
 
     <!-- ═══════════════════════════════════════ -->
     <!-- MODAL: Detener viaje                    -->

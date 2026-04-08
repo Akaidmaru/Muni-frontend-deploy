@@ -20,8 +20,11 @@ import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import api from '@/services/axios'
+import { useVehicleAlertsStore } from '@/stores/vehicleAlerts'
 
 const router = useRouter()
+const vehicleAlertsStore = useVehicleAlertsStore()
+const alertsModal = ref(false)
 
 // ═══════════════════════════════════════════════════════════
 // KPI STATS
@@ -62,7 +65,7 @@ const loadStats = async () => {
     kpis.value = {
       minorIncidents: 14,
       topCategories: 'Luces Altas (4)\nNeumáticos (1)',
-      outOfService: 3,
+      outOfService: vehicleAlertsStore.outOfServiceCount,
       dailyRegistrations: 20,
       pendingRegistrations: 2,
     }
@@ -72,6 +75,34 @@ const loadStats = async () => {
   } finally {
     isLoadingKpis.value = false
   }
+}
+
+const criticalAlerts = computed(() => vehicleAlertsStore.criticalAlerts)
+const outOfServiceCount = computed(() => vehicleAlertsStore.outOfServiceCount)
+
+const formatAlertDateTime = (value) => {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Fecha no disponible'
+  }
+
+  return new Intl.DateTimeFormat('es-CL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
+const openAlertsModal = () => {
+  vehicleAlertsStore.syncFromStorage()
+  alertsModal.value = true
+}
+
+const closeAlertsModal = () => {
+  alertsModal.value = false
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -180,12 +211,15 @@ const onTableMouseMove = (e) => {
 const onTableMouseUp = () => { isTableDragging.value = false }
 
 onMounted(() => {
+  vehicleAlertsStore.syncFromStorage()
   loadStats()
   loadRecords()
   window.addEventListener('mousemove', onTableMouseMove)
+  window.addEventListener('storage', vehicleAlertsStore.syncFromStorage)
   window.addEventListener('mouseup', onTableMouseUp)
 })
 onBeforeUnmount(() => {
+  window.removeEventListener('storage', vehicleAlertsStore.syncFromStorage)
   window.removeEventListener('mousemove', onTableMouseMove)
   window.removeEventListener('mouseup', onTableMouseUp)
 })
@@ -385,14 +419,20 @@ const saveEdit = async () => {
               <div class="flex items-start justify-between gap-2">
                 <span class="text-sm font-titles font-bold text-slate-800 leading-tight">Vehículos fuera<br />de servicio</span>
                 <span class="text-4xl font-titles font-extrabold text-slate-900 leading-none shrink-0">
-                  {{ isLoadingKpis ? '…' : kpis.outOfService }}
+                  {{ isLoadingKpis ? '…' : outOfServiceCount }}
                 </span>
               </div>
               <div class="flex items-center gap-3">
                 <svg class="w-9 h-9 shrink-0 text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.4">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M8 18H5.5A1.5 1.5 0 014 16.5v-10A1.5 1.5 0 015.5 5H16a2 2 0 012 2v1m0 0h1.5a2 2 0 011.9 1.368L22 12.5V17a1 1 0 01-1 1h-1M18 8h-2M6 16.5a1.5 1.5 0 103 0 1.5 1.5 0 00-3 0zm9 0a1.5 1.5 0 103 0 1.5 1.5 0 00-3 0z"/>
                 </svg>
-                <a href="#" class="text-sm text-blue-500 font-semibold hover:underline">Ver alertas</a>
+                <button
+                  type="button"
+                  @click="openAlertsModal"
+                  class="text-sm text-blue-500 font-semibold hover:underline"
+                >
+                  Ver alertas
+                </button>
               </div>
             </div>
 
@@ -550,6 +590,64 @@ const saveEdit = async () => {
       </main>
     </div>
   </div>
+
+  <!-- ═══════════ MODAL ALERTAS ═══════════ -->
+  <Teleport to="body">
+    <div v-if="alertsModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl border border-gray-200 overflow-hidden">
+        <div class="bg-[#9B2335] px-6 py-5 flex items-center justify-between">
+          <div>
+            <h3 class="text-white font-titles font-bold text-lg">Vehículos fuera de servicio</h3>
+            <p class="text-white/80 text-sm mt-1">Reportes críticos enviados desde cambio de patente por avería.</p>
+          </div>
+          <button @click="closeAlertsModal" class="text-white/70 hover:text-white transition-colors">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="p-6 max-h-[70vh] overflow-y-auto">
+          <div v-if="criticalAlerts.length === 0" class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center text-sm text-slate-500">
+            No hay reportes críticos por avería.
+          </div>
+
+          <div v-else class="space-y-4">
+            <article
+              v-for="alert in criticalAlerts"
+              :key="alert.id"
+              class="rounded-2xl border border-red-200 bg-red-50 px-5 py-4"
+            >
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <p class="text-sm font-bold text-slate-900">{{ alert.plate || 'Sin patente' }}</p>
+                  <p class="text-xs text-slate-500 mt-1">{{ formatAlertDateTime(alert.reportedAt) }}</p>
+                </div>
+                <span class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">
+                  {{ alert.category }}
+                </span>
+              </div>
+              <p class="mt-3 text-sm text-slate-700">
+                <span class="font-bold">Conductor:</span> {{ alert.driver }}
+              </p>
+              <p class="mt-2 text-sm text-slate-700 whitespace-pre-line">
+                <span class="font-bold">Observación:</span> {{ alert.reason }}
+              </p>
+            </article>
+          </div>
+        </div>
+
+        <div class="px-6 pb-6 flex justify-end">
+          <button
+            @click="closeAlertsModal"
+            class="px-6 py-2 bg-[#215179] text-white text-sm rounded-xl font-bold hover:bg-blue-900 transition-all"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 
   <!-- ═══════════ MODAL VER ═══════════ -->
   <Teleport to="body">

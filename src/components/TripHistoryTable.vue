@@ -60,6 +60,7 @@ const emit = defineEmits([
 
 const editingTripId = ref(null);
 const editingTripData = ref({});
+const OTHER_DESTINATION_VALUE = '__other__';
 
 const startEditing = (trip) => {
   editingTripId.value = trip.id;
@@ -93,7 +94,14 @@ defineExpose({
   cancelEditing
 });
 
-const canStartTrip = (trip) => Boolean(trip.destination && trip.employee);
+const canStartTrip = (trip) => {
+  const hasDestination =
+    trip.destination === OTHER_DESTINATION_VALUE
+      ? Boolean(trip.customDestination?.trim())
+      : Boolean(trip.destination);
+
+  return Boolean(hasDestination && trip.employee);
+};
 
 // Cross-browser fix: remove readonly on focus prevents Firefox & Chrome
 // from showing autocomplete history suggestions
@@ -401,7 +409,7 @@ const isAdminEditComplete = computed(() => {
 
           <!-- Destino: select -->
           <td class="px-6 py-4 border-l border-gray-200">
-            <select v-model.number="trip.destination"
+            <select v-model="trip.destination"
               :disabled="trip.status === 'done' || isLoadingDestinations || destinations.length === 0"
               class="w-full bg-transparent outline-none cursor-pointer font-body text-sm disabled:text-gray-400"
               :class="trip.destination ? 'text-text-title' : 'text-gray-300'">
@@ -411,7 +419,18 @@ const isAdminEditComplete = computed(() => {
               <option v-for="dest in destinations" :key="dest.id" :value="dest.id" class="text-text-title">
                 {{ dest.name }}
               </option>
+              <option :value="OTHER_DESTINATION_VALUE" class="text-text-title">
+                Otro
+              </option>
             </select>
+            <input
+              v-if="trip.destination === OTHER_DESTINATION_VALUE"
+              v-model="trip.customDestination"
+              type="text"
+              placeholder="Ingrese nombre o dirección"
+              :disabled="trip.status === 'done'"
+              class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-text-title outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:bg-gray-100 disabled:text-gray-400"
+            />
             <p v-if="destinationsError" class="mt-2 text-xs text-red-600">{{ destinationsError }}</p>
           </td>
 

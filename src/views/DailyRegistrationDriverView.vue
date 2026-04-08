@@ -6,11 +6,13 @@ import DashboardSidebar from "@/components/DashboardSidebar.vue";
 import TripHistoryTable from "@/components/TripHistoryTable.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useTripsStore } from "@/stores/trips";
+import { useVehicleAlertsStore } from "@/stores/vehicleAlerts";
 import UserMenu from "@/components/UserMenu.vue";
 import api from "@/services/axios";
 
 const auth = useAuthStore();
 const tripsStore = useTripsStore();
+const vehicleAlertsStore = useVehicleAlertsStore();
 const router = useRouter();
 const route = useRoute();
 const tripActionError = ref("");
@@ -199,9 +201,11 @@ const handleConfirm = async () => {
 // ── Cambiar patente modales ───────────────────────────────────────────
 const changePlateModal = ref({ step: 0 }); // 0=cerrado, 1=confirmar, 2=motivo
 const changePlateReason = ref("");
+const changePlateCategory = ref("");
 
 const openChangePlate = () => {
   changePlateReason.value = "";
+  changePlateCategory.value = "";
   changePlateModal.value.step = 1;
 };
 
@@ -216,6 +220,15 @@ const cancelStep1 = () => {
 const confirmStep2 = () => {
   // TODO: enviar motivo al backend → POST /api/plate-change-reasons
   // { plate: selectedPlate.value, reason: changePlateReason.value, date: currentDate }
+  if (changePlateCategory.value === "Avería") {
+    vehicleAlertsStore.addOutOfServiceAlert({
+      plate: selectedPlate.value,
+      driver: auth.fullName || auth.user?.email || "Conductor sin nombre",
+      reason: changePlateReason.value.trim(),
+      category: changePlateCategory.value,
+    });
+  }
+
   changePlateModal.value.step = 0;
   confirmed.value = false;
   selectedPlate.value = "";
@@ -232,7 +245,7 @@ const signatureCanvas = ref(null);
 let isDrawing = false;
 let ctx = null;
 const signatureError = ref("");
-let hasSignature = false;
+const hasSignature = ref(false);
 
 const initCanvas = () => {
   if (!signatureCanvas.value) return;
@@ -250,7 +263,7 @@ const initCanvas = () => {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
-  hasSignature = false;
+  hasSignature.value = false;
   signatureError.value = "";
 };
 
@@ -280,7 +293,7 @@ const draw = (e) => {
   const pos = getPointerPos(e);
   ctx.lineTo(pos.x, pos.y);
   ctx.stroke();
-  hasSignature = true;
+  hasSignature.value = true;
 };
 
 const stopDrawing = () => {
@@ -294,7 +307,7 @@ const clearSignature = () => {
   const canvas = signatureCanvas.value;
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  hasSignature = false;
+  hasSignature.value = false;
   signatureError.value = "";
 };
 
@@ -371,7 +384,7 @@ const closeSignatureModal = () => {
 const saveSignatureBtn = () => {
   const trip = signatureModal.value.trip;
   if (!trip) return;
-  if (!hasSignature) {
+  if (!hasSignature.value) {
     signatureError.value = "Por favor firme antes de guardar.";
     return;
   }
@@ -439,7 +452,7 @@ const confirmStopTrip = async () => {
         licensePlate: selectedPlate.value,
         startTime: trip.startTime,
         endTime: trip.endTime,
-        destination: getDestinationNameById(trip.destination),
+        destination: getTripDestinationLabel(trip),
         startKm: null,
         endKm: null,
         official: trip.employee ? trip.employee.name : null,
@@ -465,6 +478,7 @@ let tripCounter = 1;
 const newTrip = () => ({
   id: tripCounter++,
   destination: null,
+  customDestination: "",
   employee: null, // { id, name }
   historyId: null,
   startTime: null,
@@ -482,10 +496,22 @@ const addTrip = () => trips.value.push(newTrip());
 const canStartTrip = (trip) => Boolean(trip.destination && trip.employee);
 
 const getDestinationNameById = (destinationId) => {
+  if (typeof destinationId === "string" && destinationId.trim()) {
+    return destinationId;
+  }
+
   const destination = destinations.value.find(
     (dest) => dest.id === destinationId,
   );
   return destination?.name || "Sin destino";
+};
+
+const getTripDestinationLabel = (trip) => {
+  if (trip.customDestination?.trim()) {
+    return trip.customDestination.trim();
+  }
+
+  return getDestinationNameById(trip.destination);
 };
 
 const startTrip = async (trip) => {
@@ -496,12 +522,17 @@ const startTrip = async (trip) => {
   trip.isSaving = true;
 
   try {
-    const { data } = await api.post("/trip-history/start", {
+    const trimmedCustomDestination = trip.customDestination?.trim() || "";
+    const payload = {
       plate: selectedPlate.value,
-      destinationId: Number(trip.destination),
       employeeId: Number(trip.employee.id),
       startTime,
-    });
+      ...(trimmedCustomDestination
+        ? { customDestination: trimmedCustomDestination }
+        : { destinationId: Number(trip.destination) }),
+    };
+
+    const { data } = await api.post("/trip-history/start", payload);
 
     const createdHistoryId = Number(data?.id);
     if (!Number.isInteger(createdHistoryId) || createdHistoryId <= 0) {
@@ -943,18 +974,42 @@ onMounted(async () => {
           >
             Cambiar patente
           </h3>
+          <!-- Dropdown categoría -->
+          <div class="relative mb-4">
+            <select
+              v-model="changePlateCategory"
+              class="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50 text-sm font-body outline-none focus:border-primary appearance-none cursor-pointer"
+              :class="changePlateCategory ? 'text-text-title' : 'text-gray-400'"
+            >
+              <option value="" disabled>Seleccione el tipo de motivo</option>
+              <option value="Avería">Avería</option>
+              <option value="Logística">Logística</option>
+            </select>
+            <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+              <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
           <!-- Textarea -->
-          <textarea
-            v-model="changePlateReason"
-            placeholder="Por favor especifique el motivo del cambio de la patente."
-            rows="5"
-            class="w-full text-sm font-body border border-gray-200 rounded-xl bg-gray-50 px-4 py-3 outline-none focus:border-primary resize-none mb-8 placeholder-gray-400"
-          />
+          <div class="mb-8">
+            <label
+              class="mb-2 block text-left text-sm font-bold text-text-title"
+            >
+              Observación
+            </label>
+            <textarea
+              v-model="changePlateReason"
+              placeholder="Por favor especifique el motivo del cambio de la patente."
+              rows="5"
+              class="w-full text-sm font-body border border-gray-200 rounded-xl bg-gray-50 px-4 py-3 outline-none focus:border-primary resize-none placeholder-gray-400"
+            />
+          </div>
           <!-- Botones -->
           <div class="flex gap-4 justify-center">
             <button
               @click="confirmStep2"
-              :disabled="!changePlateReason.trim()"
+              :disabled="!changePlateCategory || !changePlateReason.trim()"
               class="px-8 py-3 bg-[#9B2335] hover:bg-red-800 text-white font-bold rounded-lg shadow transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Confirmar
