@@ -1,8 +1,9 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import ExcelJS from 'exceljs'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import TripHistoryTable from '@/components/TripHistoryTable.vue'
@@ -69,8 +70,9 @@ const mapTravelFromApi = (travel) => ({
   endKm: travel.endKm ?? null,
   driver: travel.driver?.name || travel.driver?.email || 'Sin conductor',
   official: travel.employee?.name || travel.employee?.email || 'Sin funcionario',
-  signature: Boolean(travel.signatureUrl),
+  signature: Boolean(travel.signatureUrl || travel.signatureDataUrl),
   signatureUrl: travel.signatureUrl || null,
+  signatureDataUrl: travel.signatureDataUrl || null,
   patient: travel.patient?.name || '-',
   evidence:
     travel.evidenceUrl ||
@@ -154,7 +156,7 @@ const loadAdminEditCatalogs = async () => {
 
     adminTrucksByDriver.value = Object.fromEntries(trucksEntries)
   } catch (error) {
-    console.error('No se pudieron cargar catalogos de edición admin', error)
+    console.error('No se pudieron cargar catalogos de ediciÃ³n admin', error)
   }
 }
 
@@ -170,11 +172,11 @@ const loadTravels = async () => {
         from: appliedFilters.value.from || undefined,
         to: appliedFilters.value.to || undefined,
         license: appliedFilters.value.license || undefined,
-        // Dynamic search filter – maps frontend field key to backend param name:
-        //   'official'    → 'name'        ✅ already supported by backend (filters by employee.name)
-        //   'destination' → 'destination' ⏳ TODO backend: add destination filter (see service)
-        //   'driver'      → 'driver'      ⏳ TODO backend: add driver filter (see service)
-        //   'patient'     → 'patient'     ✅ already supported by backend
+        // Dynamic search filter â€“ maps frontend field key to backend param name:
+        //   'official'    â†’ 'name'        âœ… already supported by backend (filters by employee.name)
+        //   'destination' â†’ 'destination' â³ TODO backend: add destination filter (see service)
+        //   'driver'      â†’ 'driver'      â³ TODO backend: add driver filter (see service)
+        //   'patient'     â†’ 'patient'     âœ… already supported by backend
         ...(appliedFilters.value.searchValue ? {
           [appliedFilters.value.searchBy === 'official' ? 'name' : appliedFilters.value.searchBy]: appliedFilters.value.searchValue
         } : {}),
@@ -325,38 +327,288 @@ const handleViewMap = (trip) => {
   selectedTripForMap.value = trip
 }
 
-const exportToPDF = () => {
-  // landscape to give horizontal space for so many columns
+const loadImageElement = (src) =>
+  new Promise((resolve, reject) => {
+    const image = new Image()
+    image.crossOrigin = 'anonymous'
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error('No se pudo cargar la firma.'))
+    image.src = src
+  })
+
+const getImageExtensionFromDataUrl = (dataUrl) => {
+  const mimeType = dataUrl?.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/)?.[1]
+
+  if (mimeType === 'image/png') return 'png'
+  return 'jpeg'
+}
+
+const getSignatureImageData = async (signatureUrl) => {
+  if (!signatureUrl) return null
+  if (signatureUrl.startsWith('data:image/')) return signatureUrl
+
+  try {
+    const image = await loadImageElement(signatureUrl)
+    const canvas = document.createElement('canvas')
+    const safeWidth = Math.max(image.naturalWidth || image.width || 1, 1)
+    const safeHeight = Math.max(image.naturalHeight || image.height || 1, 1)
+
+    canvas.width = safeWidth
+    canvas.height = safeHeight
+
+    const context = canvas.getContext('2d')
+    if (!context) return null
+
+    context.fillStyle = '#ffffff'
+    context.fillRect(0, 0, safeWidth, safeHeight)
+    context.drawImage(image, 0, 0, safeWidth, safeHeight)
+
+    return canvas.toDataURL('image/png')
+  } catch (error) {
+    console.error('No se pudo cargar la firma para exportar', signatureUrl, error)
+    return null
+  }
+}
+
+const resizeSignatureDataUrl = async (dataUrl) => {
+  if (!dataUrl) return null
+
+  try {
+    const image = await loadImageElement(dataUrl)
+    const maxWidth = 220
+    const maxHeight = 80
+    const scale = Math.min(maxWidth / image.width, maxHeight / image.height, 1)
+    const width = Math.max(Math.round(image.width * scale), 1)
+    const height = Math.max(Math.round(image.height * scale), 1)
+    const canvas = document.createElement('canvas')
+
+    canvas.width = width
+    canvas.height = height
+
+    const context = canvas.getContext('2d')
+    if (!context) return dataUrl
+
+    context.fillStyle = '#ffffff'
+    context.fillRect(0, 0, width, height)
+    context.drawImage(image, 0, 0, width, height)
+
+    return canvas.toDataURL('image/png')
+  } catch (error) {
+    console.error('No se pudo redimensionar la firma para exportar', error)
+    return dataUrl
+  }
+}
+
+const loadSignatureImages = async (travelsList) => {
+  const imageEntries = await Promise.all(
+    travelsList.map(async (travel) => [
+      travel.id,
+      await resizeSignatureDataUrl(
+        await getSignatureImageData(travel.signatureDataUrl || travel.signatureUrl),
+      ),
+    ]),
+  )
+
+  return new Map(imageEntries)
+}
+
+const downloadBlobFile = (blob, filename) => {
+  const downloadUrl = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = downloadUrl
+  link.download = filename
+  link.style.display = 'none'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+
+  window.setTimeout(() => {
+    window.URL.revokeObjectURL(downloadUrl)
+  }, 1000)
+}
+
+const buildPdfDocument = (signatureImages = new Map()) => {
+  const pdfTravels = [...filteredTravels.value]
   const doc = new jsPDF('landscape')
   doc.setFontSize(16)
   doc.text('Historial de Viajes', 14, 20)
 
   const headers = [['Fecha', 'Patente', 'Salida', 'Llegada', 'Destino', 'Estado', 'Km Inicial', 'Km Final', 'Conductor', 'Funcionario', 'Firma']]
-  
-  const body = filteredTravels.value.map(t => [
-    t.date,
-    t.licensePlate,
-    t.startTime,
-    t.endTime,
-    t.destination,
-    t.status === 'COMPLETED' ? 'Completado' : 'En transcurso',
-    t.startKm ?? '-',
-    t.endKm ?? '-',
-    t.driver,
-    t.official,
-    t.signature ? 'Sí' : 'No'
+
+  const body = pdfTravels.map((travel) => [
+    travel.date,
+    travel.licensePlate,
+    travel.startTime,
+    travel.endTime,
+    travel.destination,
+    travel.status === 'COMPLETED' ? 'Completado' : 'En transcurso',
+    travel.startKm ?? '-',
+    travel.endKm ?? '-',
+    travel.driver,
+    travel.official,
+    '',
   ])
 
   autoTable(doc, {
     startY: 25,
     head: headers,
-    body: body,
-    styles: { fontSize: 8 },
+    body,
+    styles: {
+      fontSize: 8,
+      cellPadding: 2,
+      minCellHeight: 20,
+      valign: 'middle',
+    },
     theme: 'grid',
-    headStyles: { fillColor: [162, 32, 38] }, // Matches brand red
+    headStyles: { fillColor: [162, 32, 38] },
+    columnStyles: {
+      10: { cellWidth: 28 },
+    },
+    didDrawCell: (data) => {
+      if (data.section !== 'body' || data.column.index !== 10) return
+
+      const travel = pdfTravels[data.row.index]
+
+      if (!travel) {
+        doc.setFontSize(7)
+        doc.text('Sin firma', data.cell.x + 4, data.cell.y + data.cell.height / 2 + 1)
+        return
+      }
+
+      const signatureDataUrl = signatureImages.get(travel.id)
+
+      if (!signatureDataUrl) {
+        doc.setFontSize(7)
+        doc.text('Sin firma', data.cell.x + 4, data.cell.y + data.cell.height / 2 + 1)
+        return
+      }
+
+      try {
+        const padding = 1.5
+        doc.addImage(
+          signatureDataUrl,
+          getImageExtensionFromDataUrl(signatureDataUrl).toUpperCase(),
+          data.cell.x + padding,
+          data.cell.y + padding,
+          Math.max(data.cell.width - padding * 2, 8),
+          Math.max(data.cell.height - padding * 2, 8),
+        )
+      } catch (imageError) {
+        console.error('No se pudo dibujar la firma en el PDF', imageError)
+        doc.setFontSize(7)
+        doc.text('Sin firma', data.cell.x + 4, data.cell.y + data.cell.height / 2 + 1)
+      }
+    },
   })
 
-  doc.save('historial_viajes.pdf')
+  return doc
+}
+
+const exportToPDF = async () => {
+  try {
+    const signatureImages = await loadSignatureImages(filteredTravels.value)
+    const doc = buildPdfDocument(signatureImages)
+    const blob = doc.output('blob')
+    downloadBlobFile(blob, 'historial_viajes.pdf')
+  } catch (error) {
+    console.error('No se pudo exportar el PDF', error)
+    try {
+      const fallbackDoc = buildPdfDocument()
+      const fallbackBlob = fallbackDoc.output('blob')
+      downloadBlobFile(fallbackBlob, 'historial_viajes.pdf')
+    } catch (fallbackError) {
+      console.error('No se pudo exportar el PDF sin firmas', fallbackError)
+    }
+  }
+}
+
+const exportToExcel = async () => {
+  const workbook = new ExcelJS.Workbook()
+  const worksheet = workbook.addWorksheet('Historial')
+  const signatureImages = await loadSignatureImages(filteredTravels.value)
+
+  worksheet.columns = [
+    { header: 'Fecha', key: 'date', width: 14 },
+    { header: 'Patente', key: 'licensePlate', width: 14 },
+    { header: 'Salida', key: 'startTime', width: 12 },
+    { header: 'Llegada', key: 'endTime', width: 12 },
+    { header: 'Destino', key: 'destination', width: 28 },
+    { header: 'Estado', key: 'status', width: 18 },
+    { header: 'Km Inicial', key: 'startKm', width: 14 },
+    { header: 'Km Final', key: 'endKm', width: 14 },
+    { header: 'Conductor', key: 'driver', width: 24 },
+    { header: 'Funcionario', key: 'official', width: 24 },
+    { header: 'Firma', key: 'signature', width: 24 },
+  ]
+
+  worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
+  worksheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFA22026' },
+  }
+  worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' }
+  worksheet.views = [{ state: 'frozen', ySplit: 1 }]
+
+  filteredTravels.value.forEach((travel) => {
+    worksheet.addRow({
+      date: travel.date,
+      licensePlate: travel.licensePlate,
+      startTime: travel.startTime,
+      endTime: travel.endTime,
+      destination: travel.destination,
+      status: travel.status === 'COMPLETED' ? 'Completado' : 'En transcurso',
+      startKm: travel.startKm ?? '-',
+      endKm: travel.endKm ?? '-',
+      driver: travel.driver,
+      official: travel.official,
+      signature: '',
+    })
+  })
+
+  worksheet.eachRow((row, rowNumber) => {
+    row.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }
+    if (rowNumber > 1) {
+      row.height = 52
+    }
+  })
+
+  for (let index = 0; index < filteredTravels.value.length; index += 1) {
+    const travel = filteredTravels.value[index]
+    const rowNumber = index + 2
+    const signatureDataUrl = signatureImages.get(travel.id)
+
+    if (!signatureDataUrl) {
+      worksheet.getCell(`K${rowNumber}`).value = 'Sin firma'
+      worksheet.getCell(`K${rowNumber}`).alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      }
+      continue
+    }
+
+    const imageId = workbook.addImage({
+      base64: signatureDataUrl,
+      extension: getImageExtensionFromDataUrl(signatureDataUrl),
+    })
+
+    worksheet.addImage(imageId, {
+      tl: { col: 10.08, row: rowNumber - 0.92 },
+      ext: { width: 130, height: 42 },
+      editAs: 'oneCell',
+    })
+  }
+
+  const buffer = await workbook.xlsx.writeBuffer()
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+  const downloadUrl = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = downloadUrl
+  link.download = 'historial_viajes.xlsx'
+  link.click()
+  window.URL.revokeObjectURL(downloadUrl)
 }
 
 const tableScrollRef = ref(null)
@@ -447,7 +699,7 @@ watch(currentPage, () => {
               @click="goBack"
               class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-blue-900 transition-colors"
             >
-              <span aria-hidden="true">←</span>
+              <span aria-hidden="true">â†</span>
               Volver
             </button>
           </div>
@@ -456,7 +708,11 @@ watch(currentPage, () => {
 
              <div class="absolute right-6 top-6 flex items-center gap-3 z-10">
                <button @click="exportToPDF" class="bg-[#A22026] hover:bg-red-800 text-white font-semibold py-2 px-5 rounded-xl shadow transition-colors outline-none focus:ring-2 focus:ring-red-500 text-sm">
-                 Exportar
+                 PDF
+               </button>
+
+               <button @click="exportToExcel" class="bg-[#1D6F42] hover:bg-green-800 text-white font-semibold py-2 px-5 rounded-xl shadow transition-colors outline-none focus:ring-2 focus:ring-green-500 text-sm">
+                 Excel
                </button>
 
                <button v-if="!isFilterOpen"
@@ -538,11 +794,11 @@ watch(currentPage, () => {
             <!-- Map Header -->
             <div class="flex flex-col relative w-full mb-8 shrink-0">
               <button @click="selectedTripForMap = null" class="self-start inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-blue-900 transition-colors mb-4 absolute top-0 left-0 z-10 w-fit">
-                 <span aria-hidden="true">←</span> Volver
+                 <span aria-hidden="true">â†</span> Volver
               </button>
               
               <div class="flex items-center justify-between w-full relative">
-                <!-- Ícono Mapa  -->
+                <!-- Ãcono Mapa  -->
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-[#215179] ml-14 mt-3" fill="currentColor" viewBox="0 0 24 24">
                    <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
                 </svg>
@@ -562,7 +818,7 @@ watch(currentPage, () => {
                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                  </svg>
                  <span class="text-gray-500 font-semibold text-lg">Mapa no disponible</span>
-                 <p class="text-gray-500 text-sm mt-1">(Esperando integración de coordenadas de ruta por Backend)</p>
+                 <p class="text-gray-500 text-sm mt-1">(Esperando integraciÃ³n de coordenadas de ruta por Backend)</p>
                </div>
             </div>
           </div>
@@ -626,7 +882,7 @@ watch(currentPage, () => {
                   </div>
                 </div>
 
-                <!-- Input de búsqueda -->
+                <!-- Input de bÃºsqueda -->
                 <div class="relative mt-1">
                   <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -662,7 +918,7 @@ watch(currentPage, () => {
     </main>
     </div>
 
-    <!-- Modal Confirmar Guardar Edición -->
+    <!-- Modal Confirmar Guardar EdiciÃ³n -->
     <Teleport to="body">
       <div v-if="isSaveModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <div class="bg-white rounded-3xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200">
@@ -674,7 +930,7 @@ watch(currentPage, () => {
             </button>
             <h3 class="text-2xl font-titles font-bold text-gray-900 mb-6">Guardar</h3>
             <p class="text-sm font-titles font-semibold text-gray-700 mb-8 whitespace-pre-line tracking-wide">
-              ¿Está seguro de guardar los
+              Â¿EstÃ¡ seguro de guardar los
               cambios realizados?
             </p>
             

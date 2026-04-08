@@ -355,16 +355,16 @@ const isAdminEditComplete = computed(() => {
           </template>
 
           <td class="px-4 py-5 border-l-0 border-r-0">
-            <div v-if="trip.signatureUrl" class="w-full flex justify-center">
+            <div v-if="trip.signatureDataUrl || trip.signatureUrl" class="w-full flex justify-center">
               <a
-                :href="trip.signatureUrl"
+                :href="trip.signatureUrl || trip.signatureDataUrl"
                 target="_blank"
                 rel="noopener noreferrer"
                 title="Ver firma"
                 class="inline-block"
               >
                 <img
-                  :src="trip.signatureUrl"
+                  :src="trip.signatureDataUrl || trip.signatureUrl"
                   alt="Firma"
                   class="h-7 max-w-[90px] object-contain opacity-90"
                 />
