@@ -7,6 +7,7 @@ import ExcelJS from 'exceljs'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import TripHistoryTable from '@/components/TripHistoryTable.vue'
+import TripRouteMap from '@/components/TripRouteMap.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import api from '@/services/axios'
 
@@ -321,10 +322,42 @@ const cancelSaveTrip = () => {
 }
 
 const selectedTripForMap = ref(null)
+const selectedTripRoute = ref(null)
+const isLoadingTripRoute = ref(false)
+const tripRouteError = ref('')
+
+const loadTripRoute = async (trip) => {
+  if (!trip?.id) {
+    selectedTripRoute.value = null
+    tripRouteError.value = 'No se pudo identificar el viaje.'
+    return
+  }
+
+  isLoadingTripRoute.value = true
+  tripRouteError.value = ''
+
+  try {
+    const { data } = await api.get(`/trip-history/${trip.id}/map-route`)
+    selectedTripRoute.value = {
+      rawPoints: Array.isArray(data?.rawPoints) ? data.rawPoints : [],
+      snappedPoints: Array.isArray(data?.snappedPoints) ? data.snappedPoints : [],
+    }
+  } catch (error) {
+    const backendMessage = error.response?.data?.message
+    tripRouteError.value = Array.isArray(backendMessage)
+      ? backendMessage.join(', ')
+      : backendMessage || 'No se pudo cargar la ruta del viaje.'
+    selectedTripRoute.value = null
+  } finally {
+    isLoadingTripRoute.value = false
+  }
+}
 
 const handleViewMap = (trip) => {
-  console.log('View map clicked:', trip)
   selectedTripForMap.value = trip
+  selectedTripRoute.value = null
+  tripRouteError.value = ''
+  void loadTripRoute(trip)
 }
 
 const loadImageElement = (src) =>
@@ -797,7 +830,7 @@ watch(currentPage, () => {
                  <span aria-hidden="true">â†</span> Volver
               </button>
               
-              <div class="flex items-center justify-between w-full relative">
+                <div class="flex items-center justify-between w-full relative">
                 <!-- Ãcono Mapa  -->
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-[#215179] ml-14 mt-3" fill="currentColor" viewBox="0 0 24 24">
                    <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
@@ -811,15 +844,39 @@ watch(currentPage, () => {
               </div>
             </div>
 
-            <!-- Map Placeholder -->
-            <div class="flex-1 bg-gray-300 rounded-xl w-full h-full min-h-0 flex items-center justify-center relative overflow-hidden shadow-inner">
-               <div class="text-center">
-                 <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                 </svg>
-                 <span class="text-gray-500 font-semibold text-lg">Mapa no disponible</span>
-                 <p class="text-gray-500 text-sm mt-1">(Esperando integraciÃ³n de coordenadas de ruta por Backend)</p>
-               </div>
+            <div class="flex items-center justify-between mb-4 text-sm font-medium text-gray-600">
+              <div>
+                Puntos crudos: <span class="font-bold text-text-title">{{ selectedTripRoute?.rawPoints?.length || 0 }}</span>
+              </div>
+              <div>
+                Puntos trazados: <span class="font-bold text-text-title">{{ selectedTripRoute?.snappedPoints?.length || 0 }}</span>
+              </div>
+            </div>
+
+            <div class="flex-1 rounded-xl w-full h-full min-h-0 overflow-hidden shadow-inner bg-slate-100 relative">
+              <TripRouteMap
+                v-if="selectedTripRoute"
+                :raw-points="selectedTripRoute.rawPoints"
+                :snapped-points="selectedTripRoute.snappedPoints"
+              />
+
+              <div v-else class="absolute inset-0 flex items-center justify-center text-center px-6">
+                <div>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                  </svg>
+                  <span class="text-gray-500 font-semibold text-lg">
+                    {{ isLoadingTripRoute ? 'Cargando ruta...' : 'Mapa no disponible' }}
+                  </span>
+                  <p class="text-gray-500 text-sm mt-1">
+                    {{ isLoadingTripRoute ? 'Recuperando puntos GPS y trazado...' : (tripRouteError || 'Selecciona un viaje para ver su recorrido.') }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="tripRouteError" class="mt-4 text-sm text-red-600 font-medium">
+              {{ tripRouteError }}
             </div>
           </div>
         </div>

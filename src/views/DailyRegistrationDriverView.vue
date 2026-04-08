@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import logoCompleto from "@/assets/images/Logo-completo.png";
 import DashboardSidebar from "@/components/DashboardSidebar.vue";
@@ -16,6 +16,7 @@ const vehicleAlertsStore = useVehicleAlertsStore();
 const router = useRouter();
 const route = useRoute();
 const tripActionError = ref("");
+const gpsStatusError = ref("");
 
 const destinations = ref([]);
 const isLoadingDestinations = ref(false);
@@ -123,6 +124,112 @@ const currentDate = computed(() => {
 const getCurrentTime = () => {
   const t = new Date();
   return `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+};
+
+const gpsTrackers = new Map();
+const GPS_BATCH_SIZE = 5;
+const GPS_FLUSH_INTERVAL_MS = 15000;
+
+const hasGeolocationSupport = () =>
+  typeof navigator !== 'undefined' && !!navigator.geolocation;
+
+const getGpsTracker = (historyId) => gpsTrackers.get(historyId);
+
+const flushGpsPoints = async (historyId) => {
+  const tracker = getGpsTracker(historyId);
+  if (!tracker || tracker.sending || tracker.queue.length === 0) {
+    return true;
+  }
+
+  const pointsToSend = tracker.queue.splice(0, tracker.queue.length);
+  tracker.sending = true;
+
+  try {
+    await api.post(`/trip-history/${historyId}/points`, {
+      points: pointsToSend,
+    });
+    return true;
+  } catch (error) {
+    tracker.queue.unshift(...pointsToSend);
+    console.error('No se pudieron enviar los puntos GPS', error);
+    return false;
+  } finally {
+    tracker.sending = false;
+  }
+};
+
+const stopGpsTracking = (historyId) => {
+  const tracker = getGpsTracker(historyId);
+  if (!tracker) return;
+
+  if (tracker.watchId !== null && hasGeolocationSupport()) {
+    navigator.geolocation.clearWatch(tracker.watchId);
+  }
+
+  if (tracker.intervalId) {
+    window.clearInterval(tracker.intervalId);
+  }
+
+  gpsTrackers.delete(historyId);
+};
+
+const startGpsTracking = (trip) => {
+  if (!trip?.historyId || gpsTrackers.has(trip.historyId)) {
+    return true;
+  }
+
+  if (!hasGeolocationSupport()) {
+    gpsStatusError.value = 'Este navegador no permite capturar la ubicación GPS.';
+    return false;
+  }
+
+  const tracker = {
+    queue: [],
+    sending: false,
+    watchId: null,
+    intervalId: null,
+  };
+
+  tracker.watchId = navigator.geolocation.watchPosition(
+    (position) => {
+      const latitude = Number(position.coords.latitude);
+      const longitude = Number(position.coords.longitude);
+
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        return;
+      }
+
+      const lastPoint = tracker.queue[tracker.queue.length - 1];
+      if (lastPoint && lastPoint.latitude === latitude && lastPoint.longitude === longitude) {
+        return;
+      }
+
+      tracker.queue.push({
+        latitude,
+        longitude,
+      });
+
+      if (tracker.queue.length >= GPS_BATCH_SIZE) {
+        void flushGpsPoints(trip.historyId);
+      }
+    },
+    (error) => {
+      console.error('Error capturando GPS', error);
+      gpsStatusError.value = 'No se pudo obtener la ubicación del vehículo.';
+    },
+    {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 10000,
+    },
+  );
+
+  tracker.intervalId = window.setInterval(() => {
+    void flushGpsPoints(trip.historyId);
+  }, GPS_FLUSH_INTERVAL_MS);
+
+  gpsTrackers.set(trip.historyId, tracker);
+  return true;
 };
 
 const getLocalDateParam = () => {
@@ -423,6 +530,10 @@ const confirmStopTrip = async () => {
       if (!trip.signatureDataUrl) {
         return; // Debe firmar primero
       }
+
+      if (trip.historyId) {
+        await flushGpsPoints(trip.historyId);
+      }
       
       const endTime = getCurrentTime();
       const { data } = await api.patch(
@@ -445,6 +556,9 @@ const confirmStopTrip = async () => {
       trip.endTime = data?.endTime || endTime;
 
       trip.status = "done";
+      if (trip.historyId) {
+        stopGpsTracking(trip.historyId);
+      }
 
       // Enviar viaje completado al store para mostrar en el historial
       tripsStore.addCompletedTrip({
@@ -544,6 +658,8 @@ const startTrip = async (trip) => {
     trip.historyId = createdHistoryId;
     trip.startTime = data.startTime || startTime;
     trip.status = "running";
+    gpsStatusError.value = "";
+    startGpsTracking(trip);
   } catch (error) {
     const backendMessage = error.response?.data?.message;
     tripActionError.value = Array.isArray(backendMessage)
@@ -603,6 +719,12 @@ onMounted(async () => {
   if (plateFromRoute.value) {
     selectedPlate.value = plateFromRoute.value;
     confirmed.value = true;
+  }
+});
+
+onBeforeUnmount(() => {
+  for (const [historyId] of gpsTrackers.entries()) {
+    stopGpsTracking(historyId);
   }
 });
 </script>
@@ -756,6 +878,9 @@ onMounted(async () => {
               </div>
               <p v-if="tripActionError" class="text-sm text-red-600 font-body">
                 {{ tripActionError }}
+              </p>
+              <p v-if="gpsStatusError" class="text-sm text-amber-600 font-body mt-1">
+                {{ gpsStatusError }}
               </p>
             </div>
 
