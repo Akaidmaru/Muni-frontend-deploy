@@ -732,7 +732,7 @@ watch(currentPage, () => {
               @click="goBack"
               class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-blue-900 transition-colors"
             >
-              <span aria-hidden="true">â†</span>
+              <span aria-hidden="true"> |< </span>
               Volver
             </button>
           </div>

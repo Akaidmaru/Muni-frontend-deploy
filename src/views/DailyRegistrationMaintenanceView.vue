@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import logoCompleto from "@/assets/images/Logo-completo.png";
@@ -79,9 +79,9 @@ const loadEmployees = async () => {
   }
 };
 
-// ── User (desde auth store) ───────────────────────────────────────────
+// â”€â”€ User (desde auth store) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── License plates (desde API) ───────────────────────────────────────
+// â”€â”€ License plates (desde API) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const licensePlates = ref([]);
 const isLoadingPlates = ref(false);
 const platesError = ref("");
@@ -126,7 +126,7 @@ const selectedTruckId = ref(null);
 const alreadyRegisteredToday = ref(false);
 const existingMaintenanceRecordId = ref(null);
 
-// ── Date ──────────────────────────────────────────────────────────────
+// â”€â”€ Date â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const currentDate = computed(() => {
   const t = new Date();
   return `${String(t.getDate()).padStart(2, "0")}/${String(t.getMonth() + 1).padStart(2, "0")}/${t.getFullYear()}`;
@@ -136,6 +136,17 @@ const maintenanceForm = ref(null);
 const maintenanceFormError = ref("");
 const maintenanceFormSuccess = ref("");
 const formErrors = ref([]);
+const inlineRequiredMessage =
+  "Este campo es obligatorio para continuar, por favor elija una de las opciones.";
+const fieldErrors = ref({
+  licMunicipal: false,
+  kilometraje: false,
+});
+const annexErrors = ref({
+  revisionTecnica: false,
+  permisoCirculacion: false,
+  seguroObligatorio: false,
+});
 
 const isSaveDisabled = computed(() => {
   if (!maintenanceForm.value) return true;
@@ -342,7 +353,7 @@ const handleConfirm = async () => {
   if (!plate) return;
   tripActionError.value = "";
 
-  // Asegura datos del vehículo en este mismo click (evita depender del watcher)
+  // Asegura datos del vehÃ­culo en este mismo click (evita depender del watcher)
   await loadMileageSuggestionByPlate(plate);
 
   await checkDailyMaintenanceByDriverAndTruck();
@@ -358,6 +369,14 @@ const existenceOptions = ["Si", "No"];
 const validateItem = (item) => {
   if (item.type === "section") return;
   item.hasError = !item.exists || !item.state;
+};
+
+const clearFieldError = (field) => {
+  fieldErrors.value[field] = false;
+};
+
+const clearAnnexError = (field) => {
+  annexErrors.value[field] = false;
 };
 
 const toggleExists = (item, value) => {
@@ -376,10 +395,10 @@ const buildAnnexAlertReason = (form) => {
   const alertLines = [];
 
   if (["Vencido", "No tiene"].includes(form.annex.revisionTecnica)) {
-    alertLines.push(`Revisión técnica: ${form.annex.revisionTecnica}`);
+    alertLines.push(`RevisiÃ³n tÃ©cnica: ${form.annex.revisionTecnica}`);
   }
   if (["Vencido", "No tiene"].includes(form.annex.permisoCirculacion)) {
-    alertLines.push(`Permiso de circulación: ${form.annex.permisoCirculacion}`);
+    alertLines.push(`Permiso de circulaciÃ³n: ${form.annex.permisoCirculacion}`);
   }
   if (["Vencido", "No tiene"].includes(form.annex.seguroObligatorio)) {
     alertLines.push(`Seguro obligatorio: ${form.annex.seguroObligatorio}`);
@@ -392,15 +411,20 @@ const saveMaintenanceForm = async () => {
   maintenanceFormError.value = "";
   maintenanceFormSuccess.value = "";
   formErrors.value = [];
+  fieldErrors.value.licMunicipal = false;
+  fieldErrors.value.kilometraje = false;
+  annexErrors.value.revisionTecnica = false;
+  annexErrors.value.permisoCirculacion = false;
+  annexErrors.value.seguroObligatorio = false;
   let hasErrors = false;
 
   // Validate required fields
   if (!maintenanceForm.value.licMunicipal.trim()) {
-    formErrors.value.push("Por favor ingrese la licencia municipal.");
+    fieldErrors.value.licMunicipal = true;
     hasErrors = true;
   }
   if (!maintenanceForm.value.kilometraje.trim()) {
-    formErrors.value.push("Por favor ingrese el kilometraje.");
+    fieldErrors.value.kilometraje = true;
     hasErrors = true;
   }
 
@@ -415,27 +439,24 @@ const saveMaintenanceForm = async () => {
 
   // Validate annex
   if (!maintenanceForm.value.annex.revisionTecnica) {
-    formErrors.value.push("Por favor seleccione el estado de la Revisión Técnica.");
+    annexErrors.value.revisionTecnica = true;
     hasErrors = true;
   }
   if (!maintenanceForm.value.annex.permisoCirculacion) {
-    formErrors.value.push("Por favor seleccione el estado del Permiso de Circulación.");
+    annexErrors.value.permisoCirculacion = true;
     hasErrors = true;
   }
   if (!maintenanceForm.value.annex.seguroObligatorio) {
-    formErrors.value.push("Por favor seleccione el estado del Seguro Obligatorio.");
+    annexErrors.value.seguroObligatorio = true;
     hasErrors = true;
   }
 
   if (hasErrors) {
-    if (maintenanceForm.value.items.some(item => item.hasError)) {
-      formErrors.value.push("Por favor complete todos los campos obligatorios marcados en rojo.");
-    }
     return;
   }
 
   if (!selectedTruckId.value) {
-    maintenanceFormError.value = "No se pudo identificar el camión seleccionado.";
+    maintenanceFormError.value = "No se pudo identificar el camiÃ³n seleccionado.";
     return;
   }
 
@@ -577,7 +598,7 @@ const clearSignature = () => {
   signatureError.value = "";
 };
 
-// ── Modal de Pacientes ────────────────────────────────────────────────
+// Modal de Pacientes 
 const patientModal = ref({ open: false, trip: null });
 const tempSelectedPatients = ref([]);
 
@@ -629,7 +650,7 @@ const getPatientNamesAsArray = (trip) => {
   return trip.patients.map((id) => allPatients.find((p) => p.id === id)?.name).filter(Boolean);
 };
 
-// ── Modal de Firma Independiente ──────────────────────────────────────
+// Modal de Firma Independiente 
 const signatureModal = ref({ open: false, trip: null, autoConfirm: false });
 
 const openSignatureModal = (trip, autoConfirm = false) => {
@@ -667,7 +688,7 @@ const saveSignatureBtn = () => {
   }
 };
 
-// ── Detener viaje modal ──────────────────────────────────────────────
+// Detener viaje modal 
 const stopTripModal = ref({ open: false, trip: null });
 
 const openStopTrip = (trip) => {
@@ -682,7 +703,7 @@ const confirmStopTrip = async () => {
     try {
       if (!trip.historyId) {
         tripActionError.value =
-          "Este viaje no tiene ID en base de datos. Inícielo nuevamente para poder finalizarlo.";
+          "Este viaje no tiene ID en base de datos. InÃ­cielo nuevamente para poder finalizarlo.";
         return;
       }
 
@@ -739,7 +760,7 @@ const cancelStopTrip = () => {
   stopTripModal.value = { open: false, trip: null };
 };
 
-// ── Trips ─────────────────────────────────────────────────────────────
+// Trips 
 let tripCounter = 1;
 const newTrip = () => ({
   id: tripCounter++,
@@ -785,7 +806,7 @@ const startTrip = async (trip) => {
     const createdHistoryId = Number(data?.id);
     if (!Number.isInteger(createdHistoryId) || createdHistoryId <= 0) {
       throw new Error(
-        "La respuesta del backend no contiene un ID de viaje válido.",
+        "La respuesta del backend no contiene un ID de viaje vÃ¡lido.",
       );
     }
 
@@ -802,7 +823,7 @@ const startTrip = async (trip) => {
   }
 };
 
-// ── Funcionario modal ─────────────────────────────────────────────────
+//  Funcionario modal 
 const empModal = ref({ open: false, trip: null, search: "" });
 
 const openEmpModal = (trip) => {
@@ -869,9 +890,9 @@ onMounted(async () => {
       <DashboardSidebar />
 
       <main class="flex-1 py-10 px-6 overflow-hidden flex items-start justify-center">
-        <!-- ═══════════════════════════════════ -->
-        <!-- PASO 1 – Seleccionar patente        -->
-        <!-- ═══════════════════════════════════ -->
+
+        <!-- PASO 1 â€“ Seleccionar patente        -->
+
         <div v-if="!confirmed" class="w-full max-w-xl">
           <div
             class="bg-white rounded-3xl border-2 border-slate-300 p-8 md:p-12 shadow-sm"
@@ -957,9 +978,7 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- ═══════════════════════════════════ -->
-        <!-- PASO 2 – Formulario de mantenimiento -->
-        <!-- ═══════════════════════════════════ -->
+        <!-- PASO 2 â€“ Formulario de mantenimiento -->
         <div v-else class="flex gap-6 w-full max-w-5xl h-full min-h-0">
           <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm overflow-hidden flex-1 flex flex-col">
             <div class="px-8 pt-8 pb-4">
@@ -967,13 +986,53 @@ onMounted(async () => {
                 Registro de mantención diaria vehicular
               </h1>
 
-              <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
-                <span class="font-titles font-semibold text-text-title">
-                  Conductor: <span class="text-primary">{{ maintenanceForm?.conductor }}</span>
-                </span>
-                <span class="text-gray-500 font-body text-sm">{{ currentDate }}</span>
-              </div>
+              <div class="mb-8 rounded-2xl border border-slate-200 bg-slate-50 px-6 py-6">
+                <h2 class="mb-6 text-2xl font-titles font-bold text-text-title">
+                  ANEXO I. LISTA DE VERIFICACIÓN DE VEHÍCULOS
+                </h2>
 
+                <div class="grid gap-6 md:grid-cols-2">
+                  <div>
+                    <h3 class="mb-4 text-xl font-semibold text-text-title">
+                      Identificación del conductor
+                    </h3>
+                    <div class="space-y-2 text-text-title">
+                      <p class="text-base">
+                        <span class="font-bold">NOMBRE:</span>
+                        {{ maintenanceForm?.conductor || "-" }}
+                      </p>
+                      <p class="text-base">
+                        <span class="font-bold">LIC-MUNICIPAL:</span>
+                        {{ maintenanceForm?.licMunicipal || "Ingrese la Lic-municipal" }}
+                      </p>
+                      <p class="text-base">
+                        <span class="font-bold">FECHA INSPECCIÓN:</span>
+                        {{ maintenanceForm?.inspectionDate || currentDate }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 class="mb-4 text-xl font-semibold text-text-title">
+                      Identificación del vehículo
+                    </h3>
+                    <div class="space-y-2 text-text-title">
+                      <p class="text-base">
+                        <span class="font-bold">PATENTE:</span>
+                        {{ maintenanceForm?.identificationVehicle || "-" }}
+                      </p>
+                      <p class="text-base">
+                        <span class="font-bold">KILOMETRAJE:</span>
+                        {{ maintenanceForm?.kilometraje || "-" }}
+                      </p>
+                      <p class="text-base">
+                        <span class="font-bold">HORA INSPECCIÓN:</span>
+                        {{ maintenanceForm?.inspectionTime || "00:00" }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               <p v-if="maintenanceFormError" class="text-sm text-red-600 font-body">
                 {{ maintenanceFormError }}
@@ -982,17 +1041,6 @@ onMounted(async () => {
                 {{ maintenanceFormSuccess }}
               </p>
 
-              <div v-if="formErrors.length > 0" class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <div class="flex items-center gap-2 mb-2">
-                  <svg class="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                  <h3 class="text-red-800 font-medium">Errores en el formulario</h3>
-                </div>
-                <ul class="text-red-700 text-sm">
-                  <li v-for="error in formErrors" :key="error">{{ error }}</li>
-                </ul>
-              </div>
             </div>
 
             <div class="overflow-x-auto px-8 md:px-12 pb-6">
@@ -1011,9 +1059,18 @@ onMounted(async () => {
                   <input
                     type="text"
                     v-model="maintenanceForm.licMunicipal"
+                    @input="clearFieldError('licMunicipal')"
                     placeholder="Ingrese la Lic-municipal"
-                    class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-text-title outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                    :class="fieldErrors.licMunicipal ? 'border-red-400 bg-red-50' : 'border-gray-300'"
+                    class="w-full rounded-xl border px-3 py-2 text-sm text-text-title outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                   />
+                  <div v-if="fieldErrors.licMunicipal" class="mt-2 flex items-start gap-3">
+                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-red-700 text-red-700 font-bold text-xl leading-none">i</span>
+                    <div class="relative rounded-[20px] bg-[#efefef] px-4 py-3 text-sm font-medium leading-snug text-gray-800">
+                      <span class="absolute -left-2 top-4 h-4 w-4 rotate-45 bg-[#efefef]"></span>
+                      {{ inlineRequiredMessage }}
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label class="block text-[11px] font-bold text-gray-500 mb-2">Kilometraje</label>
@@ -1048,14 +1105,14 @@ onMounted(async () => {
                 </div>
               </div>
 
-              <div class="overflow-x-auto">
-                <table class="w-full text-sm text-left border-collapse border border-slate-200">
+              <div class="overflow-x-auto overflow-y-visible pl-12">
+                <table class="w-[calc(100%-3rem)] table-fixed text-sm text-left border-collapse border border-slate-200">
                   <thead class="bg-gray-100 text-gray-700">
                     <tr>
-                      <th class="border border-slate-200 px-3 py-3">Item</th>
-                      <th class="border border-slate-200 px-3 py-3">Existe</th>
-                      <th class="border border-slate-200 px-3 py-3">Estado</th>
-                      <th class="border border-slate-200 px-3 py-3">Observación</th>
+                      <th class="w-[39%] border border-slate-200 px-3 py-3">Item</th>
+                      <th class="w-[16%] border border-slate-200 px-3 py-3">Existe</th>
+                      <th class="w-[27%] border border-slate-200 px-3 py-3">Estado</th>
+                      <th class="w-[18%] border border-slate-200 px-3 py-3">Observación</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1073,14 +1130,28 @@ onMounted(async () => {
                         :class="item.hasError ? 'bg-red-50 border-red-300' : 'odd:bg-white even:bg-slate-50'"
                         class="border border-slate-200"
                       >
-                        <td class="border border-slate-200 px-3 py-3 text-sm text-text-title flex items-center gap-2">
-                          {{ item.label }}
-                          <svg v-if="item.hasError" class="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" title="Este campo es obligatorio para continuar, por favor elija las opciones correspondientes">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                          </svg>
+                        <td class="overflow-visible border border-slate-200 px-3 py-3 text-sm text-text-title align-top">
+                          <div class="relative flex items-start">
+                            <span
+                              v-if="item.hasError"
+                              class="absolute -left-10 top-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-red-700 bg-white text-red-700 font-bold text-xl leading-none shadow-sm"
+                            >
+                              i
+                            </span>
+                            <div class="min-w-0 flex-1">
+                              <div>{{ item.label }}</div>
+                              <div
+                                v-if="item.hasError"
+                                class="relative mt-3 ml-1 w-full max-w-full rounded-[20px] bg-[#efefef] px-4 py-3 text-sm font-medium leading-snug text-gray-800 shadow-sm break-words"
+                              >
+                                <span class="absolute -left-2 top-4 h-4 w-4 rotate-45 bg-[#efefef]"></span>
+                                {{ inlineRequiredMessage }}
+                              </div>
+                            </div>
+                          </div>
                         </td>
                         <td class="border border-slate-200 px-3 py-3">
-                          <div class="flex items-center gap-6">
+                          <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
                             <label class="flex items-center gap-2 text-sm cursor-pointer">
                               <input
                                 type="checkbox"
@@ -1104,7 +1175,7 @@ onMounted(async () => {
                           </div>
                         </td>
                         <td class="border border-slate-200 px-3 py-3">
-                          <div class="grid grid-cols-3 gap-3">
+                          <div class="grid grid-cols-1 gap-2 md:grid-cols-3 md:gap-3">
                             <label class="flex items-center gap-2 text-sm cursor-pointer">
                               <input
                                 type="checkbox"
@@ -1163,37 +1234,64 @@ onMounted(async () => {
                     <label class="block text-[11px] font-bold text-gray-500 mb-2">REVISIÓN TÉCNICA</label>
                     <select
                       v-model="maintenanceForm.annex.revisionTecnica"
-                      class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      @change="clearAnnexError('revisionTecnica')"
+                      :class="annexErrors.revisionTecnica ? 'border-red-400 bg-red-50' : 'border-gray-300'"
+                      class="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                     >
                       <option value="" disabled>Seleccione una opción</option>
                       <option value="Vencido">Vencido</option>
                       <option value="Vigente">Vigente</option>
                       <option value="No tiene">No tiene</option>
                     </select>
+                    <div v-if="annexErrors.revisionTecnica" class="mt-2 flex items-start gap-3">
+                      <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-red-700 text-red-700 font-bold text-xl leading-none">i</span>
+                      <div class="relative rounded-[20px] bg-[#efefef] px-4 py-3 text-sm font-medium leading-snug text-gray-800">
+                        <span class="absolute -left-2 top-4 h-4 w-4 rotate-45 bg-[#efefef]"></span>
+                        {{ inlineRequiredMessage }}
+                      </div>
+                    </div>
                   </div>
                   <div>
                     <label class="block text-[11px] font-bold text-gray-500 mb-2">PERMISO DE CIRCULACIÓN</label>
                     <select
                       v-model="maintenanceForm.annex.permisoCirculacion"
-                      class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      @change="clearAnnexError('permisoCirculacion')"
+                      :class="annexErrors.permisoCirculacion ? 'border-red-400 bg-red-50' : 'border-gray-300'"
+                      class="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                     >
                       <option value="" disabled>Seleccione una opción</option>
                       <option value="Vencido">Vencido</option>
                       <option value="Vigente">Vigente</option>
                       <option value="No tiene">No tiene</option>
                     </select>
+                    <div v-if="annexErrors.permisoCirculacion" class="mt-2 flex items-start gap-3">
+                      <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-red-700 text-red-700 font-bold text-xl leading-none">i</span>
+                      <div class="relative rounded-[20px] bg-[#efefef] px-4 py-3 text-sm font-medium leading-snug text-gray-800">
+                        <span class="absolute -left-2 top-4 h-4 w-4 rotate-45 bg-[#efefef]"></span>
+                        {{ inlineRequiredMessage }}
+                      </div>
+                    </div>
                   </div>
                   <div>
                     <label class="block text-[11px] font-bold text-gray-500 mb-2">SEGURO OBLIGATORIO</label>
                     <select
                       v-model="maintenanceForm.annex.seguroObligatorio"
-                      class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      @change="clearAnnexError('seguroObligatorio')"
+                      :class="annexErrors.seguroObligatorio ? 'border-red-400 bg-red-50' : 'border-gray-300'"
+                      class="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                     >
                       <option value="" disabled>Seleccione una opción</option>
                       <option value="Vencido">Vencido</option>
                       <option value="Vigente">Vigente</option>
                       <option value="No tiene">No tiene</option>
                     </select>
+                    <div v-if="annexErrors.seguroObligatorio" class="mt-2 flex items-start gap-3">
+                      <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-red-700 text-red-700 font-bold text-xl leading-none">i</span>
+                      <div class="relative rounded-[20px] bg-[#efefef] px-4 py-3 text-sm font-medium leading-snug text-gray-800">
+                        <span class="absolute -left-2 top-4 h-4 w-4 rotate-45 bg-[#efefef]"></span>
+                        {{ inlineRequiredMessage }}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1219,9 +1317,7 @@ onMounted(async () => {
       </main>
     </div>
 
-    <!-- ═══════════════════════════════════════ -->
     <!-- MODAL: Seleccionar Paciente(s) (COMENTADO) -->
-    <!-- ═══════════════════════════════════════ -->
     <!--
     <transition
       enter-active-class="transition duration-150 ease-out"
@@ -1288,7 +1384,7 @@ onMounted(async () => {
             @click="savePatientModal"
             class="w-full py-3 bg-[#215179] hover:bg-blue-900 text-white font-bold rounded-lg shadow transition-all duration-200"
           >
-            Confirmar Selección
+            Confirmar SelecciÃ³n
           </button>
         </div>
       </div>
@@ -1299,9 +1395,7 @@ onMounted(async () => {
 
 
 
-    <!-- ═══════════════════════════════════════ -->
     <!-- MODAL: Detener viaje                    -->
-    <!-- ═══════════════════════════════════════ -->
     <transition
       enter-active-class="transition duration-150 ease-out"
       enter-from-class="opacity-0 scale-95"
@@ -1337,14 +1431,14 @@ onMounted(async () => {
               />
             </svg>
           </button>
-          <!-- Título -->
+          <!-- TÃ­tulo -->
           <h3 class="font-titles font-bold text-text-title text-center text-2xl mb-5">
             Detener viaje
           </h3>
           
           <template v-if="!stopTripModal.trip?.signatureDataUrl">
             <p class="text-base text-red-600 font-body text-center font-semibold mb-8">
-              Es necesario la recolección de la firma para terminar el viaje.
+              Es necesario la recolecciÃ³n de la firma para terminar el viaje.
             </p>
             <div class="flex gap-4 justify-center">
               <button
@@ -1364,7 +1458,7 @@ onMounted(async () => {
 
           <template v-else>
             <p class="text-base text-text-secondary font-body text-center mb-8">
-              ¿Está seguro de finalizar el viaje?
+              Â¿EstÃ¡ seguro de finalizar el viaje?
             </p>
             <div class="flex gap-4 justify-center">
               <button
@@ -1385,9 +1479,7 @@ onMounted(async () => {
       </div>
     </transition>
 
-    <!-- ═══════════════════════════════════════ -->
     <!-- MODAL: Firma del funcionario            -->
-    <!-- ═══════════════════════════════════════ -->
     <transition
       enter-active-class="transition duration-150 ease-out"
       enter-from-class="opacity-0 scale-95"
@@ -1428,7 +1520,7 @@ onMounted(async () => {
             Firma del funcionario
           </h3>
           <p class="text-base text-text-secondary font-body text-center mb-4">
-            Por favor, firme a continuación en el recuadro:
+            Por favor, firme a continuaciÃ³n en el recuadro:
           </p>
           
           <!-- Canvas de firma -->
@@ -1448,7 +1540,7 @@ onMounted(async () => {
               ></canvas>
               <div v-if="!hasSignature" class="absolute inset-0 flex flex-col items-center justify-center font-body text-gray-300 pointer-events-none select-none">
                 <svg class="w-8 h-8 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                <span>Firme aquí</span>
+                <span>Firme aquÃ­</span>
               </div>
             </div>
             <div class="flex justify-between items-center mt-2">
@@ -1484,9 +1576,7 @@ onMounted(async () => {
       </div>
     </transition>
 
-    <!-- ═══════════════════════════════════════ -->
     <!-- MODAL: Buscar funcionario               -->
-    <!-- ═══════════════════════════════════════ -->
     <transition
       enter-active-class="transition duration-150 ease-out"
       enter-from-class="opacity-0 scale-95"
@@ -1533,7 +1623,7 @@ onMounted(async () => {
             </button>
           </div>
 
-          <!-- Barra de búsqueda -->
+          <!-- Barra de bÃºsqueda -->
           <div class="px-4 py-3 border-b border-gray-100">
             <div class="relative">
               <svg
@@ -1619,3 +1709,4 @@ onMounted(async () => {
 
 <style scoped>
 </style>
+
