@@ -2,12 +2,24 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
+import api from '@/services/axios'
 
 const router = useRouter()
 const route = useRoute()
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const resolveRouteEmail = () => {
+  const rawEmail = route.query.email
+  if (Array.isArray(rawEmail)) {
+    return (rawEmail[0] || '').trim()
+  }
+  return String(rawEmail || '').trim()
+}
+
 // Get email from route query param
-const fullEmail = ref(route.query.email || 'usuario@ejemplo.com')
+const fullEmail = ref(resolveRouteEmail())
+const hasValidEmail = computed(() => EMAIL_REGEX.test(fullEmail.value))
 
 // Mask the email for display
 const maskedEmail = computed(() => {
@@ -84,12 +96,6 @@ const startTimer = () => {
   }, 1000)
 }
 
-onMounted(() => {
-  startTimer()
-  // Focus first input on mount
-  setTimeout(() => inputRefs.value[0]?.focus(), 100)
-})
-
 onUnmounted(() => {
   clearInterval(timerInterval)
 })
@@ -99,6 +105,8 @@ const currentView = ref('verify')
 
 // Loading / error state
 const isVerifying = ref(false)
+const isSendingCode = ref(false)
+const isUpdatingEmail = ref(false)
 const errorMessage = ref('')
 
 // Change email
@@ -107,23 +115,41 @@ const newEmail = ref('')
 const fullCode = computed(() => codeDigits.value.join(''))
 const isCodeComplete = computed(() => fullCode.value.length === 6)
 
+const getBackendMessage = (error, fallback) => {
+  const backendMessage = error?.response?.data?.message
+  if (Array.isArray(backendMessage)) {
+    return backendMessage.join(', ')
+  }
+  return backendMessage || fallback
+}
+
+const sendVerificationCode = async (email) => {
+  await api.post('/auth/send-verification-code', { email })
+}
+
+const fetchVerificationStatus = async (email) => {
+  const { data } = await api.post('/auth/verification-status', { email })
+  return data
+}
+
 const handleVerify = async () => {
-  if (!isCodeComplete.value) return
+  if (!isCodeComplete.value || !hasValidEmail.value) return
   errorMessage.value = ''
   isVerifying.value = true
 
   try {
-    // TODO: call backend to verify code
-    // await authService.verifyEmail({ email: fullEmail.value, code: fullCode.value })
-    console.log('Verificando código:', fullCode.value, 'para:', fullEmail.value)
-
-    // Simular delay de verificación
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    await api.post('/auth/verify-code', {
+      email: fullEmail.value,
+      code: fullCode.value,
+    })
 
     // Show success state
     currentView.value = 'success'
-  } catch (err) {
-    errorMessage.value = 'Código incorrecto. Por favor, inténtelo de nuevo.'
+  } catch (error) {
+    errorMessage.value = getBackendMessage(
+      error,
+      'Código incorrecto. Por favor, inténtelo de nuevo.',
+    )
     // Clear inputs
     codeDigits.value = ['', '', '', '', '', '']
     inputRefs.value[0]?.focus()
@@ -137,14 +163,20 @@ const handleContinue = () => {
 }
 
 const resendCode = async () => {
-  if (!canResend.value) return
+  if (!canResend.value || !hasValidEmail.value || isSendingCode.value) return
+  errorMessage.value = ''
+  isSendingCode.value = true
+
   try {
-    // TODO: call backend to resend code
-    // await authService.resendVerificationCode({ email: fullEmail.value })
-    console.log('Reenviando código a:', fullEmail.value)
+    await sendVerificationCode(fullEmail.value)
     startTimer()
-  } catch (err) {
-    errorMessage.value = 'Error al reenviar el código. Inténtelo de nuevo.'
+  } catch (error) {
+    errorMessage.value = getBackendMessage(
+      error,
+      'Error al reenviar el código. Inténtelo de nuevo.',
+    )
+  } finally {
+    isSendingCode.value = false
   }
 }
 
@@ -167,24 +199,76 @@ const backToVerification = () => {
 }
 
 const handleUpdateEmail = async () => {
-  if (!newEmail.value) return
+  if (!newEmail.value || isUpdatingEmail.value) return
+
+  const nextEmail = newEmail.value.trim()
+  if (!EMAIL_REGEX.test(nextEmail)) {
+    errorMessage.value = 'Ingrese un correo electrónico válido.'
+    return
+  }
+
   errorMessage.value = ''
+  isUpdatingEmail.value = true
 
   try {
-    // TODO: call backend to update email
-    // await authService.updateVerificationEmail({ oldEmail: fullEmail.value, newEmail: newEmail.value })
-    console.log('Actualizando correo de', fullEmail.value, 'a', newEmail.value)
+    await api.post('/auth/update-verification-email', {
+      oldEmail: fullEmail.value,
+      newEmail: nextEmail,
+    })
 
-    fullEmail.value = newEmail.value
+    fullEmail.value = nextEmail
     newEmail.value = ''
     codeDigits.value = ['', '', '', '', '', '']
     currentView.value = 'verify'
     startTimer()
     setTimeout(() => inputRefs.value[0]?.focus(), 100)
-  } catch (err) {
-    errorMessage.value = 'Error al actualizar el correo. Inténtelo de nuevo.'
+  } catch (error) {
+    errorMessage.value = getBackendMessage(
+      error,
+      'No fue posible cambiar el correo para verificación.',
+    )
+  } finally {
+    isUpdatingEmail.value = false
   }
 }
+
+const initializeVerification = async () => {
+  if (!hasValidEmail.value) {
+    errorMessage.value = 'No se encontró un correo válido para verificar.'
+    return
+  }
+
+  const alreadySent = route.query.sent === '1'
+  isSendingCode.value = true
+
+  try {
+    const status = await fetchVerificationStatus(fullEmail.value)
+    if (status?.isVerified) {
+      currentView.value = 'success'
+      clearInterval(timerInterval)
+      timeLeft.value = 0
+      return
+    }
+
+    if (!alreadySent) {
+      await sendVerificationCode(fullEmail.value)
+    }
+  } catch (error) {
+    errorMessage.value = getBackendMessage(
+      error,
+      'No fue posible iniciar la verificación de correo.',
+    )
+  } finally {
+    isSendingCode.value = false
+  }
+}
+
+onMounted(async () => {
+  startTimer()
+  // Focus first input on mount
+  setTimeout(() => inputRefs.value[0]?.focus(), 100)
+  await initializeVerification()
+})
 </script>
 
 <template>
@@ -235,11 +319,11 @@ const handleUpdateEmail = async () => {
         <input v-for="(digit, index) in codeDigits" :key="index" :ref="(el) => setInputRef(el, index)" type="text"
           inputmode="numeric" maxlength="1" :value="digit" @input="handleInput(index, $event)"
           @keydown="handleKeydown(index, $event)" class="code-input" :class="{ 'code-input--filled': digit }"
-          :disabled="isVerifying" autocomplete="one-time-code" />
+          :disabled="isVerifying || isSendingCode" autocomplete="one-time-code" />
       </div>
 
       <!-- Verify button -->
-      <button @click="handleVerify" :disabled="!isCodeComplete || isVerifying" class="verify-button">
+      <button @click="handleVerify" :disabled="!isCodeComplete || isVerifying || isSendingCode || !hasValidEmail" class="verify-button">
         <span v-if="isVerifying" class="spinner"></span>
         <span v-else>Verificar código</span>
       </button>
@@ -249,8 +333,8 @@ const handleUpdateEmail = async () => {
         ¿No recibió el código? Puede solicitar uno nuevo en
         <strong>{{ formattedTime }}</strong>
       </p>
-      <button v-if="canResend" @click="resendCode" class="resend-button">
-        Reenviar código
+      <button v-if="canResend" @click="resendCode" :disabled="isSendingCode || !hasValidEmail" class="resend-button">
+        {{ isSendingCode ? 'Enviando...' : 'Reenviar código' }}
       </button>
 
       <!-- Change email -->
@@ -317,8 +401,8 @@ const handleUpdateEmail = async () => {
       </div>
 
       <!-- Update button -->
-      <button @click="handleUpdateEmail" :disabled="!newEmail" class="verify-button">
-        Actualizar correo
+      <button @click="handleUpdateEmail" :disabled="!newEmail || isUpdatingEmail" class="verify-button">
+        {{ isUpdatingEmail ? 'Actualizando...' : 'Actualizar correo' }}
       </button>
 
       <!-- Back to verification -->

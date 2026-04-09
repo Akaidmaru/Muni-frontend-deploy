@@ -7,7 +7,8 @@ import RegisterView from '../views/RegisterView.vue'
 import VerifyEmailView from '../views/VerifyEmailView.vue'
 import ContactView from '../views/ContactView.vue'
 import DashboardView from '../views/DashboardView.vue'
-import DailyRegistrationView from '../views/DailyRegistrationView.vue'
+import DailyRegistrationDriverView from '../views/DailyRegistrationDriverView.vue'
+import DailyRegistrationMaintenanceView from '../views/DailyRegistrationMaintenanceView.vue'
 import DailyRegistrationFuncionarioView from '../views/DailyRegistrationFuncionarioView.vue'
 import TravelHistoryView from '../views/TravelHistoryView.vue'
 import TravelHistoryFuncionarioView from '../views/TravelHistoryFuncionarioView.vue'
@@ -15,6 +16,8 @@ import TravelHistoryAdminView from '../views/TravelHistoryAdminView.vue'
 import AdminUsersView from '../views/AdminUsersView.vue'
 import AdminReportsView from '../views/AdminReportsView.vue'
 import AdminMaintenanceView from '../views/AdminMaintenanceView.vue'
+import AdminMaintenanceDailyView from '../views/AdminMaintenanceDailyView.vue'
+import AdminMaintenanceWeeklyView from '../views/AdminMaintenanceWeeklyView.vue'
 import AccessDeniedView from '../views/AccessDeniedView.vue'
 import DashboardAdminView from '../views/DashboardAdminView.vue'
 import DashboardPacienteView from '../views/DashboardPacienteView.vue'
@@ -65,8 +68,14 @@ const router = createRouter({
         // ── Rutas del conductor ───────────────────────────────
         {
             path: '/registro-diario',
-            name: 'daily-registration',
-            component: DailyRegistrationView,
+            name: 'daily-registration-driver',
+            component: DailyRegistrationDriverView,
+            meta: { requiresAuth: true, roles: ['DRIVER', 'ADMIN'] }
+        },
+        {
+            path: '/registro-diario-mantencion',
+            name: 'daily-registration-maintenance',
+            component: DailyRegistrationMaintenanceView,
             meta: { requiresAuth: true, roles: ['DRIVER', 'ADMIN'] }
         },
         {
@@ -121,6 +130,18 @@ const router = createRouter({
             component: AdminMaintenanceView,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
+        {
+            path: '/admin/mantencion-vehicular/diario',
+            name: 'admin-maintenance-daily',
+            component: AdminMaintenanceDailyView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+        {
+            path: '/admin/mantencion-vehicular/semanal',
+            name: 'admin-maintenance-weekly',
+            component: AdminMaintenanceWeeklyView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
 
         // ── Rutas del paciente ────────────────────────────────
         {
@@ -140,30 +161,30 @@ const router = createRouter({
 })
 
 // ── Navigation Guard ──────────────────────────────────────────────────────
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to) => {
     const auth = useAuthStore()
 
     // Cargar sesión si hay token guardado
     if (!auth.isAuthenticated) {
         auth.loadFromStorage()
     }
-    
+
     if (auth.isAuthenticated) {
         const syncResult = await auth.syncCurrentUser()
         if (!syncResult.success && to.name !== 'login') {
-            return next({ name: 'login' })
+            return { name: 'login' }
         }
     }
 
     // Si la ruta requiere autenticación
     if (to.meta.requiresAuth) {
         if (!auth.isAuthenticated) {
-            return next({ name: 'login' })
+            return { name: 'login' }
         }
 
         // Si la ruta requiere roles específicos
         if (to.meta.roles && !to.meta.roles.includes(auth.userRole)) {
-            return next({ name: 'access-denied' })
+            return { name: 'access-denied' }
         }
     }
 
@@ -174,10 +195,10 @@ router.beforeEach(async (to, from, next) => {
             EMPLOYEE: 'dashboard',
             ADMIN: 'dashboard-admin',
         }
-        return next({ name: roleRoutes[auth.userRole] || 'dashboard' })
+        return { name: roleRoutes[auth.userRole] || 'dashboard' }
     }
 
-    next()
+    return true
 })
 
 export default router

@@ -2,9 +2,11 @@
 import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import historialIcon from '@/assets/images/Historial.png'
+import tableIcon from '@/assets/images/Images admin nabvar left/table.png'
 import { useAuthStore } from '@/stores/auth'
 import UserMenu from '@/components/UserMenu.vue'
-
+import warningIcon from '@/assets/images/admin/warning.png'
+import repairIcon from '@/assets/images/admin/repair.png'
 const auth = useAuthStore()
 const router = useRouter()
 
@@ -52,8 +54,8 @@ const goToAdminMaintenance = () => {
             @click="goToAdminUsers"
             class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 h-52 flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
           >
-            <div class="text-5xl mb-4">👥</div>
-            <span class="text-xl font-titles font-semibold text-text-title">Gestión de Usuarios</span>
+            <img :src="tableIcon" alt="Registro" class="w-16 h-16 object-contain mb-4" />
+            <span class="text-xl font-titles font-semibold text-text-title">Registro</span>
           </button>
 
           <button
@@ -68,7 +70,7 @@ const goToAdminMaintenance = () => {
             @click="goToAdminReports"
             class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 h-52 flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
           >
-            <div class="text-5xl mb-4">📊</div>
+            <img :src="warningIcon" alt="Reportes" class="w-16 h-16 object-contain mb-4" />
             <span class="text-xl font-titles font-semibold text-text-title">Reportes</span>
           </button>
 
@@ -76,8 +78,8 @@ const goToAdminMaintenance = () => {
             @click="goToAdminMaintenance"
             class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 h-52 flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
           >
-            <div class="text-5xl mb-4">🚚</div>
-            <span class="text-xl font-titles font-semibold text-text-title">Mantención Vehicular</span>
+            <img :src="repairIcon" alt="Mantenimiento Vehicular" class="w-16 h-16 object-contain mb-4" />
+            <span class="text-xl font-titles font-semibold text-text-title">Mantenimiento Vehicular</span>
           </button>
         </div>
       </div>

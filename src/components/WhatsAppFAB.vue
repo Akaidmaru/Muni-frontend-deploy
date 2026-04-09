@@ -2,7 +2,7 @@
 import whatsappIcon from '@/assets/images/icon-whatsapp.png'
 
 // Número de WhatsApp (puedes cambiarlo según necesites)
-const whatsappNumber = '56912345678' // Formato: código país + número sin espacios ni símbolos
+const whatsappNumber = '56959706398' // Formato: código país + número sin espacios ni símbolos
 const message = 'Hola, me gustaría obtener más información sobre sus servicios de transporte.'
 
 const openWhatsApp = () => {
@@ -14,31 +14,27 @@ const openWhatsApp = () => {
 <template>
   <button
     @click="openWhatsApp"
-    class="fixed right-6 top-1/2 -translate-y-1/2 w-13 h-13 bg-[#25D366] rounded-full shadow-lg flex items-center justify-center z-50 hover:bg-[#20BA5A] hover:scale-110 hover:shadow-[0_10px_40px_rgba(37,211,102,0.5)] transition-all duration-300 ease-out group"
+    class="fixed right-6 top-1/2 -translate-y-1/2 flex items-center justify-center z-50 hover:scale-110 transition-all duration-300 ease-out group bg-transparent border-none p-0"
     aria-label="Contactar por WhatsApp"
   >
     <img 
       :src="whatsappIcon" 
       alt="WhatsApp" 
-      class="w-7 h-7 group-hover:scale-110 transition-transform duration-300"
+      class="w-12 h-12 group-hover:scale-110 transition-transform duration-300 drop-shadow-md"
     />
-    
-    <!-- Pulse animation ring -->
-    <span class="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-20"></span>
   </button>
 </template>
 
 <style scoped>
-/* Animación de pulso personalizada para el anillo */
-@keyframes ping {
-  75%, 100% {
-    transform: scale(1.5);
-    opacity: 0;
-  }
-}
-
-.animate-ping {
-  animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+button {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 /* Responsive: ajustar posición en móviles */

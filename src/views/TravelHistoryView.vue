@@ -25,7 +25,8 @@ const currentPage = ref(1)
 const filters = ref({
   from: '',
   to: '',
-  name: '',
+  searchBy: 'destination',
+  searchValue: '',
   license: ''
 })
 
@@ -43,6 +44,17 @@ const formatDate = (value) => {
   return `${day}/${month}/${year}`
 }
 
+const formatDateIso = (value) => {
+  const parsedDate = new Date(value)
+  if (Number.isNaN(parsedDate.getTime())) return ''
+
+  const year = parsedDate.getFullYear()
+  const month = String(parsedDate.getMonth() + 1).padStart(2, '0')
+  const day = String(parsedDate.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
 const loadTravels = async () => {
   isLoadingTravels.value = true
   travelsError.value = ''
@@ -54,7 +66,6 @@ const loadTravels = async () => {
         pageSize: Number(itemsPerPage.value),
         from: appliedFilters.value.from || undefined,
         to: appliedFilters.value.to || undefined,
-        name: appliedFilters.value.name || undefined,
         license: appliedFilters.value.license || undefined,
       },
     })
@@ -65,6 +76,7 @@ const loadTravels = async () => {
           id: travel.id,
           rawDate: travel.date,
           date: formatDate(travel.date),
+          dateIso: formatDateIso(travel.date),
           licensePlate: travel.truck?.plate || '-',
           startTime: travel.startTime || '--:--',
           endTime: travel.endTime || '--:--',
@@ -72,7 +84,8 @@ const loadTravels = async () => {
           startKm: travel.startKm ?? null,
           endKm: travel.endKm ?? null,
           official: travel.employee?.name || travel.employee?.email || 'Sin funcionario',
-          signature: Boolean(travel.endTime),
+          signature: Boolean(travel.signatureKey),
+          signatureUrl: travel.signatureUrl || null,
         }))
 
     totalItems.value = Number(data?.total) || 0
@@ -97,8 +110,23 @@ const uniquePlates = computed(() => {
   return [...plates]
 })
 
-// Computed filtered travels (lee directamente del store)
-const filteredTravels = computed(() => travels.value)
+const normalize = (str) =>
+  (str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+const filteredTravels = computed(() => {
+  const { from, to, searchBy, searchValue, license } = appliedFilters.value
+  const needle = normalize(searchValue)
+
+  return travels.value.filter((travel) => {
+    const haystack = searchBy === 'official' ? travel.official : travel.destination
+    const matchesSearch = !needle || normalize(haystack).includes(needle)
+    const matchesLicense = !license || travel.licensePlate === license
+    const matchesFrom = !from || travel.dateIso >= from
+    const matchesTo = !to || travel.dateIso <= to
+
+    return matchesSearch && matchesLicense && matchesFrom && matchesTo
+  })
+})
 
 const firstVisibleRow = computed(() => {
   if (totalItems.value === 0) return 0
@@ -127,7 +155,7 @@ const applyFilters = () => {
 }
 
 const clearFilters = () => {
-  filters.value = { from: '', to: '', name: '', license: '' }
+  filters.value = { from: '', to: '', searchBy: filters.value.searchBy, searchValue: '', license: '' }
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
   loadTravels()
@@ -166,12 +194,12 @@ watch(currentPage, () => {
       <DashboardSidebar />
 
       <!-- Main content -->
-      <main class="flex-1 py-10 px-6 overflow-hidden flex items-start justify-center">
-        <div class="flex gap-6 w-full max-w-5xl h-full min-h-0">
+      <main class="flex-1 pt-16 pb-10 px-3 overflow-hidden flex items-start justify-center min-w-0">
+        <div class="flex gap-6 w-full h-full min-h-0 min-w-0">
           
           <!-- Main Card (Table) -->
           <div :class="[
-            'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative',
+            'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative min-w-0',
             isFilterOpen ? 'max-w-[calc(100%-24rem)]' : 'w-full'
           ]">
             <!-- Top section: Title and Filter Button -->
@@ -193,7 +221,7 @@ watch(currentPage, () => {
             </div>
 
             <!-- Table Container -->
-            <div class="flex-1 overflow-auto px-12 md:px-16 relative mt-6 pb-6">
+            <div class="flex-1 overflow-auto px-12 md:px-16 relative mt-6 pb-6 min-w-0">
               <div class="min-w-[900px]">
                 <table class="history-table w-full text-sm text-center" style="border-collapse: separate; border-spacing: 0;">
                   <thead class="text-[13px] text-text-title font-bold sticky top-0 bg-white z-10">
@@ -237,9 +265,17 @@ watch(currentPage, () => {
                       <td class="px-2 py-5 font-medium">{{ travel.endKm?.toLocaleString() ?? '-' }}</td>
                       <td class="px-4 py-5 text-gray-700">{{ travel.official }}</td>
                       <td class="px-4 py-5">
-                         <div v-if="travel.signature" class="w-full flex justify-center">
+                         <div v-if="travel.signatureUrl" class="w-full flex justify-center">
+                           <img
+                             :src="travel.signatureUrl"
+                             alt="Firma funcionario"
+                             class="h-10 w-auto object-contain bg-white rounded border border-gray-200"
+                           />
+                         </div>
+                         <div v-else-if="travel.signature" class="w-full flex justify-center">
                            <div class="h-1 w-12 bg-primary rounded-full opacity-60 rotate-[-10deg]"></div>
                          </div>
+                         <span v-else class="text-gray-400">-</span>
                       </td>
                     </tr>
                     
@@ -323,34 +359,43 @@ watch(currentPage, () => {
                   </button>
                 </div>
 
-                <!-- Date Range -->
                 <div class="grid grid-cols-2 gap-4">
                   <div class="flex flex-col relative">
                     <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Desde</label>
                     <div class="relative">
-                      <input type="date" v-model="filters.from" class="text-xs px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" style="color:transparent; text-shadow: 0 0 0 #4b5563;"/>
-                      <svg width="14" height="14" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                      <span v-if="!filters.from" class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">00/00/0000</span>
+                      <input type="date" v-model="filters.from" class="text-[11px] px-3 py-[9px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
                     </div>
                   </div>
                   <div class="flex flex-col relative">
                     <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Hasta</label>
                     <div class="relative">
-                      <input type="date" v-model="filters.to" class="text-xs px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" style="color:transparent; text-shadow: 0 0 0 #4b5563;" />
-                      <svg width="14" height="14" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                      <span v-if="!filters.to" class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">00/00/0000</span>
+                      <input type="date" v-model="filters.to" class="text-[11px] px-3 py-[9px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
                     </div>
                   </div>
                 </div>
 
-                <!-- Names -->
-                <div class="flex flex-col mt-2 relative">
-                  <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Nombres</label>
+                <div class="flex flex-col mt-2 gap-2">
                   <div class="relative">
+                    <label class="text-[10px] text-gray-500 font-bold bg-[#EBEBEB] w-fit px-1 mb-1 block">Buscar por</label>
+                    <select v-model="filters.searchBy" class="px-3 py-2.5 pr-8 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary appearance-none cursor-pointer">
+                      <option value="destination">Destino</option>
+                      <option value="official">Funcionario</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500" style="top: 22px;">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                  </div>
+
+                  <div class="relative mt-1">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     </div>
-                    <input type="text" v-model="filters.name" placeholder="Escribe el nombre..." class="pl-8 pr-3 py-2.5 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-700 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary placeholder-gray-400" />
+                    <input
+                      type="text"
+                      v-model="filters.searchValue"
+                      :placeholder="filters.searchBy === 'official' ? 'Nombre del funcionario...' : 'Nombre del destino...'"
+                      class="pl-8 pr-3 py-2.5 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-700 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary placeholder-gray-400"
+                    />
                   </div>
                 </div>
 

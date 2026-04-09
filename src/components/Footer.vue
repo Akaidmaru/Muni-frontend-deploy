@@ -8,7 +8,7 @@ import { MapPin, Phone, Mail } from 'lucide-vue-next'
       <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-[auto_auto_1fr_auto] gap-6 lg:gap-8 mb-12">
         
         <!-- Column 1: Logo -->
-        <div class="flex flex-col items-start">
+        <div class="flex flex-col items-center md:items-start">
              <div class="mb-4">
                 <img src="@/assets/images/Logo-recortado.png" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain" />
              </div>

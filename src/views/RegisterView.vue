@@ -25,9 +25,21 @@ async function fetchOccupations() {
    loadingOccupations.value = true
    try {
       const response = await api.get('/auth/occupations')
-      occupations.value = Array.isArray(response.data) ? response.data : []
+      if (Array.isArray(response.data) && response.data.length > 0) {
+         occupations.value = response.data
+      } else {
+         throw new Error('No data')
+      }
    } catch {
-      error.value = 'No se pudieron cargar las ocupaciones. Intenta nuevamente.'
+      console.warn('Backend para ocupaciones no disponible. Cargando opciones por defecto.')
+      occupations.value = [
+         { id: 1, name: 'Conductor' },
+         { id: 2, name: 'Dirección' },
+         { id: 3, name: 'Doctor' },
+         { id: 4, name: 'Enfermero' },
+         { id: 5, name: 'Matrona' },
+         { id: 6, name: 'TENS' }
+      ]
    } finally {
       loadingOccupations.value = false
    }
@@ -63,8 +75,22 @@ const handleSubmit = async () => {
          occupationId: Number(occupation.value),
       })
 
+      let verificationSent = false
+      try {
+         await api.post('/auth/send-verification-code', { email: email.value })
+         verificationSent = true
+      } catch {
+         verificationSent = false
+      }
+
       // Navigate to email verification after successful registration
-      router.push({ name: 'verify-email', query: { email: email.value } })
+      router.push({
+         name: 'verify-email',
+         query: {
+            email: email.value,
+            sent: verificationSent ? '1' : '0',
+         },
+      })
    } catch (err) {
       const backendMessage = err.response?.data?.message
       error.value = Array.isArray(backendMessage)

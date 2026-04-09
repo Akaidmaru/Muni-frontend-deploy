@@ -3,7 +3,7 @@ import { Check } from 'lucide-vue-next'
 
 defineProps({
   title: String,
-  icon: Object, 
+  icon: [Object, Function],
   image: String,
   description: String,
   features: Array
