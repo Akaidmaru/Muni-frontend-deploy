@@ -151,7 +151,6 @@ const annexErrors = ref({
 const isSaveDisabled = computed(() => {
   if (!maintenanceForm.value) return true;
   const form = maintenanceForm.value;
-  if (!form.licMunicipal.trim()) return true;
   if (!form.kilometraje.trim()) return true;
   if (!form.annex.revisionTecnica) return true;
   if (!form.annex.permisoCirculacion) return true;
@@ -368,7 +367,9 @@ const existenceOptions = ["Si", "No"];
 
 const validateItem = (item) => {
   if (item.type === "section") return;
-  item.hasError = !item.exists || !item.state;
+  if (item.exists && item.state) {
+    item.hasError = false;
+  }
 };
 
 const clearFieldError = (field) => {
@@ -411,7 +412,6 @@ const saveMaintenanceForm = async () => {
   maintenanceFormError.value = "";
   maintenanceFormSuccess.value = "";
   formErrors.value = [];
-  fieldErrors.value.licMunicipal = false;
   fieldErrors.value.kilometraje = false;
   annexErrors.value.revisionTecnica = false;
   annexErrors.value.permisoCirculacion = false;
@@ -419,10 +419,6 @@ const saveMaintenanceForm = async () => {
   let hasErrors = false;
 
   // Validate required fields
-  if (!maintenanceForm.value.licMunicipal.trim()) {
-    fieldErrors.value.licMunicipal = true;
-    hasErrors = true;
-  }
   if (!maintenanceForm.value.kilometraje.trim()) {
     fieldErrors.value.kilometraje = true;
     hasErrors = true;
@@ -979,19 +975,19 @@ onMounted(async () => {
         </div>
 
         <!-- PASO 2 â€“ Formulario de mantenimiento -->
-        <div v-else class="flex gap-6 w-full max-w-5xl h-full min-h-0">
+        <div v-else class="flex gap-6 w-full max-w-6xl h-full min-h-0">
           <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm overflow-hidden flex-1 flex flex-col">
-            <div class="px-8 pt-8 pb-4">
+            <div class="px-10 pt-10 pb-4 md:px-14">
               <h1 class="text-3xl font-titles font-bold text-text-title text-center mb-6">
                 Registro de mantención diaria vehicular
               </h1>
 
-              <div class="mb-8 rounded-2xl border border-slate-200 bg-slate-50 px-6 py-6">
-                <h2 class="mb-6 text-2xl font-titles font-bold text-text-title">
+              <div class="mx-auto mb-10 w-full max-w-[58rem] px-2 py-2">
+                <h2 class="mb-8 text-2xl font-titles font-bold text-text-title">
                   ANEXO I. LISTA DE VERIFICACIÓN DE VEHÍCULOS
                 </h2>
 
-                <div class="grid gap-6 md:grid-cols-2">
+                <div class="grid gap-y-8 md:grid-cols-2 md:gap-x-16">
                   <div>
                     <h3 class="mb-4 text-xl font-semibold text-text-title">
                       Identificación del conductor
@@ -1001,10 +997,19 @@ onMounted(async () => {
                         <span class="font-bold">NOMBRE:</span>
                         {{ maintenanceForm?.conductor || "-" }}
                       </p>
-                      <p class="text-base">
-                        <span class="font-bold">LIC-MUNICIPAL:</span>
-                        {{ maintenanceForm?.licMunicipal || "Ingrese la Lic-municipal" }}
-                      </p>
+                      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        <p class="text-base">
+                          <span class="font-bold">LIC-MUNICIPAL:</span>
+                        </p>
+                        <div class="w-full sm:w-[18rem]">
+                          <input
+                            type="text"
+                            v-model="maintenanceForm.licMunicipal"
+                            placeholder="Ingrese la Lic-municipal"
+                            class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-text-title outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                          />
+                        </div>
+                      </div>
                       <p class="text-base">
                         <span class="font-bold">FECHA INSPECCIÓN:</span>
                         {{ maintenanceForm?.inspectionDate || currentDate }}
@@ -1012,7 +1017,7 @@ onMounted(async () => {
                     </div>
                   </div>
 
-                  <div>
+                  <div class="md:pl-10">
                     <h3 class="mb-4 text-xl font-semibold text-text-title">
                       Identificación del vehículo
                     </h3>
@@ -1043,76 +1048,15 @@ onMounted(async () => {
 
             </div>
 
-            <div class="overflow-x-auto px-8 md:px-12 pb-6">
-              <div class="grid gap-4 md:grid-cols-3 mb-8">
-                <div>
-                  <label class="block text-[11px] font-bold text-gray-500 mb-2">Patente</label>
-                  <input
-                    type="text"
-                    v-model="maintenanceForm.identificationVehicle"
-                    readonly
-                    class="w-full rounded-xl border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-text-title"
-                  />
-                </div>
-                <div>
-                  <label class="block text-[11px] font-bold text-gray-500 mb-2">LIC-MUNICIPAL</label>
-                  <input
-                    type="text"
-                    v-model="maintenanceForm.licMunicipal"
-                    @input="clearFieldError('licMunicipal')"
-                    placeholder="Ingrese la Lic-municipal"
-                    :class="fieldErrors.licMunicipal ? 'border-red-400 bg-red-50' : 'border-gray-300'"
-                    class="w-full rounded-xl border px-3 py-2 text-sm text-text-title outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                  />
-                  <div v-if="fieldErrors.licMunicipal" class="mt-2 flex items-start gap-3">
-                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-red-700 text-red-700 font-bold text-xl leading-none">i</span>
-                    <div class="relative rounded-[20px] bg-[#efefef] px-4 py-3 text-sm font-medium leading-snug text-gray-800">
-                      <span class="absolute -left-2 top-4 h-4 w-4 rotate-45 bg-[#efefef]"></span>
-                      {{ inlineRequiredMessage }}
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label class="block text-[11px] font-bold text-gray-500 mb-2">Kilometraje</label>
-                  <input
-                    type="text"
-                    v-model="maintenanceForm.kilometraje"
-                    readonly
-                    placeholder="Kilometraje actual desde backend"
-                    class="w-full rounded-xl border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-text-title outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                  />
-                </div>
-              </div>
-
-              <div class="grid gap-4 md:grid-cols-2 mb-8">
-                <div>
-                  <label class="block text-[11px] font-bold text-gray-500 mb-2">Fecha inspección</label>
-                  <input
-                    type="text"
-                    v-model="maintenanceForm.inspectionDate"
-                    readonly
-                    class="w-full rounded-xl border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-text-title"
-                  />
-                </div>
-                <div>
-                  <label class="block text-[11px] font-bold text-gray-500 mb-2">Hora inspección</label>
-                  <input
-                    type="text"
-                    v-model="maintenanceForm.inspectionTime"
-                    readonly
-                    class="w-full rounded-xl border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-text-title"
-                  />
-                </div>
-              </div>
-
-              <div class="overflow-x-auto overflow-y-visible pl-12">
-                <table class="w-[calc(100%-3rem)] table-fixed text-sm text-left border-collapse border border-slate-200">
+            <div class="overflow-x-auto px-10 pb-8 md:px-14">
+              <div class="mx-auto w-full max-w-[58rem] overflow-x-auto overflow-y-visible pl-10">
+                <table class="w-full table-fixed text-sm text-left border-collapse border border-slate-200">
                   <thead class="bg-gray-100 text-gray-700">
                     <tr>
-                      <th class="w-[39%] border border-slate-200 px-3 py-3">Item</th>
+                      <th class="w-[34%] border border-slate-200 px-3 py-3">Item</th>
                       <th class="w-[16%] border border-slate-200 px-3 py-3">Existe</th>
-                      <th class="w-[27%] border border-slate-200 px-3 py-3">Estado</th>
-                      <th class="w-[18%] border border-slate-200 px-3 py-3">Observación</th>
+                      <th class="w-[28%] border border-slate-200 px-3 py-3">Estado</th>
+                      <th class="w-[22%] border border-slate-200 px-3 py-3">Observación</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1121,7 +1065,7 @@ onMounted(async () => {
                         v-if="item.type === 'section'"
                         class="bg-slate-100 text-sm font-semibold text-text-title"
                       >
-                        <td class="border border-slate-200 px-3 py-3" colspan="4">
+                        <td class="border border-slate-200 px-3 py-3 uppercase" colspan="4">
                           {{ item.label }}
                         </td>
                       </tr>
@@ -1131,22 +1075,25 @@ onMounted(async () => {
                         class="border border-slate-200"
                       >
                         <td class="overflow-visible border border-slate-200 px-3 py-3 text-sm text-text-title align-top">
-                          <div class="relative flex items-start">
-                            <span
+                          <div class="relative">
+                            <div
                               v-if="item.hasError"
-                              class="absolute -left-10 top-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-red-700 bg-white text-red-700 font-bold text-xl leading-none shadow-sm"
+                              class="group absolute -left-10 top-0 z-20"
                             >
-                              i
-                            </span>
-                            <div class="min-w-0 flex-1">
-                              <div>{{ item.label }}</div>
+                              <span
+                                class="flex h-9 w-9 shrink-0 cursor-help items-center justify-center rounded-full border-2 border-red-700 bg-white text-red-700 font-bold text-xl leading-none shadow-sm"
+                              >
+                                i
+                              </span>
                               <div
-                                v-if="item.hasError"
-                                class="relative mt-3 ml-1 w-full max-w-full rounded-[20px] bg-[#efefef] px-4 py-3 text-sm font-medium leading-snug text-gray-800 shadow-sm break-words"
+                                class="pointer-events-none absolute left-12 top-0 hidden w-72 max-w-[calc(100vw-9rem)] rounded-[20px] bg-[#efefef] px-4 py-3 text-sm font-medium leading-snug text-gray-800 shadow-lg break-words group-hover:block"
                               >
                                 <span class="absolute -left-2 top-4 h-4 w-4 rotate-45 bg-[#efefef]"></span>
                                 {{ inlineRequiredMessage }}
                               </div>
+                            </div>
+                            <div class="min-w-0 pr-2 uppercase">
+                              {{ item.label }}
                             </div>
                           </div>
                         </td>
