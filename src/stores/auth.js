@@ -162,12 +162,16 @@ export const useAuthStore = defineStore('auth', () => {
             const backendMessage = error.response?.data?.message
             const isNetworkError =
                 error.code === 'ERR_NETWORK' || !error.response
+            const apiBase =
+                import.meta.env.VITE_API_BASE_URL || '(VITE_API_BASE_URL no definida)'
+            const networkHint =
+                typeof apiBase === 'string' && apiBase.includes('localhost')
+                    ? `No se pudo conectar con el API (${apiBase}). En local: arranca el backend y el front (Vite).`
+                    : `No se pudo conectar con el API (${apiBase}). Comprueba que el backend esté accesible desde tu red y que la imagen del front se haya construido con esa URL (build-time).`
             const message = Array.isArray(backendMessage)
                 ? backendMessage.join(', ')
                 : backendMessage ||
-                (isNetworkError
-                    ? 'No se pudo conectar con el servidor. Verifica que el frontend esté en http://localhost:5173 y el backend en http://localhost:3000.'
-                    : 'Credenciales incorrectas')
+                (isNetworkError ? networkHint : 'Credenciales incorrectas')
             return { success: false, message }
         }
     }
