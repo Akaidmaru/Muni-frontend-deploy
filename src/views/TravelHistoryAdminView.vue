@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import jsPDF from 'jspdf'
@@ -732,7 +732,7 @@ watch(currentPage, () => {
               @click="goBack"
               class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-blue-900 transition-colors"
             >
-              <span aria-hidden="true"> |< </span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
               Volver
             </button>
           </div>
@@ -825,28 +825,31 @@ watch(currentPage, () => {
         <div v-else class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative w-full p-8 hidden-scroll">
           <div class="flex flex-col h-full min-h-0">
             <!-- Map Header -->
-            <div class="flex flex-col relative w-full mb-8 shrink-0">
-              <button @click="selectedTripForMap = null" class="self-start inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-blue-900 transition-colors mb-4 absolute top-0 left-0 z-10 w-fit">
-                 <span aria-hidden="true">â†</span> Volver
-              </button>
-              
-                <div class="flex items-center justify-between w-full relative">
-                <!-- Ãcono Mapa  -->
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-[#215179] ml-14 mt-3" fill="currentColor" viewBox="0 0 24 24">
-                   <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
-                </svg>
-
-                <h2 class="text-2xl font-bold font-titles absolute left-1/2 -translate-x-1/2 mt-3 text-text-title">Ruta de viaje</h2>
-                
-                <div class="font-bold font-titles text-lg text-text-title mt-3 mr-4 tracking-tight">
+            <div class="flex flex-col relative w-full mb-6 shrink-0">
+              <div class="flex items-center justify-between w-full">
+                <!-- Volver y Patente al mismo nivel -->
+                <button @click="selectedTripForMap = null" class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-blue-900 transition-colors">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                  Volver
+                </button>
+                <div class="font-bold font-titles text-lg text-text-title tracking-tight text-right">
                   Patente: <span class="text-[#215179]">{{ selectedTripForMap.licensePlate }}</span>
                 </div>
               </div>
+              <!-- Título al centro, compensando el margen negativo p/subir un poco -->
+              <h2 class="text-2xl font-bold font-titles text-center text-text-title -mt-4">Ruta de viaje</h2>
             </div>
 
-            <div class="flex items-center justify-between mb-4 text-sm font-medium text-gray-600">
-              <div>
-                Puntos crudos: <span class="font-bold text-text-title">{{ selectedTripRoute?.rawPoints?.length || 0 }}</span>
+            <!-- Stats & Icon -->
+            <div class="flex items-end justify-between mb-4 text-sm font-medium text-gray-600">
+              <div class="flex flex-col">
+                <!-- Ícono Mapa sobre puntos crudos -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#215179] mb-1" fill="currentColor" viewBox="0 0 24 24">
+                   <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                </svg>
+                <div>
+                  Puntos crudos: <span class="font-bold text-text-title">{{ selectedTripRoute?.rawPoints?.length || 0 }}</span>
+                </div>
               </div>
               <div>
                 Puntos trazados: <span class="font-bold text-text-title">{{ selectedTripRoute?.snappedPoints?.length || 0 }}</span>
