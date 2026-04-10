@@ -885,13 +885,13 @@ onMounted(async () => {
     <div class="flex flex-1">
       <DashboardSidebar />
 
-      <main class="flex-1 py-10 px-6 overflow-hidden flex items-start justify-center">
+      <main class="flex-1 py-6 px-4 sm:py-10 sm:px-6 overflow-y-auto overflow-x-hidden flex items-start justify-center">
 
         <!-- PASO 1 â€“ Seleccionar patente        -->
 
         <div v-if="!confirmed" class="w-full max-w-xl">
           <div
-            class="bg-white rounded-3xl border-2 border-slate-300 p-8 md:p-12 shadow-sm"
+            class="bg-white rounded-2xl sm:rounded-3xl border-2 border-slate-300 p-6 md:p-12 shadow-sm"
           >
             <h1
               class="text-3xl font-titles font-bold text-text-title text-center mb-16"
@@ -976,9 +976,9 @@ onMounted(async () => {
 
         <!-- PASO 2 â€“ Formulario de mantenimiento -->
         <div v-else class="flex gap-6 w-full max-w-6xl h-full min-h-0">
-          <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm overflow-hidden flex-1 flex flex-col">
-            <div class="px-10 pt-10 pb-4 md:px-14">
-              <h1 class="text-3xl font-titles font-bold text-text-title text-center mb-6">
+          <div class="bg-white rounded-2xl sm:rounded-3xl border-2 border-slate-300 shadow-sm overflow-hidden flex-1 flex flex-col w-full">
+            <div class="px-4 pt-6 pb-4 sm:px-10 sm:pt-10 md:px-14">
+              <h1 class="text-2xl sm:text-3xl font-titles font-bold text-text-title text-center mb-6">
                 Registro de mantención diaria vehicular
               </h1>
 
@@ -1048,9 +1048,9 @@ onMounted(async () => {
 
             </div>
 
-            <div class="overflow-x-auto px-10 pb-8 md:px-14">
-              <div class="mx-auto w-full max-w-[58rem] overflow-x-auto overflow-y-visible pl-10">
-                <table class="w-full table-fixed text-sm text-left border-collapse border border-slate-200">
+            <div class="overflow-x-auto px-4 pb-8 sm:px-10 md:px-14 w-full">
+              <div class="mx-auto w-full max-w-[58rem] overflow-x-auto overflow-y-visible pl-0 sm:pl-10">
+                <table class="w-full text-sm text-left border-collapse border border-slate-200 min-w-[700px] sm:min-w-full">
                   <thead class="bg-gray-100 text-gray-700">
                     <tr>
                       <th class="w-[34%] border border-slate-200 px-3 py-3">Item</th>
@@ -1175,8 +1175,8 @@ onMounted(async () => {
               </div>
 
               <div class="mt-8">
-                <h2 class="text-xl font-titles font-bold text-text-title mb-4">ANEXO II. Fechas de Vencimiento Documentación</h2>
-                <div class="grid gap-4 md:grid-cols-3">
+                <h2 class="text-lg sm:text-xl font-titles font-bold text-text-title mb-4">ANEXO II. Fechas de Vencimiento Documentación</h2>
+                <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
                   <div>
                     <label class="block text-[11px] font-bold text-gray-500 mb-2">REVISIÓN TÉCNICA</label>
                     <select
@@ -1244,10 +1244,10 @@ onMounted(async () => {
               </div>
             </div>
 
-            <div class="px-8 py-4 flex flex-col gap-3 md:flex-row justify-between border-t border-gray-100">
+            <div class="px-4 sm:px-8 py-4 flex flex-col gap-4 md:flex-row md:justify-between border-t border-gray-100">
               <button
                 @click="confirmed = false"
-                class="w-full md:w-auto px-5 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+                class="w-full md:w-auto px-5 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 order-2 md:order-none"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
                 Volver
@@ -1255,7 +1255,7 @@ onMounted(async () => {
               <button
                 type="button"
                 @click="saveMaintenanceForm"
-                class="w-full md:w-auto px-5 py-3 bg-[#215179] hover:bg-blue-900 text-white font-bold rounded-xl transition-all duration-200"
+                class="w-full md:w-auto px-5 py-3 bg-[#215179] hover:bg-blue-900 text-white font-bold rounded-xl transition-all duration-200 order-1 md:order-none"
               >
                 Guardar formulario
               </button>

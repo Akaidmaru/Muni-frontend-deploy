@@ -251,8 +251,8 @@ onMounted(() => {
     <div class="flex flex-1 overflow-hidden">
       <DashboardSidebar />
       
-      <main class="flex-1 py-10 px-6 overflow-y-auto bg-slate-50">
-        <div class="max-w-6xl mx-auto bg-white rounded-3xl border border-slate-300 shadow-sm p-10">
+      <main class="flex-1 py-6 px-4 sm:py-10 sm:px-6 overflow-y-auto overflow-x-hidden bg-slate-50 min-w-0">
+        <div class="max-w-6xl mx-auto bg-white rounded-2xl sm:rounded-3xl border border-slate-300 shadow-sm p-4 sm:p-10 overflow-x-hidden">
 
           <h1 class="text-2xl font-bold text-center text-slate-900 mb-6 uppercase tracking-wide">{{ tituloMesPrincipal }}</h1>
 
@@ -260,7 +260,7 @@ onMounted(() => {
           <div class="mb-6">
             <h2 class="text-sm font-bold text-slate-800 mb-3 underline">Vehículo.</h2>
             <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Seleccionar Vehículo</label>
-            <div class="flex items-center gap-3 max-w-sm">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 max-w-sm">
               <div class="relative flex-1">
                 <select
                   id="truck-selector"
@@ -291,8 +291,8 @@ onMounted(() => {
           <section class="flex flex-col gap-10 mb-12">
             <div>
               <h2 class="text-sm font-bold text-slate-800 mb-3 underline">Condiciones mínimas y obligatorias de vehículo.</h2>
-              <div class="overflow-hidden border border-slate-300 rounded-lg shadow-sm">
-                <table class="w-full text-center border-collapse text-sm">
+              <div class="overflow-x-auto border border-slate-300 rounded-lg shadow-sm w-full">
+                <table class="w-full whitespace-nowrap sm:whitespace-normal text-center border-collapse text-sm min-w-[600px] sm:min-w-full">
                   <thead class="bg-slate-50 border-b border-slate-300 text-slate-700 font-bold">
                     <tr>
                       <th class="p-3 border-r border-slate-300">Marca <span class="font-normal text-slate-400 text-xs">(pendiente)</span></th>
@@ -318,8 +318,8 @@ onMounted(() => {
             </div>
 
             <div>
-              <div class="overflow-hidden border border-slate-300 rounded-lg shadow-sm">
-                <table class="w-full text-center border-collapse text-sm">
+              <div class="overflow-x-auto border border-slate-300 rounded-lg shadow-sm w-full">
+                <table class="w-full whitespace-nowrap sm:whitespace-normal text-center border-collapse text-sm min-w-[500px] sm:min-w-full">
                   <thead class="bg-slate-50 border-b border-slate-300 text-slate-700 font-bold">
                     <tr>
                       <th class="p-3 border-r border-slate-300 w-1/3">Doc. obligatoria</th>
@@ -345,8 +345,8 @@ onMounted(() => {
 
           <section v-for="sec in [{t:'Check list. Normas y Seguridad de Vehículo', i:itemsLuces, r:'luces'}, {t:'Revisión mecánica de vehículo', i:itemsMecanica, r:'mecanica'}, {t:'Accesorios', i:itemsAccesorios, r:'accesorios'}]" :key="sec.t" class="mb-12">
             <h2 class="text-sm font-bold text-slate-800 mb-3 underline">{{ sec.t }}</h2>
-            <div class="overflow-x-auto border border-slate-300 rounded-lg shadow-sm">
-              <table class="w-full text-center border-collapse text-xs">
+            <div class="overflow-x-auto border border-slate-300 rounded-lg shadow-sm w-full">
+              <table class="w-full text-center border-collapse text-xs min-w-[910px] sm:min-w-full">
                 <thead class="bg-slate-50 border-b border-slate-300 text-slate-700 font-bold">
                   <tr>
                     <th class="p-3 border-r border-slate-300 min-w-[180px]">Descripción</th>
@@ -407,8 +407,8 @@ onMounted(() => {
           </section>
 
           <section class="mb-14">
-            <div class="flex items-center justify-between max-w-3xl mx-auto mb-4 px-2">
-              <h2 class="text-sm font-bold text-slate-800 underline uppercase tracking-tight">Sanitización Vehículo</h2>
+            <div class="flex flex-col sm:flex-row items-center justify-between max-w-3xl mx-auto mb-4 px-2 gap-4">
+              <h2 class="text-sm font-bold text-slate-800 underline uppercase tracking-tight w-full sm:w-auto text-center sm:text-left">Sanitización Vehículo</h2>
               <div class="flex items-center gap-2">
                 <button @click="navegarMes(-1)" class="p-1.5 rounded-full bg-white border border-slate-300 hover:bg-blue-50 text-slate-500 hover:text-blue-600 shadow-sm transition-all active:scale-90">←</button>
                 <span class="text-xs font-bold text-slate-400 w-20 text-center uppercase">Navegar Mes</span>
@@ -416,8 +416,8 @@ onMounted(() => {
               </div>
             </div>
             
-            <div class="max-w-3xl mx-auto border border-slate-300 rounded-lg overflow-hidden shadow-sm">
-              <table class="w-full text-center border-collapse text-sm">
+            <div class="max-w-3xl mx-auto border border-slate-300 rounded-lg overflow-x-auto shadow-sm w-full">
+              <table class="w-full whitespace-nowrap sm:whitespace-normal text-center border-collapse text-sm min-w-[500px] sm:min-w-full">
                 <thead class="bg-slate-50 border-b border-slate-300 text-slate-700 font-bold">
                   <tr>
                     <th class="p-3 border-r border-slate-300 w-1/4">Día de la semana</th>
@@ -442,11 +442,11 @@ onMounted(() => {
             </div>
           </section>
 
-          <footer class="flex justify-between items-center mt-12 pt-8 border-t-2 border-slate-200">
-            <button @click="guardarFormulario" class="bg-red-800 hover:bg-red-900 text-white px-12 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95">
+          <footer class="flex flex-col sm:flex-row justify-between items-center mt-8 sm:mt-12 pt-8 border-t-2 border-slate-200 gap-4">
+            <button @click="guardarFormulario" class="w-full sm:w-auto bg-red-800 hover:bg-red-900 text-white px-12 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95 order-1 sm:order-none">
               Confirmar y Guardar
             </button>
-            <button @click="cancelarEdicion" class="bg-slate-700 hover:bg-slate-800 text-white px-12 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95">
+            <button @click="cancelarEdicion" class="w-full sm:w-auto bg-slate-700 hover:bg-slate-800 text-white px-12 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95 order-2 sm:order-none">
               Cancelar
             </button>
           </footer>
