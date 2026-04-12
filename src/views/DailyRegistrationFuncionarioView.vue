@@ -32,7 +32,7 @@ const loadRows = async () => {
     });
 
     const payloadItems = Array.isArray(data?.items)
-      ? data.items.filter((trip) => trip?.status === "EMPLOYEE_SIGNED")
+      ? data.items.filter((trip) => trip?.status === "COMPLETED")
       : [];
 
     rows.value = payloadItems.map((trip) => ({
@@ -66,8 +66,8 @@ const loadRows = async () => {
 };
 
 const saveRow = async (row) => {
-  if (row.status !== "EMPLOYEE_SIGNED") {
-    alert("Este viaje debe estar finalizado por el conductor para firmarse.");
+  if (row.status !== "COMPLETED") {
+    alert("Este viaje debe estar finalizado por el conductor para completarse.");
     return false;
   }
 

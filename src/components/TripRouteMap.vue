@@ -18,8 +18,9 @@ const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
 const GOOGLE_MAPS_MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID'
 
 let mapInstance = null
-let rawPolyline = null
 let snappedPolyline = null
+let rawPointMarkers = []
+let rawPointInfoWindow = null
 let startMarker = null
 let endMarker = null
 let markerLibraryPromise = null
@@ -104,7 +105,15 @@ const fitBoundsIfPossible = (layers) => {
 }
 
 const clearLayers = () => {
-  rawPolyline?.setMap(null)
+  rawPointInfoWindow?.close()
+
+  rawPointMarkers.forEach((marker) => {
+    if (typeof marker.setMap === 'function') {
+      marker.setMap(null)
+    } else {
+      marker.map = null
+    }
+  })
   snappedPolyline?.setMap(null)
 
   if (startMarker) {
@@ -123,8 +132,8 @@ const clearLayers = () => {
     }
   }
 
-  rawPolyline = null
   snappedPolyline = null
+  rawPointMarkers = []
   startMarker = null
   endMarker = null
 }
@@ -141,13 +150,41 @@ const redrawRoute = async () => {
   const allBoundsSources = [rawLatLngs, snappedLatLngs].filter((points) => points.length > 0)
 
   if (rawLatLngs.length > 0) {
-    rawPolyline = new window.google.maps.Polyline({
-      path: rawLatLngs,
-      geodesic: true,
-      strokeColor: '#9CA3AF',
-      strokeOpacity: 0.7,
-      strokeWeight: 4,
-      map: mapInstance,
+    rawPointMarkers = rawLatLngs.map((position, index) => {
+      const marker = new window.google.maps.Marker({
+        position,
+        map: mapInstance,
+        clickable: true,
+        title: `GPS real ${index + 1}`,
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 4,
+          fillColor: '#DC2626',
+          fillOpacity: 0.85,
+          strokeColor: '#ffffff',
+          strokeOpacity: 1,
+          strokeWeight: 1,
+        },
+      })
+
+      marker.addListener('click', () => {
+        const latitude = Number(position.lat).toFixed(6)
+        const longitude = Number(position.lng).toFixed(6)
+        const content =
+          `<div style="font-size:12px;line-height:1.45">` +
+          `<strong>Punto GPS real ${index + 1}</strong><br/>` +
+          `Lat: ${latitude}<br/>` +
+          `Lng: ${longitude}` +
+          `</div>`
+
+        rawPointInfoWindow?.setContent(content)
+        rawPointInfoWindow?.open({
+          map: mapInstance,
+          anchor: marker,
+        })
+      })
+
+      return marker
     })
   }
 
@@ -216,6 +253,8 @@ onMounted(async () => {
       fullscreenControl: true,
     })
 
+    rawPointInfoWindow = new maps.InfoWindow()
+
     await redrawRoute()
   } catch (error) {
     console.error(error)
@@ -234,6 +273,7 @@ watch(
 
 onBeforeUnmount(() => {
   clearLayers()
+  rawPointInfoWindow = null
   mapInstance = null
 })
 </script>
