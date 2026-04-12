@@ -336,6 +336,7 @@ const handleConfirm = async () => {
 const changePlateModal = ref({ step: 0 }); // 0=cerrado, 1=confirmar, 2=motivo
 const changePlateReason = ref("");
 const changePlateCategory = ref("");
+const isSubmittingPlateChange = ref(false);
 
 const openChangePlate = () => {
   changePlateReason.value = "";
@@ -351,22 +352,54 @@ const cancelStep1 = () => {
   changePlateModal.value.step = 0;
 };
 
-const confirmStep2 = () => {
-  // TODO: enviar motivo al backend → POST /api/plate-change-reasons
-  // { plate: selectedPlate.value, reason: changePlateReason.value, date: currentDate }
-  if (changePlateCategory.value === "Avería") {
-    vehicleAlertsStore.addOutOfServiceAlert({
-      plate: selectedPlate.value,
-      driver: auth.fullName || auth.user?.email || "Conductor sin nombre",
-      reason: changePlateReason.value.trim(),
-      category: changePlateCategory.value,
-    });
+const confirmStep2 = async () => {
+  if (isSubmittingPlateChange.value) return;
+
+  const truck = licensePlates.value.find(
+    (item) => item.plate === selectedPlate.value,
+  );
+
+  if (!truck?.id) {
+    tripActionError.value =
+      "No se encontró el camión seleccionado para registrar el cambio.";
+    return;
   }
 
-  changePlateModal.value.step = 0;
-  confirmed.value = false;
-  selectedPlate.value = "";
-  trips.value = [];
+  tripActionError.value = "";
+  isSubmittingPlateChange.value = true;
+
+  try {
+    const reason =
+      changePlateCategory.value === "Avería" ? "AVERIA" : "LOGISTICA";
+
+    await api.post("/trucks/plate-change", {
+      truckId: Number(truck.id),
+      reason,
+      observations: changePlateReason.value.trim(),
+    });
+
+    if (changePlateCategory.value === "Avería") {
+      vehicleAlertsStore.addOutOfServiceAlert({
+        plate: selectedPlate.value,
+        driver: auth.fullName || auth.user?.email || "Conductor sin nombre",
+        reason: changePlateReason.value.trim(),
+        category: changePlateCategory.value,
+      });
+    }
+
+    await loadAssignedTrucks();
+    changePlateModal.value.step = 0;
+    confirmed.value = false;
+    selectedPlate.value = "";
+    trips.value = [];
+  } catch (error) {
+    const backendMessage = error.response?.data?.message;
+    tripActionError.value = Array.isArray(backendMessage)
+      ? backendMessage.join(", ")
+      : backendMessage || "No se pudo registrar el cambio de patente.";
+  } finally {
+    isSubmittingPlateChange.value = false;
+  }
 };
 
 const cancelStep2 = () => {
@@ -1203,10 +1236,10 @@ onBeforeUnmount(() => {
           <div class="flex gap-4 justify-center">
             <button
               @click="confirmStep2"
-              :disabled="!changePlateCategory || !changePlateReason.trim()"
+              :disabled="!changePlateCategory || !changePlateReason.trim() || isSubmittingPlateChange"
               class="px-8 py-3 bg-[#9B2335] hover:bg-red-800 text-white font-bold rounded-lg shadow transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Confirmar
+              {{ isSubmittingPlateChange ? "Guardando..." : "Confirmar" }}
             </button>
             <button
               @click="cancelStep2"
