@@ -710,6 +710,10 @@ const startTrip = async (trip) => {
     trip.status = "running";
     gpsStatusError.value = "";
     startGpsTracking(trip);
+
+    if (trimmedCustomDestination) {
+      await loadDestinations();
+    }
   } catch (error) {
     const backendMessage = error.response?.data?.message;
     tripActionError.value = Array.isArray(backendMessage)
