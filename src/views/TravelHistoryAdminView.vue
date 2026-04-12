@@ -339,7 +339,6 @@ const loadTripRoute = async (trip) => {
   try {
     const { data } = await api.get(`/trip-history/${trip.id}/map-route`)
     selectedTripRoute.value = {
-      rawPoints: Array.isArray(data?.rawPoints) ? data.rawPoints : [],
       snappedPoints: Array.isArray(data?.snappedPoints) ? data.snappedPoints : [],
     }
   } catch (error) {
@@ -842,15 +841,6 @@ watch(currentPage, () => {
 
             <!-- Stats & Icon -->
             <div class="flex items-end justify-between mb-4 text-sm font-medium text-gray-600">
-              <div class="flex flex-col">
-                <!-- Ícono Mapa sobre puntos crudos -->
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#215179] mb-1" fill="currentColor" viewBox="0 0 24 24">
-                   <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
-                </svg>
-                <div>
-                  Puntos crudos: <span class="font-bold text-text-title">{{ selectedTripRoute?.rawPoints?.length || 0 }}</span>
-                </div>
-              </div>
               <div>
                 Puntos trazados: <span class="font-bold text-text-title">{{ selectedTripRoute?.snappedPoints?.length || 0 }}</span>
               </div>
@@ -859,7 +849,6 @@ watch(currentPage, () => {
             <div class="flex-1 rounded-xl w-full h-full min-h-0 overflow-hidden shadow-inner bg-slate-100 relative">
               <TripRouteMap
                 v-if="selectedTripRoute"
-                :raw-points="selectedTripRoute.rawPoints"
                 :snapped-points="selectedTripRoute.snappedPoints"
               />
 

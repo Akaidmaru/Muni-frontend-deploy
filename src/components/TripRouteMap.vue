@@ -2,10 +2,6 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({
-  rawPoints: {
-    type: Array,
-    default: () => [],
-  },
   snappedPoints: {
     type: Array,
     default: () => [],
@@ -19,8 +15,6 @@ const GOOGLE_MAPS_MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_
 
 let mapInstance = null
 let snappedPolyline = null
-let rawPointMarkers = []
-let rawPointInfoWindow = null
 let startMarker = null
 let endMarker = null
 let markerLibraryPromise = null
@@ -105,15 +99,6 @@ const fitBoundsIfPossible = (layers) => {
 }
 
 const clearLayers = () => {
-  rawPointInfoWindow?.close()
-
-  rawPointMarkers.forEach((marker) => {
-    if (typeof marker.setMap === 'function') {
-      marker.setMap(null)
-    } else {
-      marker.map = null
-    }
-  })
   snappedPolyline?.setMap(null)
 
   if (startMarker) {
@@ -133,7 +118,6 @@ const clearLayers = () => {
   }
 
   snappedPolyline = null
-  rawPointMarkers = []
   startMarker = null
   endMarker = null
 }
@@ -143,50 +127,7 @@ const redrawRoute = async () => {
 
   clearLayers()
 
-  const rawLatLngs = toLatLng(props.rawPoints)
   const snappedLatLngs = toLatLng(props.snappedPoints)
-
-  const primaryLatLngs = snappedLatLngs.length > 0 ? snappedLatLngs : rawLatLngs
-  const allBoundsSources = [rawLatLngs, snappedLatLngs].filter((points) => points.length > 0)
-
-  if (rawLatLngs.length > 0) {
-    rawPointMarkers = rawLatLngs.map((position, index) => {
-      const marker = new window.google.maps.Marker({
-        position,
-        map: mapInstance,
-        clickable: true,
-        title: `GPS real ${index + 1}`,
-        icon: {
-          path: window.google.maps.SymbolPath.CIRCLE,
-          scale: 4,
-          fillColor: '#DC2626',
-          fillOpacity: 0.85,
-          strokeColor: '#ffffff',
-          strokeOpacity: 1,
-          strokeWeight: 1,
-        },
-      })
-
-      marker.addListener('click', () => {
-        const latitude = Number(position.lat).toFixed(6)
-        const longitude = Number(position.lng).toFixed(6)
-        const content =
-          `<div style="font-size:12px;line-height:1.45">` +
-          `<strong>Punto GPS real ${index + 1}</strong><br/>` +
-          `Lat: ${latitude}<br/>` +
-          `Lng: ${longitude}` +
-          `</div>`
-
-        rawPointInfoWindow?.setContent(content)
-        rawPointInfoWindow?.open({
-          map: mapInstance,
-          anchor: marker,
-        })
-      })
-
-      return marker
-    })
-  }
 
   if (snappedLatLngs.length > 0) {
     snappedPolyline = new window.google.maps.Polyline({
@@ -199,9 +140,9 @@ const redrawRoute = async () => {
     })
   }
 
-  if (primaryLatLngs.length > 0) {
-    const firstPoint = primaryLatLngs[0]
-    const lastPoint = primaryLatLngs[primaryLatLngs.length - 1]
+  if (snappedLatLngs.length > 0) {
+    const firstPoint = snappedLatLngs[0]
+    const lastPoint = snappedLatLngs[snappedLatLngs.length - 1]
     const { AdvancedMarkerElement, PinElement } = await loadMarkerLibrary()
 
     const startPin = new PinElement({
@@ -233,7 +174,7 @@ const redrawRoute = async () => {
     })
   }
 
-  fitBoundsIfPossible(allBoundsSources)
+  fitBoundsIfPossible([snappedLatLngs].filter((points) => points.length > 0))
 }
 
 onMounted(async () => {
@@ -253,8 +194,6 @@ onMounted(async () => {
       fullscreenControl: true,
     })
 
-    rawPointInfoWindow = new maps.InfoWindow()
-
     await redrawRoute()
   } catch (error) {
     console.error(error)
@@ -264,7 +203,7 @@ onMounted(async () => {
 })
 
 watch(
-  () => [props.rawPoints, props.snappedPoints],
+  () => props.snappedPoints,
   () => {
     void redrawRoute()
   },
@@ -273,7 +212,6 @@ watch(
 
 onBeforeUnmount(() => {
   clearLayers()
-  rawPointInfoWindow = null
   mapInstance = null
 })
 </script>
