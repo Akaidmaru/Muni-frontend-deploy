@@ -276,11 +276,7 @@ onMounted(async () => {
     <!-- Header: back button + logo on same row -->
     <header class="verify-header">
       <button @click="goBack" class="back-button" aria-label="Volver atrás">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <line x1="6" y1="5" x2="6" y2="19" />
-          <polyline points="18 18 10 12 18 6" />
-        </svg>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
       </button>
 
       <router-link to="/" class="logo-link">

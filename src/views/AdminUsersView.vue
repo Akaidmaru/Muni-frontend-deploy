@@ -35,7 +35,7 @@ const goBack = () => {
               @click="goBack"
               class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-blue-900 transition-colors mb-6"
             >
-              <span aria-hidden="true">←</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
               Volver
             </button>
             <h1 class="text-3xl font-titles font-bold text-text-title text-center mb-4">Gestión de Usuarios</h1>

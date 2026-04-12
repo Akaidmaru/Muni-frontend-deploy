@@ -200,8 +200,9 @@ const submitReport = async () => {
                 <button 
                   type="button" 
                   @click="handleClose" 
-                  class="text-[11px] font-body text-[#9ca3af] hover:text-[#4b5563] underline underline-offset-4 transition-colors p-2"
+                  class="text-[11px] font-body text-[#9ca3af] hover:text-[#4b5563] underline underline-offset-4 transition-colors p-2 inline-flex items-center gap-1.5"
                 >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
                   Volver al inicio
                 </button>
               </div>
