@@ -113,6 +113,7 @@ const selectedPlate = ref("");
 const plateSelectRef = ref(null);
 const confirmed = ref(false);
 const isConfirming = ref(false);
+const isFinishingTrip = ref(false);
 
 // ── Date ──────────────────────────────────────────────────────────────
 const currentDate = computed(() => {
@@ -127,8 +128,22 @@ const getCurrentTime = () => {
 };
 
 const gpsTrackers = new Map();
-const GPS_BATCH_SIZE = 5;
-const GPS_FLUSH_INTERVAL_MS = 15000;
+const GPS_BATCH_SIZE = 1;
+const GPS_MIN_DISTANCE_METERS = 8;
+const GPS_SOFT_FLUSH_INTERVAL_MS = 25000;
+
+const haversineMeters = (a, b) => {
+  const R = 6371000;
+  const phi1 = (a.latitude * Math.PI) / 180;
+  const phi2 = (b.latitude * Math.PI) / 180;
+  const deltaPhi = ((b.latitude - a.latitude) * Math.PI) / 180;
+  const deltaLambda = ((b.longitude - a.longitude) * Math.PI) / 180;
+  const h =
+    Math.sin(deltaPhi / 2) ** 2 +
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) ** 2;
+
+  return 2 * R * Math.asin(Math.sqrt(h));
+};
 
 const hasGeolocationSupport = () =>
   typeof navigator !== 'undefined' && !!navigator.geolocation;
@@ -188,6 +203,7 @@ const startGpsTracking = (trip) => {
     sending: false,
     watchId: null,
     intervalId: null,
+    lastCapturedPoint: null,
   };
 
   tracker.watchId = navigator.geolocation.watchPosition(
@@ -199,15 +215,24 @@ const startGpsTracking = (trip) => {
         return;
       }
 
-      const lastPoint = tracker.queue[tracker.queue.length - 1];
+      const lastPoint = tracker.lastCapturedPoint;
       if (lastPoint && lastPoint.latitude === latitude && lastPoint.longitude === longitude) {
+        return;
+      }
+
+      if (
+        lastPoint &&
+        haversineMeters(lastPoint, { latitude, longitude }) < GPS_MIN_DISTANCE_METERS
+      ) {
         return;
       }
 
       tracker.queue.push({
         latitude,
         longitude,
+        capturedAt: new Date().toISOString(),
       });
+      tracker.lastCapturedPoint = { latitude, longitude };
 
       if (tracker.queue.length >= GPS_BATCH_SIZE) {
         void flushGpsPoints(trip.historyId);
@@ -224,9 +249,11 @@ const startGpsTracking = (trip) => {
     },
   );
 
+  // Soft fallback: if distance-triggered sends do not happen for a while,
+  // flush pending points to reduce data loss on unstable connections.
   tracker.intervalId = window.setInterval(() => {
     void flushGpsPoints(trip.historyId);
-  }, GPS_FLUSH_INTERVAL_MS);
+  }, GPS_SOFT_FLUSH_INTERVAL_MS);
 
   gpsTrackers.set(trip.historyId, tracker);
   return true;
@@ -516,8 +543,11 @@ const openStopTrip = (trip) => {
 };
 
 const confirmStopTrip = async () => {
+  if (isFinishingTrip.value) return;
+
   const trip = stopTripModal.value.trip;
   if (trip) {
+    isFinishingTrip.value = true;
     tripActionError.value = "";
 
     try {
@@ -532,7 +562,12 @@ const confirmStopTrip = async () => {
       }
 
       if (trip.historyId) {
-        await flushGpsPoints(trip.historyId);
+        const flushed = await flushGpsPoints(trip.historyId);
+        if (!flushed) {
+          tripActionError.value =
+            'No se pudieron enviar los últimos puntos GPS. Intenta finalizar el viaje nuevamente.';
+          return;
+        }
       }
       
       const endTime = getCurrentTime();
@@ -574,10 +609,25 @@ const confirmStopTrip = async () => {
       });
     } catch (error) {
       const backendMessage = error.response?.data?.message;
-      tripActionError.value = Array.isArray(backendMessage)
+      const normalizedMessage = Array.isArray(backendMessage)
         ? backendMessage.join(", ")
-        : backendMessage || "No se pudo finalizar el viaje.";
+        : backendMessage || "";
+
+      if (normalizedMessage.includes("DRIVER_FILLING")) {
+        // If backend already moved the status, reflect it locally and avoid
+        // surfacing a blocking error to the user.
+        trip.status = "done";
+        if (trip.historyId) {
+          stopGpsTracking(trip.historyId);
+        }
+        stopTripModal.value = { open: false, trip: null };
+        return;
+      }
+
+      tripActionError.value = normalizedMessage || "No se pudo finalizar el viaje.";
       return;
+    } finally {
+      isFinishingTrip.value = false;
     }
   }
   stopTripModal.value = { open: false, trip: null };
@@ -1235,9 +1285,11 @@ onBeforeUnmount(() => {
             <div class="flex gap-4 justify-center">
               <button
                 @click="confirmStopTrip"
+                :disabled="isFinishingTrip"
                 class="px-8 py-3 bg-[#9B2335] hover:bg-red-800 text-white font-bold rounded-lg shadow transition-all duration-200"
+                :class="{ 'opacity-50 cursor-not-allowed hover:bg-[#9B2335]': isFinishingTrip }"
               >
-                Confirmar
+                {{ isFinishingTrip ? 'Finalizando...' : 'Confirmar' }}
               </button>
               <button
                 @click="cancelStopTrip"
