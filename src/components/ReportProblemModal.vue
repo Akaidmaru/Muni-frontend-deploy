@@ -188,7 +188,7 @@ const submitReport = async () => {
                 <button 
                   type="submit" 
                   :disabled="isSubmitting"
-                  class="bg-[#B71C1C] hover:bg-red-800 disabled:opacity-75 disabled:cursor-not-allowed text-white font-button text-xs font-bold px-8 py-3 rounded-xl transition-all w-[240px] tracking-wide flex items-center justify-center font-body min-h-[44px]"
+                  class="bg-[#B71C1C] hover:bg-red-800 disabled:opacity-75 disabled:cursor-not-allowed text-white text-xs font-bold px-8 py-3 rounded-xl transition-all w-[240px] tracking-wide flex items-center justify-center font-body min-h-[44px]"
                 >
                   <span v-if="!isSubmitting">ENVIAR REPORTE</span>
                   <svg v-else class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

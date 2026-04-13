@@ -1,30 +1,206 @@
 <script setup>
-/**
- * AdminMaintenanceDailyView.vue
- * ─────────────────────────────────────────────────────────────────────────
- * Vista de historial de mantenimiento vehicular diario (Admin).
- *
- * INTEGRACIÓN BACKEND — pendiente de implementación
- * El frontend está completamente preparado. Solo descomentar los bloques
- * marcados con "CONECTAR BACKEND" y eliminar el bloque "MOCK" debajo.
- *
- * Endpoints requeridos (ver /docs/backend-maintenance-contract.md):
- *   GET /maintenance/daily/stats   → KPIs del panel superior
- *   GET /maintenance/daily         → registros paginados de la tabla
- *   PATCH /maintenance/daily/:id   → editar un registro
- * ─────────────────────────────────────────────────────────────────────────
- */
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import api from '@/services/axios'
-import { useVehicleAlertsStore } from '@/stores/vehicleAlerts'
 
 const router = useRouter()
-const vehicleAlertsStore = useVehicleAlertsStore()
 const alertsModal = ref(false)
+const allRecords = ref([])
+const outOfServiceAlerts = ref([])
+
+const CATEGORY_LABELS = {
+  systemLights: 'Sistema de luces',
+  systemBrakes: 'Sistema de frenos',
+  systemTires: 'Neumáticos',
+  systemEngine: 'Niveles / Motor',
+  accessories: 'Accesorios y documentos',
+}
+
+const CHECKLIST_ORDER = [
+  {
+    section: '1. SISTEMA DE LUCES',
+    itemCodes: [
+      'estacionamiento',
+      'bajas',
+      'altas',
+      'frenos',
+      'marchaAtras',
+      'virajeDerecha',
+      'virajeIzquierda',
+      'patente',
+      'balizas',
+    ],
+  },
+  {
+    section: '2. SISTEMA DE FRENOS',
+    itemCodes: ['frenoMano', 'pedal'],
+  },
+  {
+    section: '3. NEUMÁTICOS',
+    itemCodes: [
+      'delanteroDerecho',
+      'delanteroIzquierdo',
+      'traseroDerecho',
+      'traseroIzquierdo',
+      'repuesto',
+    ],
+  },
+  {
+    section: '4. NIVELES/MOTOR',
+    itemCodes: [
+      'nivelAceiteMotor',
+      'nivelAceiteRadiador',
+      'nivelLiquidoFrenos',
+      'correas',
+      'bateria',
+    ],
+  },
+  {
+    section: '5. ACCESORIOS Y DOCUMENTOS',
+    itemCodes: ['extintor', 'botiquin', 'gataManivela', 'triangulo', 'llaveRueda'],
+  },
+]
+
+const normalizeValue = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+const isRegularState = (value) => normalizeValue(value) === 'regular'
+const isBadState = (value) => normalizeValue(value) === 'malo'
+const isGoodState = (value) => normalizeValue(value) === 'bueno'
+
+const formatDate = (value) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}-${month}-${year}`
+}
+
+const formatDateTime = (dateValue, timeValue) => {
+  const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) {
+    return dateValue || ''
+  }
+
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+
+  let resolvedTime = timeValue
+  if (!resolvedTime) {
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    resolvedTime = `${hours}:${minutes}`
+  }
+
+  return `${day}-${month}-${year}, ${resolvedTime}`
+}
+
+const pluralize = (count, singular, plural) =>
+  `${count} ${count === 1 ? singular : plural}`
+
+const buildFaultSummaryFromItems = (maintenanceItems = []) => {
+  let badCount = 0
+  let regularCount = 0
+
+  maintenanceItems.forEach((item) => {
+    if (isBadState(item?.status)) badCount += 1
+    else if (isRegularState(item?.status)) regularCount += 1
+  })
+
+  const lines = []
+  if (badCount > 0) lines.push(pluralize(badCount, 'Ítem Malo', 'Ítems Malos'))
+  if (regularCount > 0)
+    lines.push(pluralize(regularCount, 'Regular', 'Regulares'))
+
+  return lines.join('\n')
+}
+
+const hasPendingIssues = (record) => {
+  const hasProblematicChecklist = (record?.maintenanceItems || []).some(
+    (item) => isBadState(item?.status) || isRegularState(item?.status),
+  )
+
+  const hasProblematicDocs = [
+    record?.technicalReviewStatus,
+    record?.circulationPermitStatus,
+    record?.insuranceStatus,
+  ].some((status) => !isGoodState(status))
+
+  return hasProblematicChecklist || hasProblematicDocs
+}
+
+const deriveStatus = (record) =>
+  hasPendingIssues(record) ? 'PENDIENTE' : 'REVISADO'
+
+const mapCategoryLabel = (category) =>
+  CATEGORY_LABELS[category] || category || 'Sin categoría'
+
+const buildTopCategories = (recordsList) => {
+  const categoryCount = new Map()
+
+  recordsList.forEach((record) => {
+    ;(record.maintenanceItems || []).forEach((item) => {
+      if (!isBadState(item?.status) && !isRegularState(item?.status)) {
+        return
+      }
+
+      const label = mapCategoryLabel(item?.category)
+      categoryCount.set(label, (categoryCount.get(label) || 0) + 1)
+    })
+  })
+
+  return [...categoryCount.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([label, count]) => `${label} (${count})`)
+    .join('\n')
+}
+
+const mapRecordFromApi = (record) => ({
+  id: record.id,
+  date: formatDate(record.inspectionDate),
+  plate: record.truck?.plate || 'Sin patente',
+  driver:
+    record.driver?.name || record.driver?.email || `Conductor ${record.driverId}`,
+  faultSummary: buildFaultSummaryFromItems(record.maintenanceItems),
+  status: deriveStatus(record),
+  inspectionDateRaw: record.inspectionDate,
+  inspectionTime: record.inspectionTime,
+  municipalLicense: record.municipalLicense,
+  currentMileage: record.currentMileage,
+  maintenanceItems: Array.isArray(record.maintenanceItems)
+    ? record.maintenanceItems
+    : [],
+  technicalReviewStatus: record.technicalReviewStatus,
+  circulationPermitStatus: record.circulationPermitStatus,
+  insuranceStatus: record.insuranceStatus,
+})
+
+const updatePagedRecords = () => {
+  totalItems.value = allRecords.value.length
+  totalPages.value = Math.max(
+    1,
+    Math.ceil(totalItems.value / Number(itemsPerPage.value || 1)),
+  )
+
+  if (currentPage.value > totalPages.value) {
+    currentPage.value = totalPages.value
+  }
+
+  const start = (currentPage.value - 1) * Number(itemsPerPage.value)
+  const end = start + Number(itemsPerPage.value)
+  records.value = allRecords.value.slice(start, end)
+}
 
 // ═══════════════════════════════════════════════════════════
 // KPI STATS
@@ -41,35 +217,37 @@ const isLoadingKpis = ref(false)
 const loadStats = async () => {
   isLoadingKpis.value = true
   try {
-    // ── CONECTAR BACKEND ────────────────────────────────────
-    // Descomentar cuando el endpoint esté disponible:
-    //
-    // const { data } = await api.get('/maintenance/daily/stats')
-    // kpis.value = {
-    //   minorIncidents:       data.minorIncidents       ?? 0,
-    //   topCategories:        data.topCategories        ?? '',
-    //   outOfService:         data.outOfService         ?? 0,
-    //   dailyRegistrations:   data.dailyRegistrations   ?? 0,
-    //   pendingRegistrations: data.pendingRegistrations ?? 0,
-    // }
-    //
-    // Respuesta esperada del backend:
-    // {
-    //   minorIncidents: number,       // total de incidencias menores del día
-    //   topCategories: string,        // ej: "Luces Altas (4)\nNeumáticos (1)"
-    //   outOfService: number,         // vehículos fuera de servicio
-    //   dailyRegistrations: number,   // total de registros del día
-    //   pendingRegistrations: number  // registros con status PENDING
-    // }
-    // ── MOCK (eliminar cuando el backend esté listo) ────────
-    kpis.value = {
-      minorIncidents: 14,
-      topCategories: 'Luces Altas (4)\nNeumáticos (1)',
-      outOfService: vehicleAlertsStore.outOfServiceCount,
-      dailyRegistrations: 20,
-      pendingRegistrations: 2,
+    const today = new Date()
+    const sameDay = (value) => {
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return false
+      return (
+        date.getDate() === today.getDate() &&
+        date.getMonth() === today.getMonth() &&
+        date.getFullYear() === today.getFullYear()
+      )
     }
-    // ───────────────────────────────────────────────────────
+
+    const minorIncidents = allRecords.value.reduce((acc, record) => {
+      const regularInRecord = (record.maintenanceItems || []).reduce(
+        (count, item) => (isRegularState(item?.status) ? count + 1 : count),
+        0,
+      )
+      return acc + regularInRecord
+    }, 0)
+
+    const pendingRegistrations = allRecords.value.filter(
+      (record) => record.status === 'PENDIENTE',
+    ).length
+
+    kpis.value = {
+      minorIncidents,
+      topCategories: buildTopCategories(allRecords.value),
+      outOfService: outOfServiceCount.value,
+      dailyRegistrations: allRecords.value.filter((r) => sameDay(r.inspectionDateRaw))
+        .length,
+      pendingRegistrations,
+    }
   } catch (err) {
     console.error('[Mantenimiento Diario] Error al cargar estadísticas:', err)
   } finally {
@@ -77,27 +255,36 @@ const loadStats = async () => {
   }
 }
 
-const criticalAlerts = computed(() => vehicleAlertsStore.criticalAlerts)
-const outOfServiceCount = computed(() => vehicleAlertsStore.outOfServiceCount)
+const outOfServiceCount = computed(() => outOfServiceAlerts.value.length)
+
+const loadOutOfServiceAlerts = async () => {
+  try {
+    const { data } = await api.get('/trucks/out-of-service-alerts')
+    const payload = Array.isArray(data) ? data : []
+
+    outOfServiceAlerts.value = payload.map((item) => ({
+      id: item.id,
+      plate: item.plate || 'Sin patente',
+      driver: item.driver || 'Conductor no informado',
+      category: item.category || 'Avería',
+      reason: item.observation || 'Sin observaciones',
+      reportedAt: formatDateTime(item.reportedAt),
+    }))
+  } catch (err) {
+    outOfServiceAlerts.value = []
+    console.error(
+      '[Mantenimiento Diario] Error al cargar alertas fuera de servicio:',
+      err,
+    )
+  }
+}
 
 const formatAlertDateTime = (value) => {
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return 'Fecha no disponible'
-  }
-
-  return new Intl.DateTimeFormat('es-CL', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
+  if (!value) return 'Fecha no disponible'
+  return value
 }
 
 const openAlertsModal = () => {
-  vehicleAlertsStore.syncFromStorage()
   alertsModal.value = true
 }
 
@@ -133,42 +320,20 @@ const loadRecords = async () => {
   isLoadingRecords.value = true
   recordsError.value = ''
   try {
-    // ── CONECTAR BACKEND ────────────────────────────────────
-    // Descomentar cuando el endpoint esté disponible:
-    //
-    // const { data } = await api.get('/maintenance/daily', {
-    //   params: {
-    //     page:     currentPage.value,
-    //     pageSize: itemsPerPage.value,
-    //   },
-    // })
-    // records.value    = data.items      ?? []
-    // totalItems.value = data.total      ?? 0
-    // totalPages.value = data.totalPages ?? 1
-    //
-    // Respuesta esperada del backend (paginada igual que trip-history):
-    // {
-    //   items: MaintenanceRecord[],
-    //   total: number,
-    //   page: number,
-    //   pageSize: number,
-    //   totalPages: number
-    // }
-    // ── MOCK (eliminar cuando el backend esté listo) ────────
-    records.value = [
-      { id: 1, date: '07-04-2025', plate: 'BJGP-75', driver: 'Brandon Velez',   faultSummary: '1 Ítem Malo\n2 Regulares',  status: 'REVISADO'  },
-      { id: 2, date: '07-04-2025', plate: 'FKRZ-12', driver: 'Carlos Muñoz',    faultSummary: '3 Regulares',               status: 'REVISADO'  },
-      { id: 3, date: '07-04-2025', plate: 'BJGP-75', driver: 'Brandon Velez',   faultSummary: '1 Ítem Malo',               status: 'PENDIENTE' },
-      { id: 4, date: '06-04-2025', plate: 'LMTX-44', driver: 'Pedro Soto',      faultSummary: '2 Ítems Malos\n1 Regular',  status: 'REVISADO'  },
-      { id: 5, date: '06-04-2025', plate: 'FKRZ-12', driver: 'Carlos Muñoz',    faultSummary: '',                          status: 'PENDIENTE' },
-      { id: 6, date: '05-04-2025', plate: 'BJGP-75', driver: 'Brandon Velez',   faultSummary: '4 Regulares',               status: 'REVISADO'  },
-    ]
-    totalItems.value = records.value.length
-    totalPages.value = 1
-    // ───────────────────────────────────────────────────────
+    const { data } = await api.get('/vehicle-maintenance-records')
+    const payload = Array.isArray(data) ? data : []
+
+    allRecords.value = payload.map(mapRecordFromApi)
+    updatePagedRecords()
+    await loadStats()
   } catch (err) {
     const msg = err?.response?.data?.message
     recordsError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'Error al cargar registros.'
+    allRecords.value = []
+    records.value = []
+    totalItems.value = 0
+    totalPages.value = 1
+    await loadStats()
     console.error('[Mantenimiento Diario] Error al cargar registros:', err)
   } finally {
     isLoadingRecords.value = false
@@ -185,11 +350,22 @@ const lastVisibleRow = computed(() =>
   Math.min(currentPage.value * Number(itemsPerPage.value), totalItems.value)
 )
 const goToPreviousPage = () => {
-  if (currentPage.value > 1) { currentPage.value--; loadRecords() }
+  if (currentPage.value > 1) {
+    currentPage.value--
+    updatePagedRecords()
+  }
 }
 const goToNextPage = () => {
-  if (currentPage.value < totalPages.value) { currentPage.value++; loadRecords() }
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+    updatePagedRecords()
+  }
 }
+
+watch(itemsPerPage, () => {
+  currentPage.value = 1
+  updatePagedRecords()
+})
 
 // ═══════════════════════════════════════════════════════════
 // DRAG-SCROLL
@@ -211,15 +387,12 @@ const onTableMouseMove = (e) => {
 const onTableMouseUp = () => { isTableDragging.value = false }
 
 onMounted(() => {
-  vehicleAlertsStore.syncFromStorage()
-  loadStats()
   loadRecords()
+  loadOutOfServiceAlerts()
   window.addEventListener('mousemove', onTableMouseMove)
-  window.addEventListener('storage', vehicleAlertsStore.syncFromStorage)
   window.addEventListener('mouseup', onTableMouseUp)
 })
 onBeforeUnmount(() => {
-  window.removeEventListener('storage', vehicleAlertsStore.syncFromStorage)
   window.removeEventListener('mousemove', onTableMouseMove)
   window.removeEventListener('mouseup', onTableMouseUp)
 })
@@ -235,73 +408,83 @@ const statusClass = (status) =>
 // ═══════════════════════════════════════════════════════════
 const viewModal = ref({ open: false, record: null })
 
+const groupItemsByCategory = (maintenanceItems = []) => {
+  const byCode = new Map(
+    maintenanceItems.map((item) => [String(item?.itemCode || ''), item]),
+  )
+  const usedCodes = new Set()
+
+  const orderedSections = CHECKLIST_ORDER.map((sectionDef) => {
+    const rows = sectionDef.itemCodes
+      .map((itemCode) => {
+        const item = byCode.get(itemCode)
+        if (!item) return null
+        usedCodes.add(itemCode)
+
+        return {
+          label: item?.itemName || itemCode || 'Ítem',
+          exists: item?.exists || '—',
+          state: item?.status || '—',
+          note: item?.notes || '',
+        }
+      })
+      .filter(Boolean)
+
+    return {
+      section: sectionDef.section,
+      rows,
+    }
+  }).filter((section) => section.rows.length > 0)
+
+  const remainingRows = maintenanceItems
+    .filter((item) => !usedCodes.has(String(item?.itemCode || '')))
+    .map((item) => ({
+      label: item?.itemName || item?.itemCode || 'Ítem',
+      exists: item?.exists || '—',
+      state: item?.status || '—',
+      note: item?.notes || '',
+    }))
+
+  if (remainingRows.length > 0) {
+    orderedSections.push({
+      section: 'Otros',
+      rows: remainingRows,
+    })
+  }
+
+  return orderedSections
+}
+
+const toAnnexStatusLabel = (value) => (isGoodState(value) ? 'Vigente' : value || 'No informado')
+
 const viewRecord = async (record) => {
-  // ── CONECTAR BACKEND ──────────────────────────────────────
-  // Descomentar para obtener el detalle completo del registro:
-  //
-  // try {
-  //   const { data } = await api.get(`/maintenance/daily/${record.id}`)
-  //   viewModal.value = { open: true, record: data }
-  // } catch (err) {
-  //   console.error('[Mantenimiento Diario] Error al cargar detalle:', err)
-  // }
-  //
-  // Respuesta esperada del backend:
-  // {
-  //   id, date, plate, driver,
-  //   items: [ { label, exists, state, note } ],  // cheklist completo
-  //   annex: { revisionTecnica, permisoCirculacion, seguroObligatorio },
-  //   faultSummary, status, licMunicipal, kilometraje
-  // }
-  // ── MOCK (eliminar cuando el backend esté listo) ───────────
-  viewModal.value = {
-    open: true,
-    record: {
-      ...record,
-      licMunicipal: 'LM-2024-0042',
-      kilometraje: '98.450 km',
-      items: [
-        { section: '1. Sistema de luces', rows: [
-          { label: 'Estacionamiento',   exists: 'Si', state: 'Bueno',   note: '' },
-          { label: 'Bajas',             exists: 'Si', state: 'Bueno',   note: '' },
-          { label: 'Altas',             exists: 'Si', state: 'Malo',    note: 'Foco fundido lado derecho' },
-          { label: 'Frenos',            exists: 'Si', state: 'Bueno',   note: '' },
-          { label: 'Marcha atrás',      exists: 'Si', state: 'Regular', note: '' },
-        ]},
-        { section: '2. Sistema de frenos', rows: [
-          { label: 'De mano',           exists: 'Si', state: 'Bueno',   note: '' },
-          { label: 'Pedal',             exists: 'Si', state: 'Regular', note: 'Desgaste leve' },
-        ]},
-        { section: '3. Neumáticos', rows: [
-          { label: 'Delantero derecho', exists: 'Si', state: 'Regular', note: '' },
-          { label: 'Delantero izquierdo', exists: 'Si', state: 'Bueno', note: '' },
-          { label: 'Trasero derecho',   exists: 'Si', state: 'Bueno',   note: '' },
-          { label: 'Trasero izquierdo', exists: 'Si', state: 'Bueno',   note: '' },
-          { label: 'Repuesto',          exists: 'Si', state: 'Bueno',   note: '' },
-        ]},
-        { section: '4. Niveles / Motor', rows: [
-          { label: 'Nivel aceite motor',    exists: 'Si', state: 'Bueno', note: '' },
-          { label: 'Nivel aceite radiador', exists: 'Si', state: 'Bueno', note: '' },
-          { label: 'Nivel líquido frenos',  exists: 'Si', state: 'Bueno', note: '' },
-          { label: 'Correas',               exists: 'Si', state: 'Bueno', note: '' },
-          { label: 'Batería',               exists: 'Si', state: 'Bueno', note: '' },
-        ]},
-        { section: '5. Accesorios y documentos', rows: [
-          { label: 'Extintor',          exists: 'Si', state: 'Bueno', note: '' },
-          { label: 'Botiquín',          exists: 'Si', state: 'Bueno', note: '' },
-          { label: 'Gata y manivela',   exists: 'Si', state: 'Bueno', note: '' },
-          { label: 'Triángulo',         exists: 'No', state: 'Malo',  note: 'No encontrado' },
-          { label: 'Llave de rueda',    exists: 'Si', state: 'Bueno', note: '' },
-        ]},
-      ],
-      annex: {
-        revisionTecnica:     'Vigente',
-        permisoCirculacion:  'Vigente',
-        seguroObligatorio:   'Vigente',
+  try {
+    const { data } = await api.get(`/vehicle-maintenance-records/${record.id}`)
+    const normalized = mapRecordFromApi(data)
+
+    viewModal.value = {
+      open: true,
+      record: {
+        ...normalized,
+        licMunicipal: normalized.municipalLicense || '—',
+        kilometraje:
+          normalized.currentMileage !== undefined &&
+          normalized.currentMileage !== null
+            ? `${Number(normalized.currentMileage).toLocaleString('es-CL')} km`
+            : '—',
+        items: groupItemsByCategory(normalized.maintenanceItems),
+        annex: {
+          revisionTecnica: toAnnexStatusLabel(normalized.technicalReviewStatus),
+          permisoCirculacion: toAnnexStatusLabel(
+            normalized.circulationPermitStatus,
+          ),
+          seguroObligatorio: toAnnexStatusLabel(normalized.insuranceStatus),
+        },
       },
     }
+  } catch (err) {
+    console.error('[Mantenimiento Diario] Error al cargar detalle:', err)
   }
-  // ─────────────────────────────────────────────────────────
 }
 
 const closeViewModal = () => { viewModal.value = { open: false, record: null } }
@@ -331,21 +514,6 @@ const saveEdit = async () => {
   editError.value = ''
 
   try {
-    // ── CONECTAR BACKEND ────────────────────────────────────
-    // Descomentar cuando el endpoint PATCH esté disponible:
-    //
-    // const { data } = await api.patch(
-    //   `/maintenance/daily/${editModal.value.record.id}`,
-    //   {
-    //     status:       editForm.value.status,
-    //     faultSummary: editForm.value.faultSummary,
-    //   }
-    // )
-    // // Actualizar la fila en la tabla local:
-    // const idx = records.value.findIndex(r => r.id === editModal.value.record.id)
-    // if (idx !== -1) records.value[idx] = { ...records.value[idx], ...data }
-    //
-    // ── MOCK (eliminar cuando el backend esté listo) ─────────
     const idx = records.value.findIndex(r => r.id === editModal.value.record.id)
     if (idx !== -1) {
       records.value[idx] = {
@@ -354,7 +522,19 @@ const saveEdit = async () => {
         faultSummary: editForm.value.faultSummary,
       }
     }
-    // ─────────────────────────────────────────────────────────
+
+    const fullIdx = allRecords.value.findIndex(
+      (r) => r.id === editModal.value.record.id,
+    )
+    if (fullIdx !== -1) {
+      allRecords.value[fullIdx] = {
+        ...allRecords.value[fullIdx],
+        status: editForm.value.status,
+        faultSummary: editForm.value.faultSummary,
+      }
+      await loadStats()
+    }
+
     closeEditModal()
   } catch (err) {
     const msg = err?.response?.data?.message
@@ -608,13 +788,13 @@ const saveEdit = async () => {
         </div>
 
         <div class="p-6 max-h-[70vh] overflow-y-auto">
-          <div v-if="criticalAlerts.length === 0" class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center text-sm text-slate-500">
+          <div v-if="outOfServiceAlerts.length === 0" class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center text-sm text-slate-500">
             No hay reportes críticos por avería.
           </div>
 
           <div v-else class="space-y-4">
             <article
-              v-for="alert in criticalAlerts"
+              v-for="alert in outOfServiceAlerts"
               :key="alert.id"
               class="rounded-2xl border border-red-200 bg-red-50 px-5 py-4"
             >
