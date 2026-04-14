@@ -73,7 +73,22 @@ const normalizeValue = (value) =>
 
 const isRegularState = (value) => normalizeValue(value) === 'regular'
 const isBadState = (value) => normalizeValue(value) === 'malo'
-const isGoodState = (value) => normalizeValue(value) === 'bueno'
+const isGoodState = (value) => {
+  const normalized = normalizeValue(value)
+  return normalized === 'bueno' || normalized === 'vigente' || normalized === 'aprobado'
+}
+
+const getDocumentStatusByExpiry = (expiryDate) => {
+  if (!expiryDate) return 'No tiene'
+
+  const date = new Date(expiryDate)
+  if (Number.isNaN(date.getTime())) return 'No tiene'
+
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const expiry = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  return expiry >= today ? 'Vigente' : 'Vencido'
+}
 
 const formatDate = (value) => {
   const date = new Date(value)
@@ -131,9 +146,10 @@ const hasPendingIssues = (record) => {
   )
 
   const hasProblematicDocs = [
-    record?.technicalReviewStatus,
-    record?.circulationPermitStatus,
-    record?.insuranceStatus,
+    getDocumentStatusByExpiry(record?.truck?.technicalReviewExpiresAt),
+    getDocumentStatusByExpiry(record?.truck?.circulationPermitExpiresAt),
+    getDocumentStatusByExpiry(record?.truck?.insuranceExpiresAt),
+    getDocumentStatusByExpiry(record?.truck?.emissionsExpiresAt),
   ].some((status) => !isGoodState(status))
 
   return hasProblematicChecklist || hasProblematicDocs
@@ -181,9 +197,6 @@ const mapRecordFromApi = (record) => ({
   maintenanceItems: Array.isArray(record.maintenanceItems)
     ? record.maintenanceItems
     : [],
-  technicalReviewStatus: record.technicalReviewStatus,
-  circulationPermitStatus: record.circulationPermitStatus,
-  insuranceStatus: record.insuranceStatus,
 })
 
 const updatePagedRecords = () => {
@@ -455,7 +468,7 @@ const groupItemsByCategory = (maintenanceItems = []) => {
   return orderedSections
 }
 
-const toAnnexStatusLabel = (value) => (isGoodState(value) ? 'Vigente' : value || 'No informado')
+const toAnnexStatusLabel = (expiryDate) => getDocumentStatusByExpiry(expiryDate)
 
 const viewRecord = async (record) => {
   try {
@@ -474,11 +487,12 @@ const viewRecord = async (record) => {
             : '—',
         items: groupItemsByCategory(normalized.maintenanceItems),
         annex: {
-          revisionTecnica: toAnnexStatusLabel(normalized.technicalReviewStatus),
+          revisionTecnica: toAnnexStatusLabel(data?.truck?.technicalReviewExpiresAt),
           permisoCirculacion: toAnnexStatusLabel(
-            normalized.circulationPermitStatus,
+            data?.truck?.circulationPermitExpiresAt,
           ),
-          seguroObligatorio: toAnnexStatusLabel(normalized.insuranceStatus),
+          seguroObligatorio: toAnnexStatusLabel(data?.truck?.insuranceExpiresAt),
+          emisionContaminantes: toAnnexStatusLabel(data?.truck?.emissionsExpiresAt),
         },
       },
     }
@@ -916,7 +930,7 @@ const saveEdit = async () => {
           <!-- Anexo documentos -->
           <div v-if="viewModal.record?.annex">
             <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-2">Documentación</p>
-            <div class="grid grid-cols-3 gap-2 text-xs text-center">
+            <div class="grid grid-cols-4 gap-2 text-xs text-center">
               <div class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
                 <p class="text-slate-400 mb-1">Rev. Técnica</p>
                 <span class="font-bold" :class="viewModal.record.annex.revisionTecnica === 'Vigente' ? 'text-green-600' : 'text-red-600'">
@@ -933,6 +947,12 @@ const saveEdit = async () => {
                 <p class="text-slate-400 mb-1">Seguro Oblig.</p>
                 <span class="font-bold" :class="viewModal.record.annex.seguroObligatorio === 'Vigente' ? 'text-green-600' : 'text-red-600'">
                   {{ viewModal.record.annex.seguroObligatorio }}
+                </span>
+              </div>
+              <div class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                <p class="text-slate-400 mb-1">Emisión Contam.</p>
+                <span class="font-bold" :class="viewModal.record.annex.emisionContaminantes === 'Vigente' ? 'text-green-600' : 'text-red-600'">
+                  {{ viewModal.record.annex.emisionContaminantes }}
                 </span>
               </div>
             </div>
