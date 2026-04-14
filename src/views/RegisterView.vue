@@ -8,6 +8,7 @@ const router = useRouter()
 
 const name = ref('')
 const surname = ref('')
+const rut = ref('')
 const email = ref('')
 const confirmEmail = ref('')
 const phone = ref('')
@@ -20,6 +21,32 @@ const loadingOccupations = ref(false)
 const loadingSubmit = ref(false)
 const error = ref('')
 const successMessage = ref('')
+
+const handleRutInput = (e) => {
+   let value = e.target.value.replace(/[^0-9kK]/g, '').toUpperCase()
+   if (!value) {
+      rut.value = ''
+      return
+   }
+   if (value.length > 9) {
+      value = value.slice(0, 9)
+   }
+   if (value.length > 1) {
+      const dv = value.slice(-1)
+      const body = value.slice(0, -1)
+      
+      let formattedBody = ''
+      for (let i = body.length - 1, j = 1; i >= 0; i--, j++) {
+         formattedBody = body.charAt(i) + formattedBody
+         if (j % 3 === 0 && i !== 0) {
+            formattedBody = '.' + formattedBody
+         }
+      }
+      rut.value = `${formattedBody}-${dv}`
+   } else {
+      rut.value = value
+   }
+}
 
 async function fetchOccupations() {
    loadingOccupations.value = true
@@ -72,6 +99,7 @@ const handleSubmit = async () => {
          email: email.value,
          password: password.value,
          phone: phone.value.trim() || undefined,
+         rut: rut.value.trim() || undefined,
          occupationId: Number(occupation.value),
       })
 
@@ -166,6 +194,11 @@ onMounted(() => {
                           {{ item.name }}
                        </option>
                    </select>
+                </div>
+
+                <!-- Casilla GRANDE para RUT -->
+                <div class="md:col-span-2">
+                  <input type="text" v-model="rut" @input="handleRutInput" placeholder="Ingresa tu RUT (Ej. 123456789)" required class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary font-body text-body placeholder-gray-400" />
                 </div>
 
                 <!-- Row 4 -->

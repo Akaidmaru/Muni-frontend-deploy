@@ -3,7 +3,7 @@ import { MapPin, Phone, Mail } from 'lucide-vue-next'
 </script>
 
 <template>
-  <footer class="bg-gray-100 pt-16 pb-8 border-t border-gray-200">
+  <footer class="bg-gray-100 pt-16 border-t border-gray-200 flex flex-col">
     <div class="container mx-auto px-4">
       <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-[auto_auto_1fr_auto] gap-6 lg:gap-8 mb-12">
         
@@ -58,13 +58,13 @@ import { MapPin, Phone, Mail } from 'lucide-vue-next'
         </div>
 
       </div>
+    </div>
 
-      <!-- Copyright -->
-      <div class="bg-black border-t border-gray-800 pt-8 pb-4 -mb-8 -mx-4 px-4 text-center">
-        <p class="font-legal text-legal text-gray-300">
-          &copy; {{ new Date().getFullYear() }} Transportes Flores Vargas SPA. Todos los derechos reservados.
-        </p>
-      </div>
+    <!-- Copyright (Full Width) -->
+    <div class="bg-black w-full border-t border-gray-800 py-6 mt-8 text-center">
+      <p class="font-legal text-legal text-gray-300">
+        &copy; {{ new Date().getFullYear() }} Transportes Flores Vargas SPA. Todos los derechos reservados.
+      </p>
     </div>
   </footer>
 </template>

@@ -735,10 +735,10 @@ watch(currentPage, () => {
               Volver
             </button>
           </div>
-          <div class="flex items-center justify-between p-8 pb-6 relative min-h-[5rem]">
-             <h1 class="text-3xl font-titles font-bold text-text-title text-center m-0 absolute left-1/2 -translate-x-1/2">Historial de viajes</h1>
+          <div class="flex flex-col md:flex-row items-center justify-center p-8 pb-6 relative min-h-[5rem] gap-6 md:gap-0">
+             <h1 class="text-3xl font-titles font-bold text-text-title text-center m-0 md:absolute md:left-1/2 md:-translate-x-1/2 md:top-6 order-1 md:order-none">Historial de viajes</h1>
 
-             <div class="absolute right-6 top-6 flex items-center gap-3 z-10">
+             <div class="flex justify-center items-center gap-3 z-10 w-full md:w-auto md:absolute md:right-6 md:top-6 order-2 md:order-none">
                <button @click="exportToPDF" class="bg-[#A22026] hover:bg-red-800 text-white font-semibold py-2 px-5 rounded-xl shadow transition-colors outline-none focus:ring-2 focus:ring-red-500 text-sm">
                  PDF
                </button>

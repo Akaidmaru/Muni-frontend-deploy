@@ -15,7 +15,7 @@ const clients = [
 </script>
 
 <template>
-  <div class="min-h-screen bg-background pb-12">
+  <div class="min-h-screen bg-background">
     <!-- Hero Section with Truck Background -->
     <div class="relative h-[500px] w-full mb-12">
        <img :src="heroBgImg" alt="Fondo Camión" class="w-full h-full object-cover" />
