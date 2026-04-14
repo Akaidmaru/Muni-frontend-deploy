@@ -18,6 +18,7 @@ import AdminReportsView from '../views/AdminReportsView.vue'
 import AdminMaintenanceView from '../views/AdminMaintenanceView.vue'
 import AdminMaintenanceDailyView from '../views/AdminMaintenanceDailyView.vue'
 import AdminMaintenanceWeeklyView from '../views/AdminMaintenanceWeeklyView.vue'
+import AdminAiAssistantView from '../views/AdminAiAssistantView.vue'
 import AccessDeniedView from '../views/AccessDeniedView.vue'
 import DashboardAdminView from '../views/DashboardAdminView.vue'
 import DashboardPacienteView from '../views/DashboardPacienteView.vue'
@@ -140,6 +141,12 @@ const router = createRouter({
             path: '/admin/mantencion-vehicular/semanal',
             name: 'admin-maintenance-weekly',
             component: AdminMaintenanceWeeklyView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+        {
+            path: '/admin/asistente-ia',
+            name: 'admin-ai-assistant',
+            component: AdminAiAssistantView,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
 

@@ -53,7 +53,8 @@ const allNavItems = {
       ]
     },
     { label: 'Historial de\nviajes', path: '/historial-viajes-admin', icon: historialIcon, alt: 'Historial de viajes' },
-    { label: 'Reportes', path: '/admin/reportes', icon: warningIcon, alt: 'Reportes' }
+    { label: 'Reportes', path: '/admin/reportes', icon: warningIcon, alt: 'Reportes' },
+    { label: 'Asistente IA', path: '/admin/asistente-ia', icon: tableIcon, alt: 'Asistente IA' }
   ],
 }
 
