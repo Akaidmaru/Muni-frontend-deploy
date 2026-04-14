@@ -204,6 +204,18 @@ watch(currentPage, () => {
           ]">
             <!-- Top section: Title and Filter Button -->
             <div class="flex items-center justify-between p-8 pb-6 relative min-h-[5rem]">
+               <!-- Botón Volver -->
+               <router-link
+                 to="/"
+                 class="flex items-center gap-1.5 text-sm font-semibold text-gray-600 hover:text-primary transition-colors z-10"
+                 title="Volver"
+               >
+                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                   <polyline points="15 18 9 12 15 6"></polyline>
+                 </svg>
+                 Volver
+               </router-link>
+
                <h1 class="text-3xl font-titles font-bold text-text-title text-center m-0 absolute left-1/2 -translate-x-1/2">Historial de viajes</h1>
                
                <button v-if="!isFilterOpen" 

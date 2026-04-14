@@ -104,6 +104,11 @@ const loadAssignedTrucks = async () => {
                 : truck?.mileage
                 ? Number(truck.mileage)
                 : null,
+            technicalReviewExpiresAt: truck?.technicalReviewExpiresAt || null,
+            circulationPermitExpiresAt:
+              truck?.circulationPermitExpiresAt || null,
+            insuranceExpiresAt: truck?.insuranceExpiresAt || null,
+            emissionsExpiresAt: truck?.emissionsExpiresAt || null,
           }))
       : [];
   } catch (error) {
@@ -126,6 +131,40 @@ const selectedTruckId = ref(null);
 const alreadyRegisteredToday = ref(false);
 const existingMaintenanceRecordId = ref(null);
 
+const getSelectedTruck = () =>
+  licensePlates.value.find((truck) => truck.id === selectedTruckId.value) || null;
+
+const getDocumentStatusByExpiry = (expiryDate) => {
+  if (!expiryDate) return "No tiene";
+
+  const expiry = new Date(expiryDate);
+  if (Number.isNaN(expiry.getTime())) return "No tiene";
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const normalizedExpiry = new Date(
+    expiry.getFullYear(),
+    expiry.getMonth(),
+    expiry.getDate(),
+  );
+
+  return normalizedExpiry >= today ? "Vigente" : "Vencido";
+};
+
+const syncAnnexFromSelectedTruck = () => {
+  if (!maintenanceForm.value) return;
+
+  const selectedTruck = getSelectedTruck();
+  maintenanceForm.value.annex.revisionTecnica =
+    getDocumentStatusByExpiry(selectedTruck?.technicalReviewExpiresAt);
+  maintenanceForm.value.annex.permisoCirculacion =
+    getDocumentStatusByExpiry(selectedTruck?.circulationPermitExpiresAt);
+  maintenanceForm.value.annex.seguroObligatorio =
+    getDocumentStatusByExpiry(selectedTruck?.insuranceExpiresAt);
+  maintenanceForm.value.annex.emisionContaminantes =
+    getDocumentStatusByExpiry(selectedTruck?.emissionsExpiresAt);
+};
+
 // â”€â”€ Date â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const currentDate = computed(() => {
   const t = new Date();
@@ -142,19 +181,11 @@ const fieldErrors = ref({
   licMunicipal: false,
   kilometraje: false,
 });
-const annexErrors = ref({
-  revisionTecnica: false,
-  permisoCirculacion: false,
-  seguroObligatorio: false,
-});
 
 const isSaveDisabled = computed(() => {
   if (!maintenanceForm.value) return true;
   const form = maintenanceForm.value;
   if (!form.kilometraje.trim()) return true;
-  if (!form.annex.revisionTecnica) return true;
-  if (!form.annex.permisoCirculacion) return true;
-  if (!form.annex.seguroObligatorio) return true;
   if (form.items.some(item => item.type !== 'section' && (!item.exists || !item.state))) return true;
   return false;
 });
@@ -204,6 +235,7 @@ const createDefaultMaintenanceForm = (mileage = "") => ({
     revisionTecnica: "",
     permisoCirculacion: "",
     seguroObligatorio: "",
+    emisionContaminantes: "",
   },
 });
 
@@ -230,9 +262,6 @@ const populateMaintenanceFormFromRecord = (record) => {
     record?.currentMileage !== null && record?.currentMileage !== undefined
       ? String(record.currentMileage)
       : "";
-  form.annex.revisionTecnica = record?.technicalReviewStatus || "";
-  form.annex.permisoCirculacion = record?.circulationPermitStatus || "";
-  form.annex.seguroObligatorio = record?.insuranceStatus || "";
   form.items = form.items.map((item) => {
     if (item.type === "section") return item;
 
@@ -249,6 +278,7 @@ const populateMaintenanceFormFromRecord = (record) => {
   });
 
   maintenanceForm.value = form;
+  syncAnnexFromSelectedTruck();
 };
 
 // Obtains current time HH:MM
@@ -280,6 +310,7 @@ const loadMileageSuggestionByPlate = async (plate) => {
     selectedTruckId.value = data.truckId || fallbackTruckId;
     if (maintenanceForm.value) {
       maintenanceForm.value.kilometraje = String(suggestedMileage.value);
+      syncAnnexFromSelectedTruck();
     }
     return suggestedMileage.value;
   } catch (error) {
@@ -287,6 +318,7 @@ const loadMileageSuggestionByPlate = async (plate) => {
     selectedTruckId.value = fallbackTruckId;
     if (maintenanceForm.value) {
       maintenanceForm.value.kilometraje = "";
+      syncAnnexFromSelectedTruck();
     }
     return 0;
   }
@@ -358,6 +390,7 @@ const handleConfirm = async () => {
   await checkDailyMaintenanceByDriverAndTruck();
   if (!alreadyRegisteredToday.value) {
     maintenanceForm.value = createDefaultMaintenanceForm(suggestedMileage.value);
+    syncAnnexFromSelectedTruck();
   }
   confirmed.value = true;
 };
@@ -374,10 +407,6 @@ const validateItem = (item) => {
 
 const clearFieldError = (field) => {
   fieldErrors.value[field] = false;
-};
-
-const clearAnnexError = (field) => {
-  annexErrors.value[field] = false;
 };
 
 const toggleExists = (item, value) => {
@@ -404,6 +433,11 @@ const buildAnnexAlertReason = (form) => {
   if (["Vencido", "No tiene"].includes(form.annex.seguroObligatorio)) {
     alertLines.push(`Seguro obligatorio: ${form.annex.seguroObligatorio}`);
   }
+  if (["Vencido", "No tiene"].includes(form.annex.emisionContaminantes)) {
+    alertLines.push(
+      `Emisión contaminantes: ${form.annex.emisionContaminantes}`,
+    );
+  }
 
   return alertLines.join("\n");
 };
@@ -413,9 +447,6 @@ const saveMaintenanceForm = async () => {
   maintenanceFormSuccess.value = "";
   formErrors.value = [];
   fieldErrors.value.kilometraje = false;
-  annexErrors.value.revisionTecnica = false;
-  annexErrors.value.permisoCirculacion = false;
-  annexErrors.value.seguroObligatorio = false;
   let hasErrors = false;
 
   // Validate required fields
@@ -432,20 +463,6 @@ const saveMaintenanceForm = async () => {
       hasErrors = true;
     }
   });
-
-  // Validate annex
-  if (!maintenanceForm.value.annex.revisionTecnica) {
-    annexErrors.value.revisionTecnica = true;
-    hasErrors = true;
-  }
-  if (!maintenanceForm.value.annex.permisoCirculacion) {
-    annexErrors.value.permisoCirculacion = true;
-    hasErrors = true;
-  }
-  if (!maintenanceForm.value.annex.seguroObligatorio) {
-    annexErrors.value.seguroObligatorio = true;
-    hasErrors = true;
-  }
 
   if (hasErrors) {
     return;
@@ -479,9 +496,6 @@ const saveMaintenanceForm = async () => {
     inspectionTime: maintenanceForm.value.inspectionTime,
     municipalLicense: maintenanceForm.value.licMunicipal,
     currentMileage: Number(maintenanceForm.value.kilometraje),
-    technicalReviewStatus: maintenanceForm.value.annex.revisionTecnica,
-    circulationPermitStatus: maintenanceForm.value.annex.permisoCirculacion,
-    insuranceStatus: maintenanceForm.value.annex.seguroObligatorio,
     maintenanceItems,
   };
 
@@ -1176,69 +1190,61 @@ onMounted(async () => {
 
               <div class="mt-8">
                 <h2 class="text-lg sm:text-xl font-titles font-bold text-text-title mb-4">ANEXO II. Fechas de Vencimiento Documentación</h2>
-                <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                <p class="text-xs text-gray-500 mb-4">
+                  Estos estados se cargan desde la ficha del vehículo y no se pueden editar en este formulario.
+                </p>
+                <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4">
                   <div>
                     <label class="block text-[11px] font-bold text-gray-500 mb-2">REVISIÓN TÉCNICA</label>
                     <select
                       v-model="maintenanceForm.annex.revisionTecnica"
-                      @change="clearAnnexError('revisionTecnica')"
-                      :class="annexErrors.revisionTecnica ? 'border-red-400 bg-red-50' : 'border-gray-300'"
-                      class="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      disabled
+                      class="w-full rounded-xl border border-gray-300 bg-gray-100 text-gray-700 px-3 py-2 text-sm outline-none"
                     >
                       <option value="" disabled>Seleccione una opción</option>
                       <option value="Vencido">Vencido</option>
                       <option value="Vigente">Vigente</option>
                       <option value="No tiene">No tiene</option>
                     </select>
-                    <div v-if="annexErrors.revisionTecnica" class="mt-2 flex items-start gap-3">
-                      <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-red-700 text-red-700 font-bold text-xl leading-none">i</span>
-                      <div class="relative rounded-[20px] bg-[#efefef] px-4 py-3 text-sm font-medium leading-snug text-gray-800">
-                        <span class="absolute -left-2 top-4 h-4 w-4 rotate-45 bg-[#efefef]"></span>
-                        {{ inlineRequiredMessage }}
-                      </div>
-                    </div>
                   </div>
                   <div>
                     <label class="block text-[11px] font-bold text-gray-500 mb-2">PERMISO DE CIRCULACIÓN</label>
                     <select
                       v-model="maintenanceForm.annex.permisoCirculacion"
-                      @change="clearAnnexError('permisoCirculacion')"
-                      :class="annexErrors.permisoCirculacion ? 'border-red-400 bg-red-50' : 'border-gray-300'"
-                      class="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      disabled
+                      class="w-full rounded-xl border border-gray-300 bg-gray-100 text-gray-700 px-3 py-2 text-sm outline-none"
                     >
                       <option value="" disabled>Seleccione una opción</option>
                       <option value="Vencido">Vencido</option>
                       <option value="Vigente">Vigente</option>
                       <option value="No tiene">No tiene</option>
                     </select>
-                    <div v-if="annexErrors.permisoCirculacion" class="mt-2 flex items-start gap-3">
-                      <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-red-700 text-red-700 font-bold text-xl leading-none">i</span>
-                      <div class="relative rounded-[20px] bg-[#efefef] px-4 py-3 text-sm font-medium leading-snug text-gray-800">
-                        <span class="absolute -left-2 top-4 h-4 w-4 rotate-45 bg-[#efefef]"></span>
-                        {{ inlineRequiredMessage }}
-                      </div>
-                    </div>
                   </div>
                   <div>
                     <label class="block text-[11px] font-bold text-gray-500 mb-2">SEGURO OBLIGATORIO</label>
                     <select
                       v-model="maintenanceForm.annex.seguroObligatorio"
-                      @change="clearAnnexError('seguroObligatorio')"
-                      :class="annexErrors.seguroObligatorio ? 'border-red-400 bg-red-50' : 'border-gray-300'"
-                      class="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      disabled
+                      class="w-full rounded-xl border border-gray-300 bg-gray-100 text-gray-700 px-3 py-2 text-sm outline-none"
                     >
                       <option value="" disabled>Seleccione una opción</option>
                       <option value="Vencido">Vencido</option>
                       <option value="Vigente">Vigente</option>
                       <option value="No tiene">No tiene</option>
                     </select>
-                    <div v-if="annexErrors.seguroObligatorio" class="mt-2 flex items-start gap-3">
-                      <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-red-700 text-red-700 font-bold text-xl leading-none">i</span>
-                      <div class="relative rounded-[20px] bg-[#efefef] px-4 py-3 text-sm font-medium leading-snug text-gray-800">
-                        <span class="absolute -left-2 top-4 h-4 w-4 rotate-45 bg-[#efefef]"></span>
-                        {{ inlineRequiredMessage }}
-                      </div>
-                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-[11px] font-bold text-gray-500 mb-2">EMISIÓN CONTAMINANTES</label>
+                    <select
+                      v-model="maintenanceForm.annex.emisionContaminantes"
+                      disabled
+                      class="w-full rounded-xl border border-gray-300 bg-gray-100 text-gray-700 px-3 py-2 text-sm outline-none"
+                    >
+                      <option value="" disabled>Seleccione una opción</option>
+                      <option value="Vencido">Vencido</option>
+                      <option value="Vigente">Vigente</option>
+                      <option value="No tiene">No tiene</option>
+                    </select>
                   </div>
                 </div>
               </div>

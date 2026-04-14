@@ -310,10 +310,10 @@ const isAdminEditComplete = computed(() => {
               </select>
             </td>
             <td class="px-2 py-5 font-medium">
-              <input list="trip-no-suggestions" type="number" v-model="editingTripData.startKm" readonly @focus="makeEditable" autocomplete="off" class="w-[60px] text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary">
+              <input list="trip-no-suggestions" type="number" step="1" v-model="editingTripData.startKm" readonly @focus="makeEditable" autocomplete="off" class="w-[60px] text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary">
             </td>
             <td class="px-2 py-5 font-medium">
-              <input list="trip-no-suggestions" type="number" v-model="editingTripData.endKm" readonly @focus="makeEditable" autocomplete="off" class="w-[60px] text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary">
+              <input list="trip-no-suggestions" type="number" step="1" v-model="editingTripData.endKm" readonly @focus="makeEditable" autocomplete="off" class="w-[60px] text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary">
             </td>
             <td class="px-4 py-5 text-gray-700 text-xs">
               <select
@@ -477,7 +477,7 @@ const isAdminEditComplete = computed(() => {
   border-collapse: separate !important;
   border-spacing: 0 !important;
 }
-.history-table thead th {
+.history-table thead th:not(.no-border-cell) {
   border: 1px solid #555 !important;
   padding: 10px 12px !important;
   letter-spacing: 0.02em;
@@ -486,7 +486,7 @@ const isAdminEditComplete = computed(() => {
   border: 1px solid #d1d1d1 !important;
   padding: 12px 8px;
 }
-.no-border-cell {
+.history-table th.no-border-cell, .history-table td.no-border-cell, .no-border-cell {
   border: none !important;
   background: transparent !important;
 }

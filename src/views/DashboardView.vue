@@ -6,6 +6,7 @@ import registroIcon from '@/assets/images/Registro.png'
 import historialIcon from '@/assets/images/Historial.png'
 import { useAuthStore } from '@/stores/auth'
 import UserMenu from '@/components/UserMenu.vue'
+import DashboardSidebar from '@/components/DashboardSidebar.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -14,15 +15,10 @@ const navigateTo = (route) => {
   router.push(route)
 }
 
-// Título dinámico según rol
-const roleTitle = {
-  DRIVER:   'Conductor',
-  EMPLOYEE: 'Funcionario',
-}
 </script>
 
 <template>
-  <div class="min-h-screen bg-background">
+  <div class="min-h-screen bg-background flex flex-col">
     <!-- Header -->
     <div class="bg-white shadow-sm border-b border-gray-200">
       <div class="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -36,17 +32,21 @@ const roleTitle = {
       </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="container mx-auto px-4 py-16">
-      <div class="max-w-2xl mx-auto">
-        <h1 class="text-h1 font-titles font-semibold text-text-title text-center mb-12">Perfil de sesión - {{ roleTitle[auth.userRole] || auth.userRole }}</h1>
-        
-        <!-- Action Buttons -->
+    <!-- Main Wrapper -->
+    <div class="flex flex-1 overflow-hidden">
+      <DashboardSidebar />
+
+      <!-- Main Content -->
+      <main class="flex-1 flex flex-col overflow-y-auto relative">
+        <div class="container mx-auto px-4 flex-grow flex items-center justify-center">
+          <div class="w-full max-w-2xl">
+            
+            <!-- Action Buttons -->
         <div class="space-y-6">
           <!-- Registro diario Button -->
           <button 
             @click="navigateTo(auth.isFuncionario ? '/registro-diario-funcionario' : '/registro-diario')"
-            class="w-full bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-8 flex items-center gap-6 border border-gray-100 hover:border-primary hover:-translate-y-1 active:scale-98"
+            class="w-full bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-8 flex items-center justify-center gap-6 border border-gray-100 hover:border-primary hover:-translate-y-1 active:scale-98"
           >
             <div class="flex-shrink-0">
               <img :src="registroIcon" alt="Registro diario" class="w-16 h-16 object-contain" />
@@ -57,7 +57,7 @@ const roleTitle = {
           <!-- Historial de viajes Button -->
           <button 
             @click="navigateTo(auth.isFuncionario ? '/historial-viajes-funcionario' : '/historial-viajes')"
-            class="w-full bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-8 flex items-center gap-6 border border-gray-100 hover:border-primary hover:-translate-y-1 active:scale-98"
+            class="w-full bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-8 flex items-center justify-center gap-6 border border-gray-100 hover:border-primary hover:-translate-y-1 active:scale-98"
           >
             <div class="flex-shrink-0">
               <img :src="historialIcon" alt="Historial de viajes" class="w-16 h-16 object-contain" />
@@ -65,7 +65,9 @@ const roleTitle = {
             <span class="text-2xl font-titles font-semibold text-text-title">Historial de viajes</span>
           </button>
         </div>
-      </div>
+          </div>
+        </div>
+      </main>
     </div>
   </div>
 </template>
