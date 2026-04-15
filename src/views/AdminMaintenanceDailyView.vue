@@ -73,7 +73,10 @@ const normalizeValue = (value) =>
 
 const isRegularState = (value) => normalizeValue(value) === 'regular'
 const isBadState = (value) => normalizeValue(value) === 'malo'
-const isGoodState = (value) => normalizeValue(value) === 'bueno'
+const isGoodState = (value) => {
+  const v = normalizeValue(value)
+  return v === 'bueno' || v === 'vigente'
+}
 
 const formatDate = (value) => {
   const date = new Date(value)
@@ -134,6 +137,7 @@ const hasPendingIssues = (record) => {
     record?.technicalReviewStatus,
     record?.circulationPermitStatus,
     record?.insuranceStatus,
+    record?.emissionsCertificateStatus,
   ].some((status) => !isGoodState(status))
 
   return hasProblematicChecklist || hasProblematicDocs
@@ -184,6 +188,7 @@ const mapRecordFromApi = (record) => ({
   technicalReviewStatus: record.technicalReviewStatus,
   circulationPermitStatus: record.circulationPermitStatus,
   insuranceStatus: record.insuranceStatus,
+  emissionsCertificateStatus: record.emissionsCertificateStatus,
 })
 
 const updatePagedRecords = () => {
@@ -479,6 +484,7 @@ const viewRecord = async (record) => {
             normalized.circulationPermitStatus,
           ),
           seguroObligatorio: toAnnexStatusLabel(normalized.insuranceStatus),
+          emisionContaminantes: toAnnexStatusLabel(normalized.emissionsCertificateStatus),
         },
       },
     }
@@ -916,7 +922,7 @@ const saveEdit = async () => {
           <!-- Anexo documentos -->
           <div v-if="viewModal.record?.annex">
             <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-2">Documentación</p>
-            <div class="grid grid-cols-3 gap-2 text-xs text-center">
+            <div class="grid grid-cols-4 gap-2 text-xs text-center">
               <div class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
                 <p class="text-slate-400 mb-1">Rev. Técnica</p>
                 <span class="font-bold" :class="viewModal.record.annex.revisionTecnica === 'Vigente' ? 'text-green-600' : 'text-red-600'">
@@ -933,6 +939,12 @@ const saveEdit = async () => {
                 <p class="text-slate-400 mb-1">Seguro Oblig.</p>
                 <span class="font-bold" :class="viewModal.record.annex.seguroObligatorio === 'Vigente' ? 'text-green-600' : 'text-red-600'">
                   {{ viewModal.record.annex.seguroObligatorio }}
+                </span>
+              </div>
+              <div class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                <p class="text-slate-400 mb-1">Emisión Cont.</p>
+                <span class="font-bold" :class="viewModal.record.annex.emisionContaminantes === 'Vigente' ? 'text-green-600' : 'text-red-600'">
+                  {{ viewModal.record.annex.emisionContaminantes }}
                 </span>
               </div>
             </div>

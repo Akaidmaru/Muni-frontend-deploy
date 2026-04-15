@@ -26,7 +26,7 @@ const goToAdminMaintenance = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
+  <div class="h-screen bg-background flex flex-col overflow-hidden">
     <!-- Header -->
     <div class="bg-white shadow-sm border-b border-gray-200">
       <div class="container mx-auto px-4 py-4 flex items-center justify-between">

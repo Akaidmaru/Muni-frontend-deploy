@@ -155,6 +155,7 @@ const isSaveDisabled = computed(() => {
   if (!form.annex.revisionTecnica) return true;
   if (!form.annex.permisoCirculacion) return true;
   if (!form.annex.seguroObligatorio) return true;
+  if (!form.annex.emisionContaminantes) return true;
   if (form.items.some(item => item.type !== 'section' && (!item.exists || !item.state))) return true;
   return false;
 });
@@ -204,6 +205,7 @@ const createDefaultMaintenanceForm = (mileage = "") => ({
     revisionTecnica: "",
     permisoCirculacion: "",
     seguroObligatorio: "",
+    emisionContaminantes: "",
   },
 });
 
@@ -233,6 +235,7 @@ const populateMaintenanceFormFromRecord = (record) => {
   form.annex.revisionTecnica = record?.technicalReviewStatus || "";
   form.annex.permisoCirculacion = record?.circulationPermitStatus || "";
   form.annex.seguroObligatorio = record?.insuranceStatus || "";
+  form.annex.emisionContaminantes = record?.emissionsCertificateStatus || "";
   form.items = form.items.map((item) => {
     if (item.type === "section") return item;
 
@@ -404,6 +407,9 @@ const buildAnnexAlertReason = (form) => {
   if (["Vencido", "No tiene"].includes(form.annex.seguroObligatorio)) {
     alertLines.push(`Seguro obligatorio: ${form.annex.seguroObligatorio}`);
   }
+  if (["Vencido", "No tiene"].includes(form.annex.emisionContaminantes)) {
+    alertLines.push(`Emisión de contaminantes: ${form.annex.emisionContaminantes}`);
+  }
 
   return alertLines.join("\n");
 };
@@ -416,6 +422,7 @@ const saveMaintenanceForm = async () => {
   annexErrors.value.revisionTecnica = false;
   annexErrors.value.permisoCirculacion = false;
   annexErrors.value.seguroObligatorio = false;
+  annexErrors.value.emisionContaminantes = false;
   let hasErrors = false;
 
   // Validate required fields
@@ -444,6 +451,10 @@ const saveMaintenanceForm = async () => {
   }
   if (!maintenanceForm.value.annex.seguroObligatorio) {
     annexErrors.value.seguroObligatorio = true;
+    hasErrors = true;
+  }
+  if (!maintenanceForm.value.annex.emisionContaminantes) {
+    annexErrors.value.emisionContaminantes = true;
     hasErrors = true;
   }
 
@@ -482,6 +493,7 @@ const saveMaintenanceForm = async () => {
     technicalReviewStatus: maintenanceForm.value.annex.revisionTecnica,
     circulationPermitStatus: maintenanceForm.value.annex.permisoCirculacion,
     insuranceStatus: maintenanceForm.value.annex.seguroObligatorio,
+    emissionsCertificateStatus: maintenanceForm.value.annex.emisionContaminantes,
     maintenanceItems,
   };
 
@@ -1026,10 +1038,22 @@ onMounted(async () => {
                         <span class="font-bold">PATENTE:</span>
                         {{ maintenanceForm?.identificationVehicle || "-" }}
                       </p>
-                      <p class="text-base">
-                        <span class="font-bold">KILOMETRAJE:</span>
-                        {{ maintenanceForm?.kilometraje || "-" }}
-                      </p>
+                      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        <p class="text-base">
+                          <span class="font-bold">KILOMETRAJE:</span>
+                        </p>
+                        <div class="w-full sm:w-[12rem]">
+                          <input
+                            type="number"
+                            v-model="maintenanceForm.kilometraje"
+                            @input="clearFieldError('kilometraje')"
+                            placeholder="Ingrese el kilometraje"
+                            class="w-full rounded-xl border bg-white px-3 py-2 text-sm text-text-title outline-none focus:ring-1"
+                            :class="fieldErrors.kilometraje ? 'border-red-500 focus:border-red-500 focus:ring-red-200 animate-shake' : 'border-gray-300 focus:border-primary focus:ring-primary'"
+                          />
+                          <p v-if="fieldErrors.kilometraje" class="text-[10px] text-red-600 mt-1 font-medium">Este campo es obligatorio</p>
+                        </div>
+                      </div>
                       <p class="text-base">
                         <span class="font-bold">HORA INSPECCIÓN:</span>
                         {{ maintenanceForm?.inspectionTime || "00:00" }}
@@ -1176,7 +1200,7 @@ onMounted(async () => {
 
               <div class="mt-8">
                 <h2 class="text-lg sm:text-xl font-titles font-bold text-text-title mb-4">ANEXO II. Fechas de Vencimiento Documentación</h2>
-                <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4">
                   <div>
                     <label class="block text-[11px] font-bold text-gray-500 mb-2">REVISIÓN TÉCNICA</label>
                     <select
@@ -1233,6 +1257,27 @@ onMounted(async () => {
                       <option value="No tiene">No tiene</option>
                     </select>
                     <div v-if="annexErrors.seguroObligatorio" class="mt-2 flex items-start gap-3">
+                      <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-red-700 text-red-700 font-bold text-xl leading-none">i</span>
+                      <div class="relative rounded-[20px] bg-[#efefef] px-4 py-3 text-sm font-medium leading-snug text-gray-800">
+                        <span class="absolute -left-2 top-4 h-4 w-4 rotate-45 bg-[#efefef]"></span>
+                        {{ inlineRequiredMessage }}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-[11px] font-bold text-gray-500 mb-2">EMISIÓN DE CONTAMINANTES</label>
+                    <select
+                      v-model="maintenanceForm.annex.emisionContaminantes"
+                      @change="clearAnnexError('emisionContaminantes')"
+                      :class="annexErrors.emisionContaminantes ? 'border-red-400 bg-red-50' : 'border-gray-300'"
+                      class="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="" disabled>Seleccione una opción</option>
+                      <option value="Vencido">Vencido</option>
+                      <option value="Vigente">Vigente</option>
+                      <option value="No tiene">No tiene</option>
+                    </select>
+                    <div v-if="annexErrors.emisionContaminantes" class="mt-2 flex items-start gap-3">
                       <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-red-700 text-red-700 font-bold text-xl leading-none">i</span>
                       <div class="relative rounded-[20px] bg-[#efefef] px-4 py-3 text-sm font-medium leading-snug text-gray-800">
                         <span class="absolute -left-2 top-4 h-4 w-4 rotate-45 bg-[#efefef]"></span>
@@ -1656,5 +1701,18 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.animate-shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
 </style>
 

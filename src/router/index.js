@@ -18,6 +18,7 @@ import AdminReportsView from '../views/AdminReportsView.vue'
 import AdminMaintenanceView from '../views/AdminMaintenanceView.vue'
 import AdminMaintenanceDailyView from '../views/AdminMaintenanceDailyView.vue'
 import AdminMaintenanceWeeklyView from '../views/AdminMaintenanceWeeklyView.vue'
+import AdminMaintenanceWeeklyHistory from '../views/AdminMaintenanceWeeklyHistory.vue'
 import AccessDeniedView from '../views/AccessDeniedView.vue'
 import DashboardAdminView from '../views/DashboardAdminView.vue'
 import DashboardPacienteView from '../views/DashboardPacienteView.vue'
@@ -125,6 +126,12 @@ const router = createRouter({
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
         {
+            path: '/admin/reportes/:id',
+            name: 'admin-report-detail',
+            component: () => import('../views/AdminReportDetailView.vue'),
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+        {
             path: '/admin/mantencion-vehicular',
             name: 'admin-maintenance',
             component: AdminMaintenanceView,
@@ -140,6 +147,12 @@ const router = createRouter({
             path: '/admin/mantencion-vehicular/semanal',
             name: 'admin-maintenance-weekly',
             component: AdminMaintenanceWeeklyView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+        {
+            path: '/admin/mantencion-vehicular/historial-semanal',
+            name: 'admin-maintenance-weekly-history',
+            component: AdminMaintenanceWeeklyHistory,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
 
