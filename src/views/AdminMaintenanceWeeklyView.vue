@@ -19,6 +19,27 @@ const tituloMesPrincipal = computed(() => {
   return `CHECK LIST MANTENCIONES INTERNAS ${mesesAnio[month - 1].toUpperCase()} ${year}`;
 });
 
+const formatDateSafe = (value) => {
+  if (!value) return 'N/D'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'N/D'
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}-${month}-${year}`
+}
+
+const getStatusByExpiry = (value) => {
+  if (!value) return 'No tiene'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'No tiene'
+
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const expiry = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  return expiry >= today ? 'Vigente' : 'Vencido'
+}
+
 // --- 2. ESTADO DEL SELECTOR DE CAMIÓN ---
 const trucks = ref([])
 const selectedTruckId = ref(null)
@@ -131,10 +152,28 @@ const loadTruckData = async (truckId) => {
       modelo:      truck.model    || 'N/D',
       patente:     truck.plate    || 'N/D',
       kilometraje: truck.mileage != null ? `${truck.mileage.toLocaleString('es-CL')} km` : 'N/D',
-      // Campos pendientes de agregar a la BD:
-      marca:    'N/D',
-      anio:     'N/D',
-      asientos: 'N/D',
+      marca:    truck.brand || 'N/D',
+      anio:     truck.year != null ? String(truck.year) : 'N/D',
+      asientos: truck.seatCount != null ? String(truck.seatCount) : 'N/D',
+    }
+
+    docsBackend.value = {
+      permisoCirculacion: {
+        estado: getStatusByExpiry(truck.circulationPermitExpiresAt),
+        vencimiento: formatDateSafe(truck.circulationPermitExpiresAt),
+      },
+      revisionTecnica: {
+        estado: getStatusByExpiry(truck.technicalReviewExpiresAt),
+        vencimiento: formatDateSafe(truck.technicalReviewExpiresAt),
+      },
+      emisionContaminantes: {
+        estado: getStatusByExpiry(truck.emissionsExpiresAt),
+        vencimiento: formatDateSafe(truck.emissionsExpiresAt),
+      },
+      seguroObligatorio: {
+        estado: getStatusByExpiry(truck.insuranceExpiresAt),
+        vencimiento: formatDateSafe(truck.insuranceExpiresAt),
+      },
     }
 
     // 9b. Registros de mantenimiento del camión (ordenados DESC por fecha)
@@ -143,15 +182,7 @@ const loadTruckData = async (truckId) => {
     if (!records || records.length === 0) return
 
     // Último registro → estados documentos
-    const latest = records[0]
-    docsBackend.value = {
-      permisoCirculacion:   { estado: latest.circulationPermitStatus  || 'N/D', vencimiento: 'N/D' },
-      revisionTecnica:      { estado: latest.technicalReviewStatus    || 'N/D', vencimiento: 'N/D' },
-      emisionContaminantes: { estado: latest.emissionsCertificateStatus || 'N/D', vencimiento: 'N/D' },
-      seguroObligatorio:    { estado: latest.insuranceStatus          || 'N/D', vencimiento: 'N/D' },
-    }
-
-    // 9c. Poblar tablas mapeando cada registro a uno de los 5 fines de semana del MES seleccionado
+    // 9c. Poblar tablas mapeando cada registro a uno de los 5 fines de semana del mes seleccionado
     records.forEach(record => {
       const recordDate = new Date(record.inspectionDate)
       
