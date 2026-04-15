@@ -8,7 +8,11 @@ import { useAuthStore } from "@/stores/auth";
 import { useTripsStore } from "@/stores/trips";
 import { useVehicleAlertsStore } from "@/stores/vehicleAlerts";
 import UserMenu from "@/components/UserMenu.vue";
-import api from "@/services/axios";
+import api, { getApiBaseUrl } from "@/services/axios";
+import { Capacitor, CapacitorHttp, registerPlugin } from "@capacitor/core";
+import { Geolocation } from "@capacitor/geolocation";
+
+const BackgroundGeolocation = registerPlugin("BackgroundGeolocation");
 
 const auth = useAuthStore();
 const tripsStore = useTripsStore();
@@ -131,6 +135,8 @@ const gpsTrackers = new Map();
 const GPS_BATCH_SIZE = 1;
 const GPS_MIN_DISTANCE_METERS = 8;
 const GPS_SOFT_FLUSH_INTERVAL_MS = 25000;
+const BACKGROUND_LOCATION_PROMPT_MESSAGE =
+  "Registro de viaje activo. La app seguira capturando ubicacion en segundo plano.";
 
 const haversineMeters = (a, b) => {
   const R = 6371000;
@@ -145,10 +151,68 @@ const haversineMeters = (a, b) => {
   return 2 * R * Math.asin(Math.sqrt(h));
 };
 
-const hasGeolocationSupport = () =>
-  typeof navigator !== 'undefined' && !!navigator.geolocation;
+const isNativeMobile = () => Capacitor.getPlatform() !== "web";
+
+const hasGeolocationSupport = () => {
+  if (isNativeMobile()) {
+    return true;
+  }
+
+  return typeof navigator !== "undefined" && !!navigator.geolocation;
+};
+
+const captureGpsPoint = (tracker, position) => {
+  const latitude = Number(
+    position?.coords?.latitude ?? position?.latitude,
+  );
+  const longitude = Number(
+    position?.coords?.longitude ?? position?.longitude,
+  );
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return;
+  }
+
+  const lastPoint = tracker.lastCapturedPoint;
+  if (lastPoint && lastPoint.latitude === latitude && lastPoint.longitude === longitude) {
+    return;
+  }
+
+  if (
+    lastPoint &&
+    haversineMeters(lastPoint, { latitude, longitude }) < GPS_MIN_DISTANCE_METERS
+  ) {
+    return;
+  }
+
+  tracker.queue.push({
+    latitude,
+    longitude,
+    capturedAt: position?.timestamp || position?.time
+      ? new Date(position.timestamp || position.time).toISOString()
+      : new Date().toISOString(),
+  });
+  tracker.lastCapturedPoint = { latitude, longitude };
+};
 
 const getGpsTracker = (historyId) => gpsTrackers.get(historyId);
+
+const normalizeGpsErrorMessage = (error) => {
+  const backendMessage = error?.response?.data?.message;
+  if (Array.isArray(backendMessage)) {
+    return backendMessage.join(", ");
+  }
+
+  if (typeof backendMessage === "string" && backendMessage.trim()) {
+    return backendMessage;
+  }
+
+  if (typeof error?.message === "string" && error.message.trim()) {
+    return error.message;
+  }
+
+  return "No se pudieron enviar los puntos GPS al backend. Revisa permisos de viaje y conexion.";
+};
 
 const flushGpsPoints = async (historyId) => {
   const tracker = getGpsTracker(historyId);
@@ -160,12 +224,53 @@ const flushGpsPoints = async (historyId) => {
   tracker.sending = true;
 
   try {
-    await api.post(`/trip-history/${historyId}/points`, {
-      points: pointsToSend,
-    });
+    if (isNativeMobile()) {
+      const apiBaseUrl = getApiBaseUrl();
+      const token = localStorage.getItem('token');
+
+      if (!apiBaseUrl) {
+        throw new Error('No hay URL de backend configurada para enviar puntos GPS.');
+      }
+
+      if (!token) {
+        throw new Error('No hay sesion activa para enviar puntos GPS. Inicia sesion nuevamente.');
+      }
+
+      const response = await CapacitorHttp.post({
+        url: `${apiBaseUrl}/trip-history/${historyId}/points`,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        data: {
+          points: pointsToSend,
+        },
+      });
+
+      if (response.status < 200 || response.status >= 300) {
+        const responseMessage = response?.data?.message;
+        const normalizedResponseMessage = Array.isArray(responseMessage)
+          ? responseMessage.join(', ')
+          : responseMessage;
+
+        throw new Error(
+          normalizedResponseMessage ||
+            `El backend rechazo el envio de puntos GPS (HTTP ${response.status}).`,
+        );
+      }
+    } else {
+      await api.post(`/trip-history/${historyId}/points`, {
+        points: pointsToSend,
+      });
+    }
+
+    gpsStatusError.value = "";
     return true;
   } catch (error) {
-    tracker.queue.unshift(...pointsToSend);
+    if (pointsToSend.length > 0) {
+      tracker.queue.unshift(...pointsToSend);
+    }
+    gpsStatusError.value = normalizeGpsErrorMessage(error);
     console.error('No se pudieron enviar los puntos GPS', error);
     return false;
   } finally {
@@ -179,6 +284,14 @@ const stopGpsTracking = (historyId) => {
 
   if (tracker.watchId !== null && hasGeolocationSupport()) {
     navigator.geolocation.clearWatch(tracker.watchId);
+  }
+
+  if (tracker.backgroundWatcherId) {
+    void BackgroundGeolocation.removeWatcher({
+      id: tracker.backgroundWatcherId,
+    }).catch((error) => {
+      console.error("No se pudo detener el watcher GPS en segundo plano", error);
+    });
   }
 
   if (tracker.intervalId) {
@@ -202,52 +315,91 @@ const startGpsTracking = (trip) => {
     queue: [],
     sending: false,
     watchId: null,
+    backgroundWatcherId: null,
     intervalId: null,
     lastCapturedPoint: null,
   };
 
-  tracker.watchId = navigator.geolocation.watchPosition(
-    (position) => {
-      const latitude = Number(position.coords.latitude);
-      const longitude = Number(position.coords.longitude);
+  if (isNativeMobile()) {
+    void (async () => {
+      try {
+        const permissions = await Geolocation.requestPermissions();
+        const locationPermission =
+          permissions.location || permissions.coarseLocation;
+        if (locationPermission === "denied" || locationPermission === "prompt") {
+          gpsStatusError.value =
+            "Permiso de ubicacion denegado. Habilita ubicacion en segundo plano para registrar el viaje con pantalla bloqueada.";
+          return;
+        }
 
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-        return;
+        tracker.backgroundWatcherId = await BackgroundGeolocation.addWatcher(
+          {
+            requestPermissions: true,
+            stale: false,
+            distanceFilter: GPS_MIN_DISTANCE_METERS,
+            backgroundMessage: BACKGROUND_LOCATION_PROMPT_MESSAGE,
+            backgroundTitle: "Transportes Flores Vargas",
+          },
+          (position, error) => {
+            if (error) {
+              console.error("Error capturando GPS en segundo plano", error);
+              gpsStatusError.value =
+                "No se pudo obtener la ubicacion en segundo plano.";
+              return;
+            }
+
+            captureGpsPoint(tracker, position);
+            if (tracker.queue.length >= GPS_BATCH_SIZE) {
+              void flushGpsPoints(trip.historyId);
+            }
+          },
+        );
+      } catch (error) {
+        console.error("No se pudo iniciar tracking nativo en segundo plano", error);
+        gpsStatusError.value =
+          "No se pudo activar el GPS en segundo plano. Se usara modo normal mientras la app esta abierta.";
+
+        if (typeof navigator !== "undefined" && navigator.geolocation) {
+          tracker.watchId = navigator.geolocation.watchPosition(
+            (position) => {
+              captureGpsPoint(tracker, position);
+              if (tracker.queue.length >= GPS_BATCH_SIZE) {
+                void flushGpsPoints(trip.historyId);
+              }
+            },
+            (watchError) => {
+              console.error("Error capturando GPS", watchError);
+              gpsStatusError.value =
+                "No se pudo obtener la ubicacion del vehiculo.";
+            },
+            {
+              enableHighAccuracy: true,
+              maximumAge: 5000,
+              timeout: 10000,
+            },
+          );
+        }
       }
-
-      const lastPoint = tracker.lastCapturedPoint;
-      if (lastPoint && lastPoint.latitude === latitude && lastPoint.longitude === longitude) {
-        return;
-      }
-
-      if (
-        lastPoint &&
-        haversineMeters(lastPoint, { latitude, longitude }) < GPS_MIN_DISTANCE_METERS
-      ) {
-        return;
-      }
-
-      tracker.queue.push({
-        latitude,
-        longitude,
-        capturedAt: new Date().toISOString(),
-      });
-      tracker.lastCapturedPoint = { latitude, longitude };
-
-      if (tracker.queue.length >= GPS_BATCH_SIZE) {
-        void flushGpsPoints(trip.historyId);
-      }
-    },
-    (error) => {
-      console.error('Error capturando GPS', error);
-      gpsStatusError.value = 'No se pudo obtener la ubicación del vehículo.';
-    },
-    {
-      enableHighAccuracy: true,
-      maximumAge: 5000,
-      timeout: 10000,
-    },
-  );
+    })();
+  } else {
+    tracker.watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        captureGpsPoint(tracker, position);
+        if (tracker.queue.length >= GPS_BATCH_SIZE) {
+          void flushGpsPoints(trip.historyId);
+        }
+      },
+      (error) => {
+        console.error("Error capturando GPS", error);
+        gpsStatusError.value = "No se pudo obtener la ubicación del vehículo.";
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 10000,
+      },
+    );
+  }
 
   // Soft fallback: if distance-triggered sends do not happen for a while,
   // flush pending points to reduce data loss on unstable connections.

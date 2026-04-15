@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Transportes Flores Vargas</string>
+    <string name="title_activity_main">Transportes Flores Vargas</string>
+    <string name="package_name">com.transportesfloresvargas.app</string>
+    <string name="custom_url_scheme">com.transportesfloresvargas.app</string>
+</resources>
