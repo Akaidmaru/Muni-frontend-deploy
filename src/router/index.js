@@ -14,11 +14,13 @@ import TravelHistoryView from '../views/TravelHistoryView.vue'
 import TravelHistoryFuncionarioView from '../views/TravelHistoryFuncionarioView.vue'
 import TravelHistoryAdminView from '../views/TravelHistoryAdminView.vue'
 import AdminUsersView from '../views/AdminUsersView.vue'
+import AdminVehiclesView from '../views/AdminVehiclesView.vue'
 import AdminReportsView from '../views/AdminReportsView.vue'
 import AdminMaintenanceView from '../views/AdminMaintenanceView.vue'
 import AdminMaintenanceDailyView from '../views/AdminMaintenanceDailyView.vue'
 import AdminMaintenanceWeeklyView from '../views/AdminMaintenanceWeeklyView.vue'
 import AdminMaintenanceWeeklyHistory from '../views/AdminMaintenanceWeeklyHistory.vue'
+import AdminUserRoleSetupView from '../views/AdminUserRoleSetupView.vue'
 import AccessDeniedView from '../views/AccessDeniedView.vue'
 import DashboardAdminView from '../views/DashboardAdminView.vue'
 import DashboardPacienteView from '../views/DashboardPacienteView.vue'
@@ -117,6 +119,18 @@ const router = createRouter({
             path: '/admin/gestion-usuarios',
             name: 'admin-users',
             component: AdminUsersView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+        {
+            path: '/admin/vehiculos',
+            name: 'admin-vehicles',
+            component: AdminVehiclesView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+        {
+            path: '/admin/gestion-usuarios/roles-iniciales',
+            name: 'admin-user-role-setup',
+            component: AdminUserRoleSetupView,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
         {
