@@ -49,7 +49,7 @@ const allNavItems = {
       alt: 'Mantenimiento vehicular',
       subItems: [
         { label: 'Diario',   path: '/admin/mantencion-vehicular/diario',   icon: dailyMaintenanceIcon,  alt: 'Mantenimiento diario' },
-        { label: 'Semanal',  path: '/admin/mantencion-vehicular/semanal',  icon: weeklyMaintenanceIcon, alt: 'Mantenimiento semanal' }
+        { label: 'Semanal',  path: '/admin/mantencion-vehicular/historial-semanal',  icon: weeklyMaintenanceIcon, alt: 'Mantenimiento semanal' }
       ]
     },
     { label: 'Historial de\nviajes', path: '/historial-viajes-admin', icon: historialIcon, alt: 'Historial de viajes' },
@@ -86,14 +86,15 @@ const reportProblem = () => {
 </script>
 
 <template>
-  <div :class="open ? 'relative z-40 self-start' : 'w-0 overflow-visible relative z-40 self-start'">
+  <!-- Zero-size anchor; all children are fixed to viewport -->
+  <div class="w-0 h-0 overflow-visible" style="position:static">
 
-    <!-- ── CERRADO: solo el botón ≡ ── -->
+    <!-- ── CERRADO: botón ≡ fijo al viewport ── -->
     <button
       v-if="!open"
       @click="open = true"
       aria-label="Abrir menú"
-      class="absolute top-3 left-3 flex flex-col justify-center items-center gap-[5px] w-9 h-9 rounded-md border border-gray-300 bg-white shadow-sm hover:border-primary hover:bg-gray-50 transition-all duration-150"
+      class="fixed top-[104px] left-3 z-40 flex flex-col justify-center items-center gap-[5px] w-9 h-9 rounded-md border border-gray-300 bg-white shadow-sm hover:border-primary hover:bg-gray-50 transition-all duration-150"
     >
       <span v-for="i in 3" :key="i" class="block w-4 h-[2px] bg-gray-600 rounded-full" />
     </button>
@@ -109,8 +110,7 @@ const reportProblem = () => {
     >
       <div
         v-if="open"
-        class="relative w-48 bg-white border-r border-gray-200 shadow-md flex flex-col"
-        style="min-height: calc(100vh - 88px);"
+        class="fixed top-[96px] left-0 bottom-0 w-48 bg-white border-r border-gray-200 shadow-md flex flex-col z-40"
       >
         <!-- Botón cerrar sidebar (esquina superior derecha) -->
         <div class="flex justify-end px-2 pt-2">
@@ -217,7 +217,7 @@ const reportProblem = () => {
     </transition>
 
     <!-- Backdrop -->
-    <div v-if="open" class="fixed inset-0 z-[-1]" @click="open = false" />
+    <div v-if="open" class="fixed inset-0 z-[39]" @click="open = false" />
 
     <Teleport to="body">
       <ReportProblemModal

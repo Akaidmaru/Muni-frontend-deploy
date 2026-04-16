@@ -44,7 +44,7 @@ const router = useRouter()
 
           <!-- Card: Semanal -->
           <button
-            @click="router.push('/admin/mantencion-vehicular/semanal')"
+            @click="router.push('/admin/mantencion-vehicular/historial-semanal')"
             class="group flex items-center gap-8 bg-white rounded-2xl border-2 border-gray-200 shadow-sm px-10 py-8 hover:border-primary hover:shadow-md transition-all duration-200 text-left w-full"
           >
             <img

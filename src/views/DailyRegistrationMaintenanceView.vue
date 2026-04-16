@@ -434,9 +434,7 @@ const buildAnnexAlertReason = (form) => {
     alertLines.push(`Seguro obligatorio: ${form.annex.seguroObligatorio}`);
   }
   if (["Vencido", "No tiene"].includes(form.annex.emisionContaminantes)) {
-    alertLines.push(
-      `Emisión contaminantes: ${form.annex.emisionContaminantes}`,
-    );
+    alertLines.push(`Emisión de contaminantes: ${form.annex.emisionContaminantes}`);
   }
 
   return alertLines.join("\n");
@@ -1040,10 +1038,22 @@ onMounted(async () => {
                         <span class="font-bold">PATENTE:</span>
                         {{ maintenanceForm?.identificationVehicle || "-" }}
                       </p>
-                      <p class="text-base">
-                        <span class="font-bold">KILOMETRAJE:</span>
-                        {{ maintenanceForm?.kilometraje || "-" }}
-                      </p>
+                      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        <p class="text-base">
+                          <span class="font-bold">KILOMETRAJE:</span>
+                        </p>
+                        <div class="w-full sm:w-[12rem]">
+                          <input
+                            type="number"
+                            v-model="maintenanceForm.kilometraje"
+                            @input="clearFieldError('kilometraje')"
+                            placeholder="Ingrese el kilometraje"
+                            class="w-full rounded-xl border bg-white px-3 py-2 text-sm text-text-title outline-none focus:ring-1"
+                            :class="fieldErrors.kilometraje ? 'border-red-500 focus:border-red-500 focus:ring-red-200 animate-shake' : 'border-gray-300 focus:border-primary focus:ring-primary'"
+                          />
+                          <p v-if="fieldErrors.kilometraje" class="text-[10px] text-red-600 mt-1 font-medium">Este campo es obligatorio</p>
+                        </div>
+                      </div>
                       <p class="text-base">
                         <span class="font-bold">HORA INSPECCIÓN:</span>
                         {{ maintenanceForm?.inspectionTime || "00:00" }}
@@ -1662,5 +1672,18 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.animate-shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
 </style>
 
