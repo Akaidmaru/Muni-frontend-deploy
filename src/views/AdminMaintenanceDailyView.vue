@@ -123,11 +123,11 @@ const formatDateTime = (dateValue, timeValue) => {
 const pluralize = (count, singular, plural) =>
   `${count} ${count === 1 ? singular : plural}`
 
-const buildFaultSummaryFromItems = (maintenanceItems = []) => {
+const buildFaultSummaryFromItems = (dailyMaintenanceItems = []) => {
   let badCount = 0
   let regularCount = 0
 
-  maintenanceItems.forEach((item) => {
+  dailyMaintenanceItems.forEach((item) => {
     if (isBadState(item?.status)) badCount += 1
     else if (isRegularState(item?.status)) regularCount += 1
   })
@@ -141,7 +141,7 @@ const buildFaultSummaryFromItems = (maintenanceItems = []) => {
 }
 
 const hasPendingIssues = (record) => {
-  const hasProblematicChecklist = (record?.maintenanceItems || []).some(
+  const hasProblematicChecklist = (record?.dailyMaintenanceItems || []).some(
     (item) => isBadState(item?.status) || isRegularState(item?.status),
   )
 
@@ -165,7 +165,7 @@ const buildTopCategories = (recordsList) => {
   const categoryCount = new Map()
 
   recordsList.forEach((record) => {
-    ;(record.maintenanceItems || []).forEach((item) => {
+    ;(record.dailyMaintenanceItems || []).forEach((item) => {
       if (!isBadState(item?.status) && !isRegularState(item?.status)) {
         return
       }
@@ -188,14 +188,14 @@ const mapRecordFromApi = (record) => ({
   plate: record.truck?.plate || 'Sin patente',
   driver:
     record.driver?.name || record.driver?.email || `Conductor ${record.driverId}`,
-  faultSummary: buildFaultSummaryFromItems(record.maintenanceItems),
+  faultSummary: buildFaultSummaryFromItems(record.dailyMaintenanceItems),
   status: deriveStatus(record),
   inspectionDateRaw: record.inspectionDate,
   inspectionTime: record.inspectionTime,
   municipalLicense: record.municipalLicense,
   currentMileage: record.currentMileage,
-  maintenanceItems: Array.isArray(record.maintenanceItems)
-    ? record.maintenanceItems
+  dailyMaintenanceItems: Array.isArray(record.dailyMaintenanceItems)
+    ? record.dailyMaintenanceItems
     : [],
 })
 
@@ -242,7 +242,7 @@ const loadStats = async () => {
     }
 
     const minorIncidents = allRecords.value.reduce((acc, record) => {
-      const regularInRecord = (record.maintenanceItems || []).reduce(
+      const regularInRecord = (record.dailyMaintenanceItems || []).reduce(
         (count, item) => (isRegularState(item?.status) ? count + 1 : count),
         0,
       )
@@ -333,7 +333,7 @@ const loadRecords = async () => {
   isLoadingRecords.value = true
   recordsError.value = ''
   try {
-    const { data } = await api.get('/vehicle-maintenance-records')
+    const { data } = await api.get('/daily-maintenance-records/admin')
     const payload = Array.isArray(data) ? data : []
 
     allRecords.value = payload.map(mapRecordFromApi)
@@ -472,7 +472,7 @@ const toAnnexStatusLabel = (expiryDate) => getDocumentStatusByExpiry(expiryDate)
 
 const viewRecord = async (record) => {
   try {
-    const { data } = await api.get(`/vehicle-maintenance-records/${record.id}`)
+    const { data } = await api.get(`/daily-maintenance-records/admin/${record.id}`)
     const normalized = mapRecordFromApi(data)
 
     viewModal.value = {
@@ -485,7 +485,7 @@ const viewRecord = async (record) => {
           normalized.currentMileage !== null
             ? `${Number(normalized.currentMileage).toLocaleString('es-CL')} km`
             : '—',
-        items: groupItemsByCategory(normalized.maintenanceItems),
+        items: groupItemsByCategory(normalized.dailyMaintenanceItems),
         annex: {
           revisionTecnica: toAnnexStatusLabel(data?.truck?.technicalReviewExpiresAt),
           permisoCirculacion: toAnnexStatusLabel(

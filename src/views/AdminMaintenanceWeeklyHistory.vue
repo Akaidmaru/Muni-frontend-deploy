@@ -95,7 +95,7 @@ const buildFaultSummary = (maintenanceItems = []) => {
 }
 
 const deriveStatus = (record) => {
-  const hasProblematicChecklist = (record?.maintenanceItems || []).some(
+  const hasProblematicChecklist = (record?.monthlyMaintenanceItems || record?.dailyMaintenanceItems || record?.maintenanceItems || []).some(
     (item) => isBadState(item?.status) || isRegularState(item?.status),
   )
 
@@ -122,15 +122,14 @@ const mapCategoryLabel = (category) =>
 
 const mapRecordFromApi = (record) => ({
   id: record.id,
-  date: formatDate(record.inspectionDate),
-  monthKey: formatMonthKey(record.inspectionDate),
+  date: `01-${record.monthKey?.split('-')?.[1] || '00'}-${record.monthKey?.split('-')?.[0] || '0000'}`,
+  monthKey: record.monthKey || formatMonthKey(record.inspectionDate),
   plate: record.truck?.plate || 'Sin patente',
-  driver:
-    record.driver?.name || record.driver?.email || `Conductor ${record.driverId}`,
-  faultSummary: buildFaultSummary(record.maintenanceItems || []),
+  driver: record.truck?.brand || record.truck?.model || 'Camión mensual',
+  faultSummary: buildFaultSummary(record.monthlyMaintenanceItems || record.dailyMaintenanceItems || record.maintenanceItems || []),
   status: deriveStatus(record),
-  maintenanceItems: record.maintenanceItems || [],
-  hasActions: true,
+  maintenanceItems: record.monthlyMaintenanceItems || record.dailyMaintenanceItems || record.maintenanceItems || [],
+  hasActions: false,
 })
 
 const filteredRecords = computed(() => {
@@ -206,7 +205,7 @@ const loadRecords = async () => {
   loadError.value = ''
 
   try {
-    const { data } = await api.get('/vehicle-maintenance-records')
+    const { data } = await api.get('/monthly-maintenance-records/admin')
     allRecords.value = Array.isArray(data) ? data.map(mapRecordFromApi) : []
     updateStats()
   } catch (error) {

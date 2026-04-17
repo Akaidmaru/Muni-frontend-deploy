@@ -10,9 +10,34 @@ const router = useRouter()
 
 // --- 1. CONFIGURACIÓN GLOBAL & TÍTULO DINÁMICO ---
 const mesesAnio = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-const diasSemana = ['Sab/Dom_1', 'Sab/Dom_2', 'Sab/Dom_3', 'Sab/Dom_4', 'Sab/Dom_5'];
 
 const currentDateStr = ref(new Date().toISOString().slice(0, 7)); // YYYY-MM
+
+const getWeekendColumnCount = (monthStr) => {
+  const [year, month] = String(monthStr || '').split('-').map(Number)
+  if (!year || !month) return 5
+
+  const daysInMonth = new Date(year, month, 0).getDate()
+  let saturdayCount = 0
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const weekday = new Date(year, month - 1, day).getDay()
+    if (weekday === 6) saturdayCount += 1
+  }
+
+  // Un mes tendrá 4 o 5 pares Sab/Dom.
+  return Math.max(4, Math.min(5, saturdayCount))
+}
+
+const weekendColumns = computed(() =>
+  Array.from({ length: getWeekendColumnCount(currentDateStr.value) }, (_, idx) => `Sab/Dom_${idx + 1}`),
+)
+
+const createEmptySanitizationRows = () =>
+  Array.from({ length: weekendColumns.value.length }, () => ({
+    fecha: '',
+    observacion: '',
+  }))
 
 const tituloMesPrincipal = computed(() => {
   const [year, month] = currentDateStr.value.split('-').map(Number);
@@ -73,17 +98,22 @@ const registros = ref({
   luces: {},
   mecanica: {},
   accesorios: {},
-  sanitizacion: Array.from({ length: 5 }, () => ({
-    fecha: '',
-    observacion: ''
-  }))
+  sanitizacion: createEmptySanitizationRows()
 });
 
 const inicializarSeccion = (items, target) => {
   items.forEach(item => {
-    registros.value[target][item] = { ...Object.fromEntries(diasSemana.map(dia => [dia, ''])), observacion: '' };
+    registros.value[target][item] = { ...Object.fromEntries(weekendColumns.value.map(dia => [dia, ''])), observacion: '' };
   });
 };
+
+const resetWeeklyTables = () => {
+  inicializarSeccion(itemsLuces, 'luces')
+  inicializarSeccion(itemsMecanica, 'mecanica')
+  inicializarSeccion(itemsAccesorios, 'accesorios')
+  registros.value.sanitizacion = createEmptySanitizationRows()
+}
+
 inicializarSeccion(itemsLuces, 'luces');
 inicializarSeccion(itemsMecanica, 'mecanica');
 inicializarSeccion(itemsAccesorios, 'accesorios');
@@ -91,7 +121,7 @@ inicializarSeccion(itemsAccesorios, 'accesorios');
 
 
 // --- 6. MAPEO: nombre del ítem semanal → itemCode diario ---
-const itemCodeMap = {
+const legacyDailyItemCodeMap = {
   'Luces Bajas':                   'bajas',
   'Luces Altas':                   'altas',
   'Luz retroceso':                 'marchaAtras',
@@ -114,6 +144,26 @@ const itemCodeMap = {
   'Extintor':                      'extintor',
   'Llave de rueda':                'llaveRueda',
   'Neumático repuesto':            'repuesto',
+}
+
+const normalizeItemCode = (itemName) =>
+  String(itemName || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+const getMonthlyItemCode = (itemName) => {
+  const normalized = normalizeItemCode(itemName)
+  return normalized || `item_${Date.now()}`
+}
+
+const resolveCategoryByItemName = (itemName) => {
+  if (itemsLuces.includes(itemName)) return 'systemLights'
+  if (itemsMecanica.includes(itemName)) return 'systemMechanical'
+  if (itemsAccesorios.includes(itemName)) return 'systemAccessories'
+  return 'systemGeneral'
 }
 
 // --- 7. CARGAR TODOS LOS CAMIONES (ADMIN) ---
@@ -140,10 +190,7 @@ const loadTruckData = async (truckId) => {
   truckLoadError.value = ''
 
   // Resetear tablas antes de cargar
-  inicializarSeccion(itemsLuces,    'luces')
-  inicializarSeccion(itemsMecanica, 'mecanica')
-  inicializarSeccion(itemsAccesorios, 'accesorios')
-  registros.value.sanitizacion = Array.from({ length: 5 }, () => ({ fecha: '', observacion: '' }))
+  resetWeeklyTables()
 
   try {
     // 9a. Datos básicos del camión
@@ -176,44 +223,44 @@ const loadTruckData = async (truckId) => {
       },
     }
 
-    // 9b. Registros de mantenimiento del camión (ordenados DESC por fecha)
-    const { data: records } = await api.get(`/vehicle-maintenance-records/truck/${truckId}`)
+    // 9b. Registro mensual del camión (solo admin)
+    const { data: monthlyRecord } = await api.get(
+      `/monthly-maintenance-records/admin/truck/${truckId}/month`,
+      { params: { month: currentDateStr.value } },
+    )
 
-    if (!records || records.length === 0) return
+    if (!monthlyRecord || !Array.isArray(monthlyRecord.monthlyMaintenanceItems)) return
 
-    // Último registro → estados documentos
-    // 9c. Poblar tablas mapeando cada registro a uno de los 5 fines de semana del mes seleccionado
-    records.forEach(record => {
-      const recordDate = new Date(record.inspectionDate)
-      
-      // Filtrar sólo registros del mes seleccionado
-      const recYYYYMM = recordDate.getUTCFullYear() + '-' + String(recordDate.getUTCMonth() + 1).padStart(2, '0');
-      if (recYYYYMM !== currentDateStr.value) return;
+    const byWeekAndCode = new Map(
+      monthlyRecord.monthlyMaintenanceItems.map((item) => [
+        `${item.weekIndex}-${item.itemCode}`,
+        item,
+      ]),
+    )
 
-      // Calcular a qué fin de semana del mes pertenece (1 al 5)
-      const firstDay = new Date(Date.UTC(recordDate.getUTCFullYear(), recordDate.getUTCMonth(), 1));
-      const firstDayOfWeek = firstDay.getUTCDay() === 0 ? 7 : firstDay.getUTCDay();
-      const dateNum = recordDate.getUTCDate();
-      const weekOfMonthNum = Math.ceil((dateNum + firstDayOfWeek - 1) / 7);
-      
-      const dayName = `Sab/Dom_${Math.min(weekOfMonthNum, 5)}`;
-      const byCode = new Map((record.maintenanceItems || []).map(i => [i.itemCode, i]))
+    const populateSection = (items, section) => {
+      items.forEach((itemName) => {
+        const monthlyCode = getMonthlyItemCode(itemName)
+        const legacyCode = legacyDailyItemCodeMap[itemName]
 
-      const populateSection = (items, section) => {
-        items.forEach(itemName => {
-          const code = itemCodeMap[itemName]
-          if (!code || !byCode.has(code)) return
-          const dbItem = byCode.get(code)
-          if (registros.value[section][itemName]) {
+        weekendColumns.value.forEach((_, idx) => {
+          const weekIndex = idx + 1
+          const keyMonthly = `${weekIndex}-${monthlyCode}`
+          const keyLegacy = legacyCode ? `${weekIndex}-${legacyCode}` : ''
+          const dbItem = byWeekAndCode.get(keyMonthly) || (keyLegacy ? byWeekAndCode.get(keyLegacy) : null)
+          if (!dbItem) return
+
+          const dayName = `Sab/Dom_${weekIndex}`
+          if (registros.value[section][itemName] && dayName in registros.value[section][itemName]) {
             registros.value[section][itemName][dayName] = dbItem.status || '-'
           }
         })
-      }
+      })
+    }
 
-      populateSection(itemsLuces,      'luces')
-      populateSection(itemsMecanica,   'mecanica')
-      populateSection(itemsAccesorios, 'accesorios')
-    })
+    populateSection(itemsLuces, 'luces')
+    populateSection(itemsMecanica, 'mecanica')
+    populateSection(itemsAccesorios, 'accesorios')
 
   } catch (err) {
     const msg = err?.response?.data?.message
@@ -235,17 +282,57 @@ const onTruckSelect = async () => {
       emisionContaminantes: { estado: 'N/D', vencimiento: 'N/D' },
       seguroObligatorio:    { estado: 'N/D', vencimiento: 'N/D' },
     }
-    inicializarSeccion(itemsLuces,      'luces')
-    inicializarSeccion(itemsMecanica,   'mecanica')
-    inicializarSeccion(itemsAccesorios, 'accesorios')
+    resetWeeklyTables()
   }
 }
 
 // --- 10. ACCIONES ---
-const guardarFormulario = () => {
-  console.log("Guardando datos...", registros.value);
-  alert("¡Cambios guardados con éxito!");
-  router.push('/admin/mantencion-vehicular/historial-semanal');
+const guardarFormulario = async () => {
+  if (!selectedTruckId.value) {
+    alert('Debe seleccionar un camión antes de guardar.')
+    return
+  }
+
+  const monthlyMaintenanceItems = []
+  const pushSectionItems = (items, section) => {
+    items.forEach((itemName) => {
+      const code = getMonthlyItemCode(itemName)
+
+      weekendColumns.value.forEach((_, idx) => {
+        const weekIndex = idx + 1
+        const dayName = `Sab/Dom_${weekIndex}`
+        const status = registros.value[section]?.[itemName]?.[dayName]
+        if (!status) return
+
+        monthlyMaintenanceItems.push({
+          weekIndex,
+          itemCode: code,
+          itemName,
+          category: resolveCategoryByItemName(itemName),
+          status,
+          notes: registros.value[section]?.[itemName]?.observacion || '',
+        })
+      })
+    })
+  }
+
+  pushSectionItems(itemsLuces, 'luces')
+  pushSectionItems(itemsMecanica, 'mecanica')
+  pushSectionItems(itemsAccesorios, 'accesorios')
+
+  try {
+    await api.post('/monthly-maintenance-records/admin', {
+      truckId: Number(selectedTruckId.value),
+      monthKey: currentDateStr.value,
+      monthlyMaintenanceItems,
+    })
+    alert('¡Cambios guardados con éxito!')
+    router.push('/admin/mantencion-vehicular/historial-semanal')
+  } catch (err) {
+    const msg = err?.response?.data?.message
+    const detail = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo guardar el mantenimiento mensual.'
+    alert(detail)
+  }
 };
 
 const cancelarEdicion = () => {
@@ -264,7 +351,8 @@ watch(currentDateStr, (newVal) => {
   if (selectedTruckId.value) {
     loadTruckData(selectedTruckId.value);
   } else {
-    // Si no hay vehículo, al menos limpiamos las tablas para que no queden sucias si no las habían guardado.
+    // Si no hay vehículo seleccionado, ajustar columnas/filas al mes elegido.
+    resetWeeklyTables();
   }
 });
 
@@ -362,14 +450,14 @@ onMounted(() => {
                 <thead class="bg-slate-50 border-b border-slate-300 text-slate-700 font-bold">
                   <tr>
                     <th class="p-3 border-r border-slate-300 w-1/4">Descripción</th>
-                    <th v-for="dia in diasSemana" :key="dia" class="p-3 border-r border-slate-300 w-[10%]">{{ dia.split('_')[0] }}</th>
+                    <th v-for="dia in weekendColumns" :key="dia" class="p-3 border-r border-slate-300 w-[10%]">{{ dia.split('_')[0] }}</th>
                     <th class="p-3 w-1/4">Observación</th>
                   </tr>
                 </thead>
                 <tbody class="text-slate-600 bg-white">
                   <tr v-for="item in sec.i" :key="item" class="border-b border-slate-200 last:border-0 hover:bg-slate-50 transition-colors">
                     <td class="p-3 border-r border-slate-200 text-left pl-6 font-medium text-slate-700">{{ item }}</td>
-                    <td v-for="dia in diasSemana" :key="dia" class="p-1.5 border-r border-slate-200 text-center align-middle">
+                    <td v-for="dia in weekendColumns" :key="dia" class="p-1.5 border-r border-slate-200 text-center align-middle">
                       <!-- Dato de la BD (Bueno / Regular / Malo) → badge de sólo lectura -->
                       <template v-if="registros[sec.r][item][dia] && !['Si','No'].includes(registros[sec.r][item][dia])">
                         <span :class="[

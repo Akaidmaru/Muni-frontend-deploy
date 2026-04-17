@@ -36,26 +36,34 @@ const formEdit = ref({
   insuranceExpiresAt: ''
 })
 
-const getDocumentStatus = (statusLabel, expiryDate) => {
-  if (statusLabel === 'No tiene' || !statusLabel) return { label: 'No tiene', isVigente: false, text: 'N/A' }
-  
-  let formattedDate = '--/--/----'
-  if (expiryDate) {
-    const date = new Date(expiryDate)
-    if (!Number.isNaN(date.getTime())) {
-      // Adding timezone offset so local users see correct date
-      const adjustedDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000)
-      const day = String(adjustedDate.getDate()).padStart(2, '0')
-      const month = String(adjustedDate.getMonth() + 1).padStart(2, '0')
-      const year = adjustedDate.getFullYear()
-      formattedDate = `${day}/${month}/${year}`
-    }
+const getDocumentStatus = (maybeStatusOrDate, maybeExpiryDate) => {
+  const expiryDate = maybeExpiryDate ?? maybeStatusOrDate
+  if (!expiryDate) {
+    return { label: 'No tiene', isVigente: false, text: 'N/A' }
   }
 
-  if (statusLabel === 'Vigente') {
-    return { label: 'Vigente', isVigente: true, text: formattedDate }
-  } else {
-    return { label: 'Vencido', isVigente: false, text: formattedDate }
+  const date = new Date(expiryDate)
+  if (Number.isNaN(date.getTime())) {
+    return { label: 'No tiene', isVigente: false, text: 'N/A' }
+  }
+
+  // Ajustar para mostrar correctamente la fecha local en documentos @db.Date
+  const adjustedDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000)
+  const day = String(adjustedDate.getDate()).padStart(2, '0')
+  const month = String(adjustedDate.getMonth() + 1).padStart(2, '0')
+  const year = adjustedDate.getFullYear()
+  const formattedDate = `${day}/${month}/${year}`
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const expiryOnly = new Date(adjustedDate)
+  expiryOnly.setHours(0, 0, 0, 0)
+
+  const isVigente = expiryOnly >= today
+  return {
+    label: isVigente ? 'Vigente' : 'Vencido',
+    isVigente,
+    text: formattedDate,
   }
 }
 
@@ -152,15 +160,20 @@ const formatForInput = (dateStr) => {
 }
 
 const editVehicle = (vehicle) => {
+  const inferStatusFromDate = (dateStr) => {
+    const doc = getDocumentStatus(dateStr)
+    return doc.label
+  }
+
   vehicleToEdit.value = vehicle
   formEdit.value = {
-    circulationPermitStatus: vehicle.circulationPermitStatus || 'No tiene',
+    circulationPermitStatus: inferStatusFromDate(vehicle.circulationPermitExpiresAt),
     circulationPermitExpiresAt: formatForInput(vehicle.circulationPermitExpiresAt),
-    technicalReviewStatus: vehicle.technicalReviewStatus || 'No tiene',
+    technicalReviewStatus: inferStatusFromDate(vehicle.technicalReviewExpiresAt),
     technicalReviewExpiresAt: formatForInput(vehicle.technicalReviewExpiresAt),
-    emissionsStatus: vehicle.emissionsStatus || 'No tiene',
+    emissionsStatus: inferStatusFromDate(vehicle.emissionsExpiresAt),
     emissionsExpiresAt: formatForInput(vehicle.emissionsExpiresAt),
-    insuranceStatus: vehicle.insuranceStatus || 'No tiene',
+    insuranceStatus: inferStatusFromDate(vehicle.insuranceExpiresAt),
     insuranceExpiresAt: formatForInput(vehicle.insuranceExpiresAt)
   }
   isEditModalOpen.value = true
@@ -176,27 +189,31 @@ const saveEdit = async () => {
   isLoading.value = true
   try {
     const payload = {}
-    
-    const mapDoc = (statusStr, dateStr) => {
-       if (statusStr === 'No tiene') return { status: 'No tiene', date: null }
-       return { status: statusStr, date: dateStr ? new Date(`${dateStr}T00:00:00`).toISOString() : null }
+
+    const mapDocDate = (statusStr, dateStr) => {
+      if (statusStr === 'No tiene' || !dateStr) return null
+      return new Date(`${dateStr}T00:00:00`).toISOString()
     }
-    
-    const cp = mapDoc(formEdit.value.circulationPermitStatus, formEdit.value.circulationPermitExpiresAt)
-    payload.circulationPermitStatus = cp.status
-    payload.circulationPermitExpiresAt = cp.date
 
-    const tr = mapDoc(formEdit.value.technicalReviewStatus, formEdit.value.technicalReviewExpiresAt)
-    payload.technicalReviewStatus = tr.status
-    payload.technicalReviewExpiresAt = tr.date
+    payload.circulationPermitExpiresAt = mapDocDate(
+      formEdit.value.circulationPermitStatus,
+      formEdit.value.circulationPermitExpiresAt,
+    )
 
-    const em = mapDoc(formEdit.value.emissionsStatus, formEdit.value.emissionsExpiresAt)
-    payload.emissionsStatus = em.status
-    payload.emissionsExpiresAt = em.date
+    payload.technicalReviewExpiresAt = mapDocDate(
+      formEdit.value.technicalReviewStatus,
+      formEdit.value.technicalReviewExpiresAt,
+    )
 
-    const ins = mapDoc(formEdit.value.insuranceStatus, formEdit.value.insuranceExpiresAt)
-    payload.insuranceStatus = ins.status
-    payload.insuranceExpiresAt = ins.date
+    payload.emissionsExpiresAt = mapDocDate(
+      formEdit.value.emissionsStatus,
+      formEdit.value.emissionsExpiresAt,
+    )
+
+    payload.insuranceExpiresAt = mapDocDate(
+      formEdit.value.insuranceStatus,
+      formEdit.value.insuranceExpiresAt,
+    )
 
     await api.patch(`/trucks/${vehicleToEdit.value.id}`, payload)
     await loadVehicles()
@@ -302,7 +319,7 @@ onMounted(() => {
                           <span v-else class="text-xs text-gray-400">N/A</span>
                         </div>
                         <span v-if="vehicle.users && vehicle.users.length > 0" class="text-[10px] font-semibold text-gray-400 mt-0.5">
-                          {{ vehicle.users.filter(u => u.user?.status === 'ACTIVE').length }} Activos
+                          {{ vehicle.users.length }} Conductor{{ vehicle.users.length === 1 ? '' : 'es' }}
                         </span>
                       </div>
                     </td>
@@ -598,10 +615,10 @@ onMounted(() => {
                 <div class="absolute right-0 top-0 h-full w-1" :class="getDocumentStatus(vehicleToView?.circulationPermitStatus, vehicleToView?.circulationPermitExpiresAt).label === 'No tiene' ? 'bg-gray-400' : getDocumentStatus(vehicleToView?.circulationPermitStatus, vehicleToView?.circulationPermitExpiresAt).isVigente ? 'bg-[#3b8e53]' : 'bg-[#A61919]'"></div>
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Permiso de circulación</label>
                 <div class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  {{ vehicleToView?.circulationPermitStatus || 'No tiene' }}
+                  {{ getDocumentStatus(vehicleToView?.circulationPermitExpiresAt).label }}
                 </div>
-                <div v-if="vehicleToView?.circulationPermitStatus !== 'No tiene'" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  Vence: {{ getDocumentStatus(vehicleToView?.circulationPermitStatus, vehicleToView?.circulationPermitExpiresAt).text }}
+                <div v-if="vehicleToView?.circulationPermitExpiresAt" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
+                  Vence: {{ getDocumentStatus(vehicleToView?.circulationPermitExpiresAt).text }}
                 </div>
               </div>
 
@@ -609,10 +626,10 @@ onMounted(() => {
                 <div class="absolute right-0 top-0 h-full w-1" :class="getDocumentStatus(vehicleToView?.technicalReviewStatus, vehicleToView?.technicalReviewExpiresAt).label === 'No tiene' ? 'bg-gray-400' : getDocumentStatus(vehicleToView?.technicalReviewStatus, vehicleToView?.technicalReviewExpiresAt).isVigente ? 'bg-[#3b8e53]' : 'bg-[#A61919]'"></div>
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Revisión técnica</label>
                 <div class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  {{ vehicleToView?.technicalReviewStatus || 'No tiene' }}
+                  {{ getDocumentStatus(vehicleToView?.technicalReviewExpiresAt).label }}
                 </div>
-                <div v-if="vehicleToView?.technicalReviewStatus !== 'No tiene'" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  Vence: {{ getDocumentStatus(vehicleToView?.technicalReviewStatus, vehicleToView?.technicalReviewExpiresAt).text }}
+                <div v-if="vehicleToView?.technicalReviewExpiresAt" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
+                  Vence: {{ getDocumentStatus(vehicleToView?.technicalReviewExpiresAt).text }}
                 </div>
               </div>
 
@@ -620,10 +637,10 @@ onMounted(() => {
                 <div class="absolute right-0 top-0 h-full w-1" :class="getDocumentStatus(vehicleToView?.emissionsStatus, vehicleToView?.emissionsExpiresAt).label === 'No tiene' ? 'bg-gray-400' : getDocumentStatus(vehicleToView?.emissionsStatus, vehicleToView?.emissionsExpiresAt).isVigente ? 'bg-[#3b8e53]' : 'bg-[#A61919]'"></div>
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Emisión contaminante</label>
                 <div class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  {{ vehicleToView?.emissionsStatus || 'No tiene' }}
+                  {{ getDocumentStatus(vehicleToView?.emissionsExpiresAt).label }}
                 </div>
-                <div v-if="vehicleToView?.emissionsStatus !== 'No tiene'" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  Vence: {{ getDocumentStatus(vehicleToView?.emissionsStatus, vehicleToView?.emissionsExpiresAt).text }}
+                <div v-if="vehicleToView?.emissionsExpiresAt" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
+                  Vence: {{ getDocumentStatus(vehicleToView?.emissionsExpiresAt).text }}
                 </div>
               </div>
 
@@ -631,10 +648,10 @@ onMounted(() => {
                 <div class="absolute right-0 top-0 h-full w-1" :class="getDocumentStatus(vehicleToView?.insuranceStatus, vehicleToView?.insuranceExpiresAt).label === 'No tiene' ? 'bg-gray-400' : getDocumentStatus(vehicleToView?.insuranceStatus, vehicleToView?.insuranceExpiresAt).isVigente ? 'bg-[#3b8e53]' : 'bg-[#A61919]'"></div>
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Seguro obligatorio</label>
                 <div class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  {{ vehicleToView?.insuranceStatus || 'No tiene' }}
+                  {{ getDocumentStatus(vehicleToView?.insuranceExpiresAt).label }}
                 </div>
-                <div v-if="vehicleToView?.insuranceStatus !== 'No tiene'" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  Vence: {{ getDocumentStatus(vehicleToView?.insuranceStatus, vehicleToView?.insuranceExpiresAt).text }}
+                <div v-if="vehicleToView?.insuranceExpiresAt" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
+                  Vence: {{ getDocumentStatus(vehicleToView?.insuranceExpiresAt).text }}
                 </div>
               </div>
 

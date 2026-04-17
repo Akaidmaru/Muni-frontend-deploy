@@ -28,7 +28,7 @@ const saveError = ref('')
 const saveSuccess = ref('')
 const selectedUser = ref(null)
 
-const editForm = ref({ id: null, name: '', rut: '', role: 'DRIVER', phone: '', email: '', status: 'ACTIVE' })
+const editForm = ref({ id: null, name: '', rut: '', role: 'EMPLOYEE', phone: '', email: '' })
 
 const passwordForm = ref({ newPassword: '', confirmPassword: '' })
 const passwordError = ref('')
@@ -38,26 +38,32 @@ const showConfirmPwd = ref(false)
 
 // ── Constantes ──────────────────────────────────────────────────────────────
 const ROLE_OPTIONS = [
+  { value: 'PENDING_APPROVAL', label: 'Pendiente aprobación' },
   { value: 'ADMIN', label: 'Administrador' },
   { value: 'DRIVER', label: 'Conductor' },
   { value: 'EMPLOYEE', label: 'Funcionario' },
 ]
 
 const STATUS_OPTIONS = [
-  { value: 'ACTIVE', label: 'Activo' },
-  { value: 'INACTIVE', label: 'Inactivo' },
-  { value: 'SUSPENDED', label: 'Suspendido' },
+  { value: 'VERIFIED', label: 'Verificado' },
+  { value: 'UNVERIFIED', label: 'Sin verificar' },
+  { value: 'PENDING_APPROVAL', label: 'Pendiente aprobación' },
 ]
 
-const roleLabelMap = { ADMIN: 'Administrador', DRIVER: 'Conductor', EMPLOYEE: 'Funcionario' }
+const roleLabelMap = {
+  PENDING_APPROVAL: 'Pendiente aprobación',
+  ADMIN: 'Administrador',
+  DRIVER: 'Conductor',
+  EMPLOYEE: 'Funcionario',
+}
 const formatRoleLabel = (role) => roleLabelMap[role] || role || 'Sin rol'
 
 const statusConfig = {
-  ACTIVE:    { label: 'Activo',     dot: '#22c55e', bg: '#f0fdf4', border: '#bbf7d0', text: '#15803d' },
-  INACTIVE:  { label: 'Inactivo',   dot: '#94a3b8', bg: '#f8fafc', border: '#e2e8f0', text: '#475569' },
-  SUSPENDED: { label: 'Suspendido', dot: '#f97316', bg: '#fff7ed', border: '#fed7aa', text: '#c2410c' },
+  VERIFIED:         { label: 'Verificado',          dot: '#22c55e', bg: '#f0fdf4', border: '#bbf7d0', text: '#15803d' },
+  UNVERIFIED:       { label: 'Sin verificar',       dot: '#94a3b8', bg: '#f8fafc', border: '#e2e8f0', text: '#475569' },
+  PENDING_APPROVAL: { label: 'Pendiente aprobación', dot: '#f59e0b', bg: '#fff7ed', border: '#fed7aa', text: '#b45309' },
 }
-const getStatusCfg = (s) => statusConfig[s] || statusConfig.INACTIVE
+const getStatusCfg = (s) => statusConfig[s] || statusConfig.UNVERIFIED
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const normalize = (v) =>
@@ -70,7 +76,12 @@ const mapUserFromApi = (u) => ({
   role: u?.role || 'Sin rol',
   phone: u?.phone || '',
   email: u?.email || '',
-  status: u?.status || 'ACTIVE',
+  status:
+    u?.role === 'PENDING_APPROVAL'
+      ? 'PENDING_APPROVAL'
+      : u?.isVerified
+        ? 'VERIFIED'
+        : 'UNVERIFIED',
   isVerified: u?.isVerified ?? false,
   createdAt: u?.createdAt || null,
   canEdit: u?.role !== 'ADMIN',
@@ -88,8 +99,9 @@ const loadUsers = async () => {
   isLoading.value = true
   loadError.value = ''
   try {
-    const { data } = await api.get('/users')
-    users.value = Array.isArray(data) ? data.map(mapUserFromApi) : []
+    const { data } = await api.get('/users', { params: { page: 1, pageSize: 200 } })
+    const payload = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : []
+    users.value = payload.map(mapUserFromApi)
   } catch (error) {
     const msg = error.response?.data?.message
     if (error.response?.status === 401) loadError.value = 'Tu sesión ya no es válida.'
@@ -126,10 +138,7 @@ const pagedUsers = computed(() => {
 const firstRow = computed(() => (totalItems.value === 0 ? 0 : (currentPage.value - 1) * itemsPerPage.value + 1))
 const lastRow = computed(() => Math.min(currentPage.value * itemsPerPage.value, totalItems.value))
 
-const roleOptions = computed(() => {
-  const existing = [...new Set(users.value.map((u) => u.role).filter(Boolean))]
-  return ROLE_OPTIONS.filter((o) => existing.includes(o.value) || o.value !== 'ADMIN')
-})
+const roleOptions = computed(() => ROLE_OPTIONS)
 
 watch([searchQuery, roleFilter, statusFilter, itemsPerPage], () => { currentPage.value = 1 })
 const prevPage = () => { if (currentPage.value > 1) currentPage.value-- }
@@ -156,10 +165,9 @@ const openEditModal = (user) => {
     id: user.id,
     name: user.name || '',
     rut: user.rut || '',
-    role: user.role || 'DRIVER',
+    role: user.role || 'EMPLOYEE',
     phone: user.phone || '',
     email: user.email || '',
-    status: user.status || 'ACTIVE',
   }
   saveError.value = ''
   saveSuccess.value = ''
@@ -184,10 +192,9 @@ const saveUser = async () => {
       role: editForm.value.role || undefined,
       phone: editForm.value.phone.trim() || undefined,
       email: editForm.value.email.trim() || undefined,
-      status: editForm.value.status || undefined,
     }
     const { data } = await api.patch(`/users/${editForm.value.id}`, payload)
-    const updated = mapUserFromApi({ ...selectedUser.value, ...data, rut: selectedUser.value?.rut || '' })
+    const updated = mapUserFromApi({ ...selectedUser.value, ...data })
     users.value = users.value.map((u) => (u.id === updated.id ? updated : u))
     saveSuccess.value = 'Cambios guardados correctamente.'
     setTimeout(() => closeEditModal(), 800)
@@ -229,8 +236,8 @@ const savePassword = async () => {
   }
   isSaving.value = true
   try {
-    await api.patch(`/users/${selectedUser.value.id}/reset-password`, {
-      newPassword: passwordForm.value.newPassword,
+    await api.patch(`/users/${selectedUser.value.id}`, {
+      password: passwordForm.value.newPassword,
     })
     passwordSuccess.value = 'Contraseña actualizada correctamente.'
     setTimeout(() => closePasswordModal(), 900)
@@ -623,15 +630,15 @@ onMounted(() => { loadUsers() })
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9" /></svg>
                 </div>
               </div>
-              <!-- Estado -->
+              <!-- Estado (solo lectura) -->
               <div>
                 <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 pl-1">Estado de la cuenta</label>
-                <div class="relative">
-                  <select v-model="editForm.status" class="appearance-none w-full rounded-xl border border-slate-300 px-4 py-3 pr-10 text-sm text-slate-700 outline-none focus:border-primary bg-white">
-                    <option v-for="s in STATUS_OPTIONS" :key="s.value" :value="s.value">{{ s.label }}</option>
-                  </select>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9" /></svg>
-                </div>
+                <input
+                  :value="getStatusCfg(selectedUser?.status).label"
+                  type="text"
+                  disabled
+                  class="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500 cursor-not-allowed"
+                />
               </div>
               <!-- Teléfono -->
               <div>

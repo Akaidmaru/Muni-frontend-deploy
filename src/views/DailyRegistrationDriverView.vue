@@ -275,7 +275,7 @@ const plateFromRoute = computed(() => {
 const resolveTruckIdByPlate = async (plate) => {
   try {
     const { data } = await api.get(
-      `/vehicle-maintenance-records/mileage-suggestion/plate/${encodeURIComponent(plate)}`,
+      `/daily-maintenance-records/mileage-suggestion/plate/${encodeURIComponent(plate)}`,
     );
     return data?.truckId || null;
   } catch {
@@ -288,7 +288,7 @@ const hasMaintenanceToday = async (driverId, truckId) => {
 
   try {
     const { data } = await api.get(
-      `/vehicle-maintenance-records/driver/${driverId}/truck/${truckId}/date`,
+      `/daily-maintenance-records/driver/${driverId}/truck/${truckId}/date`,
       {
         params: { date: getLocalDateParam() },
       },

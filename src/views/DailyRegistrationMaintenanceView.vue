@@ -257,18 +257,30 @@ const createDefaultMaintenanceForm = (mileage = "") => ({
 });
 
 const formatDisplayDate = (dateValue) => {
+  if (!dateValue) return currentDate.value;
+
+  // Trata la fecha como calendario (YYYY-MM-DD) para evitar desfase por zona horaria.
+  const normalized = String(dateValue).slice(0, 10);
+  const parts = normalized.split("-");
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    if (year && month && day) {
+      return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
+    }
+  }
+
   const date = new Date(dateValue);
   if (Number.isNaN(date.getTime())) return currentDate.value;
 
-  return `${String(date.getDate()).padStart(2, "0")}/${String(
-    date.getMonth() + 1,
-  ).padStart(2, "0")}/${date.getFullYear()}`;
+  return `${String(date.getUTCDate()).padStart(2, "0")}/${String(
+    date.getUTCMonth() + 1,
+  ).padStart(2, "0")}/${date.getUTCFullYear()}`;
 };
 
 const populateMaintenanceFormFromRecord = (record) => {
   const form = createDefaultMaintenanceForm(record?.currentMileage ?? "");
   const itemsByCode = new Map(
-    (record?.maintenanceItems || []).map((item) => [item.itemCode, item]),
+    (record?.dailyMaintenanceItems || []).map((item) => [item.itemCode, item]),
   );
 
   form.identificationVehicle = selectedPlate.value || form.identificationVehicle;
@@ -326,7 +338,7 @@ const toIsoDateFromDisplay = (displayDate) => {
 };
 
 const loadMaintenanceRecordById = async (recordId) => {
-  const { data } = await api.get(`/vehicle-maintenance-records/${recordId}`);
+  const { data } = await api.get(`/daily-maintenance-records/${recordId}`);
 
   existingMaintenanceRecordId.value = data?.id || null;
   selectedTruckId.value = data?.truckId || data?.truck?.id || null;
@@ -357,7 +369,7 @@ const loadMileageSuggestionByPlate = async (plate) => {
   const fallbackTruckId = foundTruck ? foundTruck.id : null;
 
   try {
-    const { data } = await api.get(`/vehicle-maintenance-records/mileage-suggestion/plate/${encodeURIComponent(plate)}`);
+    const { data } = await api.get(`/daily-maintenance-records/mileage-suggestion/plate/${encodeURIComponent(plate)}`);
     suggestedMileage.value = data.suggestedMileage || 0;
     selectedTruckId.value = data.truckId || fallbackTruckId;
     if (maintenanceForm.value) {
@@ -384,7 +396,7 @@ const checkDailyMaintenanceByDriverAndTruck = async () => {
 
   try {
     const { data } = await api.get(
-      `/vehicle-maintenance-records/driver/${auth.user.id}/truck/${selectedTruckId.value}/date`,
+      `/daily-maintenance-records/driver/${auth.user.id}/truck/${selectedTruckId.value}/date`,
       {
         params: { date: getLocalDateParam() },
       },
@@ -548,17 +560,17 @@ const saveMaintenanceForm = async () => {
     inspectionTime: maintenanceForm.value.inspectionTime,
     municipalLicense: maintenanceForm.value.licMunicipal,
     currentMileage: Number(maintenanceForm.value.kilometraje),
-    maintenanceItems,
+    dailyMaintenanceItems: maintenanceItems,
   };
 
   try {
     if (existingMaintenanceRecordId.value) {
       await api.patch(
-        `/vehicle-maintenance-records/${existingMaintenanceRecordId.value}`,
+        `/daily-maintenance-records/${existingMaintenanceRecordId.value}`,
         payload,
       );
     } else {
-      const { data } = await api.post("/vehicle-maintenance-records", payload);
+      const { data } = await api.post("/daily-maintenance-records", payload);
       existingMaintenanceRecordId.value = data?.id || null;
     }
 
