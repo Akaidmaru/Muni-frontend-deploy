@@ -62,14 +62,19 @@ const normalize = (v) =>
 
 const filteredDestinations = computed(() => {
   const q = normalize(searchQuery.value)
-  return destinations.value.filter((d) => {
-    const matchStatus =
-      statusFilter.value === 'ALL' ||
-      (statusFilter.value === 'ACTIVE' && d.active) ||
-      (statusFilter.value === 'INACTIVE' && !d.active)
-    const matchSearch = !q || normalize(d.name).includes(q)
-    return matchStatus && matchSearch
-  })
+  return destinations.value
+    .filter((d) => {
+      // Filtrar por búsqueda
+      const matchSearch = !q || normalize(d.name).includes(q)
+      // Filtrar por estado
+      const matchStatus =
+        statusFilter.value === 'ALL' ||
+        (statusFilter.value === 'ACTIVE' && d.status === 'En transcurso') ||
+        (statusFilter.value === 'INACTIVE' && d.status === 'Completado')
+      // Solo mostrar destinos con viajes asociados
+      return matchSearch && matchStatus && d.tripsCount
+    })
+    .sort((a, b) => a.name.localeCompare(b.name))
 })
 
 const totalItems = computed(() => filteredDestinations.value.length)
@@ -308,10 +313,10 @@ onMounted(loadDestinations)
               <td class="border border-[#D3DCE6] py-4 px-4 text-center">
                 <span
                   class="inline-flex items-center justify-center gap-1.5 px-3 py-1 text-xs font-bold w-[120px]"
-                  :style="dest.active ? 'color:#22c55e' : 'color:#94a3b8'"
+                  :style="dest.status === 'En transcurso' ? 'color:#22c55e' : 'color:#94a3b8'"
                 >
-                  <span class="w-2.5 h-2.5 rounded-full" :style="dest.active ? 'background:#22c55e' : 'background:#94a3b8'" />
-                  {{ dest.active ? 'En transcurso' : 'Completado' }}
+                  <span class="w-2.5 h-2.5 rounded-full" :style="dest.status === 'En transcurso' ? 'background:#22c55e' : 'background:#94a3b8'" />
+                  {{ dest.status }}
                 </span>
               </td>
               <td class="border border-[#D3DCE6] py-4 px-4 text-center text-slate-400 text-sm font-medium">

@@ -3,7 +3,6 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import UserMenu from '@/components/UserMenu.vue'
-import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import api from '@/services/axios'
 
 const route = useRoute()
@@ -18,23 +17,26 @@ const error = ref('')
 const note = ref('')
 const selectedStatus = ref('')
 const isUpdating = ref(false)
+const updateError = ref('')
+
+const timeline = computed(() => report.value?.timeline || [])
+
+const hasPendingChanges = computed(() => {
+  if (!report.value) return false
+
+  const hasStatusChange = selectedStatus.value && selectedStatus.value !== report.value.status
+  const hasNote = !!note.value.trim()
+
+  return hasStatusChange || hasNote
+})
 
 const loadReport = async () => {
   isLoading.value = true
   error.value = ''
   try {
-    // We should ideally have a single report endpoint: GET /reports/:id
-    // But based on report.service.ts, there isn't one. 
-    // I'll check report.controller.ts to be sure.
-    // If not, I'll fetch all and filter, or I might need to add the endpoint.
-    const { data } = await api.get('/reports')
-    const found = data.find(r => r.id === parseInt(reportId))
-    if (!found) {
-      error.value = 'Reporte no encontrado'
-    } else {
-      report.value = found
-      selectedStatus.value = found.status
-    }
+    const { data } = await api.get(`/reports/${reportId}`)
+    report.value = data
+    selectedStatus.value = data.status
   } catch (err) {
     error.value = 'Error al cargar el reporte'
   } finally {
@@ -43,15 +45,26 @@ const loadReport = async () => {
 }
 
 const updateStatus = async () => {
-  if (!report.value || isUpdating.value) return
+  if (!report.value || isUpdating.value || !hasPendingChanges.value) return
+
   isUpdating.value = true
+  updateError.value = ''
+
   try {
-    await api.patch(`/reports/${report.value.id}/status`, { status: selectedStatus.value })
-    report.value.status = selectedStatus.value
-    // In a real app, we'd also save the note if the backend supported it.
-    alert('Estado actualizado correctamente')
+    const payload = {
+      status: selectedStatus.value,
+      note: note.value.trim() || undefined,
+    }
+
+    const { data } = await api.patch(`/reports/${report.value.id}/respond`, payload)
+
+    report.value.status = data.status
+    report.value.updatedAt = data.updatedAt
+    report.value.timeline = [data.timelineEntry, ...(report.value.timeline || [])]
+    note.value = ''
   } catch (err) {
-    alert('Error al actualizar el estado')
+    const msg = err?.response?.data?.message
+    updateError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'Error al actualizar el reporte'
   } finally {
     isUpdating.value = false
   }
@@ -77,6 +90,30 @@ const getStatusLabel = (status) => {
     RESOLVED: 'Resuelto'
   }
   return labels[status] || status
+}
+
+const getEventLabel = (eventType) => {
+  const labels = {
+    CREATED: 'Reporte creado',
+    STATUS_CHANGED: 'Estado actualizado',
+    NOTE_ADDED: 'Nota agregada',
+    NOTE_AND_STATUS_CHANGED: 'Nota y estado actualizados',
+  }
+  return labels[eventType] || eventType
+}
+
+const formatDateTime = (iso) => {
+  if (!iso) return '-'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return '-'
+
+  return d.toLocaleString('es-CL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 onMounted(loadReport)
@@ -192,6 +229,10 @@ onMounted(loadReport)
                 class="w-full h-32 p-4 border border-[#E5E7EB] rounded-xl outline-none focus:ring-1 focus:ring-primary resize-none text-sm text-gray-600 mb-6"
               ></textarea>
 
+              <p v-if="updateError" class="text-sm text-red-600 mb-4">
+                {{ updateError }}
+              </p>
+
               <div class="flex items-center justify-between gap-4 flex-wrap">
                 <div class="flex items-center gap-3">
                   <span class="text-sm font-bold text-[#111827]">Cambiar estado:</span>
@@ -210,12 +251,49 @@ onMounted(loadReport)
 
                 <button 
                   @click="updateStatus"
-                  :disabled="isUpdating"
-                  class="bg-[#1B2A4A] hover:bg-[#253860] text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center gap-2"
+                  :disabled="isUpdating || !hasPendingChanges"
+                  class="bg-[#1B2A4A] hover:bg-[#253860] text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span v-if="isUpdating">Procesando...</span>
                   <span v-else>Responder al usuario</span>
                 </button>
+              </div>
+
+              <div class="mt-8 border-t border-[#E5E7EB] pt-6">
+                <h3 class="text-sm font-bold text-[#111827] mb-3">Historial de trazabilidad</h3>
+
+                <div v-if="timeline.length === 0" class="text-sm text-gray-500">
+                  Aun no existen registros en el historial.
+                </div>
+
+                <div v-else class="space-y-3 max-h-72 overflow-y-auto pr-2">
+                  <article
+                    v-for="entry in timeline"
+                    :key="entry.id"
+                    class="border border-[#E5E7EB] rounded-xl p-3"
+                  >
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+                      <p class="text-sm font-semibold text-[#111827]">
+                        {{ getEventLabel(entry.eventType) }}
+                      </p>
+                      <p class="text-xs text-gray-500">
+                        {{ formatDateTime(entry.createdAt) }}
+                      </p>
+                    </div>
+
+                    <p class="text-xs text-gray-600 mb-1">
+                      Por: {{ entry.actor?.name || entry.actor?.email || 'Usuario' }}
+                    </p>
+
+                    <p class="text-xs text-gray-600 mb-2">
+                      Estado: {{ getStatusLabel(entry.previousStatus) }} -> {{ getStatusLabel(entry.newStatus) }}
+                    </p>
+
+                    <p v-if="entry.note" class="text-sm text-gray-700 whitespace-pre-wrap">
+                      {{ entry.note }}
+                    </p>
+                  </article>
+                </div>
               </div>
             </div>
 
