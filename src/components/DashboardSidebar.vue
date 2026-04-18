@@ -36,15 +36,7 @@ const allNavItems = {
       icon: tableIcon,
       alt: 'Registro',
       subItems: [
-        {
-          label: 'Usuarios',
-          icon: anadirGrupoIcon,
-          alt: 'Usuarios',
-          nestedKey: 'usuarios',
-          children: [
-            { label: 'Gesti\xF3n', path: '/admin/gestion-usuarios' },
-            { label: 'Roles iniciales', path: '/admin/gestion-usuarios/roles-iniciales' },
-          ],
+        { label: 'Usuarios', path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Usuarios'
         },
         { label: 'Veh\xEDculos', path: '/admin/vehiculos', icon: camionIcon, alt: 'Veh\xEDculos' },
         { label: 'Destinos', path: '/admin/destinos', icon: destinoIcon, alt: 'Destinos' },

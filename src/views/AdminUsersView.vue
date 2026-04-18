@@ -375,25 +375,7 @@ onMounted(() => { loadUsers() })
                     <!-- Correo -->
                     <td class="border border-[#D3DCE6] py-4 px-4 text-center text-slate-400 text-sm">{{ user.email || '—' }}</td>
 
-                    <!-- Estado (badge) -->
-                    <td class="border border-[#D3DCE6] py-4 px-4 text-center">
-                      <span
-                        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border"
-                        :style="{
-                          backgroundColor: getStatusCfg(user.status).bg,
-                          borderColor: getStatusCfg(user.status).border,
-                          color: getStatusCfg(user.status).text,
-                        }"
-                      >
-                        <span
-                          class="w-1.5 h-1.5 rounded-full"
-                          :style="{ backgroundColor: getStatusCfg(user.status).dot }"
-                        ></span>
-                        {{ getStatusCfg(user.status).label }}
-                      </span>
-                    </td>
-
-                    <!-- Seguridad: check verificado + botón llave -->
+                    <!-- Estado: check verificado + botón llave -->
                     <td class="border border-[#D3DCE6] py-4 px-4 text-center">
                       <div class="flex items-center justify-center gap-3">
                         <!-- Check isVerified -->
@@ -422,6 +404,25 @@ onMounted(() => { loadUsers() })
                         </button>
                       </div>
                     </td>
+                    <!-- Seguridad (badge) -->
+                    <td class="border border-[#D3DCE6] py-4 px-4 text-center">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border"
+                        :style="{
+                          backgroundColor: getStatusCfg(user.status).bg,
+                          borderColor: getStatusCfg(user.status).border,
+                          color: getStatusCfg(user.status).text,
+                        }"
+                      >
+                        <span
+                          class="w-1.5 h-1.5 rounded-full"
+                          :style="{ backgroundColor: getStatusCfg(user.status).dot }"
+                        ></span>
+                        {{ getStatusCfg(user.status).label }}
+                      </span>
+                    </td>
+
+                    
 
                     <!-- Acción: Ver + Editar -->
                     <td class="border border-[#D3DCE6] py-4 px-4 text-center">

@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import Navbar from './components/Navbar.vue'
 import Footer from './components/Footer.vue'
 import WhatsAppFAB from './components/WhatsAppFAB.vue'
+import ToastNotification from '@/components/ToastNotification.vue'
 
 const route = useRoute()
 
@@ -26,6 +27,7 @@ const showFAB = computed(() =>
     <Footer v-if="isPublicPage" />
     
     <WhatsAppFAB v-if="showFAB" />
+    <ToastNotification />
   </div>
 </template>
 

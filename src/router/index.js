@@ -13,6 +13,7 @@ import DailyRegistrationFuncionarioView from '../views/DailyRegistrationFunciona
 import TravelHistoryView from '../views/TravelHistoryView.vue'
 import TravelHistoryFuncionarioView from '../views/TravelHistoryFuncionarioView.vue'
 import TravelHistoryAdminView from '../views/TravelHistoryAdminView.vue'
+import AdminDestinyView from '../views/AdminDestinyView.vue'
 import AdminUsersView from '../views/AdminUsersView.vue'
 import AdminVehiclesView from '../views/AdminVehiclesView.vue'
 import AdminReportsView from '../views/AdminReportsView.vue'
@@ -167,6 +168,13 @@ const router = createRouter({
             path: '/admin/mantencion-vehicular/historial-semanal',
             name: 'admin-maintenance-weekly-history',
             component: AdminMaintenanceWeeklyHistory,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+
+        },
+        {
+            path: '/admin/destinos',
+            name: 'admin-destinations',
+            component: AdminDestinyView,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
 

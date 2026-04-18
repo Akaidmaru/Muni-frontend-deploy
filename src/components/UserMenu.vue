@@ -2,6 +2,8 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import NotificationBell from '@/components/NotificationBell.vue'
+import { useNotificationStore } from '@/stores/notifications'
 
 const router = useRouter()
 const auth   = useAuthStore()
@@ -13,14 +15,15 @@ const close  = () => { open.value = false }
 
 
 const handleLogout = () => {
+  useNotificationStore().disconnect()
   auth.logout()
   router.push('/')
 }
 </script>
 
 <template>
-  <div class="relative">
-    <!-- Trigger: nombre + avatar -->
+  <div class="relative flex items-center gap-2">
+    <NotificationBell />
     <button
       @click="toggle"
       class="flex items-center gap-3 cursor-pointer group"
