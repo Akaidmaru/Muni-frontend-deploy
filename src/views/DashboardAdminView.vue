@@ -26,7 +26,7 @@ const goToAdminMaintenance = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
+  <div class="h-screen bg-background flex flex-col overflow-hidden">
     <!-- Header -->
     <div class="bg-white shadow-sm border-b border-gray-200">
       <div class="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -49,34 +49,34 @@ const goToAdminMaintenance = () => {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <button
             @click="goToAdminUsers"
-            class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 h-52 flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
+            class="bg-white rounded-2xl shadow-lg border border-gray-100 p-5 sm:p-6 h-auto min-h-[140px] sm:h-52 flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
           >
-            <img :src="tableIcon" alt="Registro" class="w-16 h-16 object-contain mb-4" />
-            <span class="text-xl font-titles font-semibold text-text-title">Registro</span>
+            <img :src="tableIcon" alt="Registro" class="w-12 sm:w-16 h-12 sm:h-16 object-contain mb-3 sm:mb-4" />
+            <span class="text-base sm:text-xl font-titles font-semibold text-text-title">Registro</span>
           </button>
 
           <button
             @click="goToAdminHistory"
-            class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 h-52 flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
+            class="bg-white rounded-2xl shadow-lg border border-gray-100 p-5 sm:p-6 h-auto min-h-[140px] sm:h-52 flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
           >
-            <img :src="historialIcon" alt="Historial de viajes" class="w-16 h-16 object-contain mb-4" />
-            <span class="text-xl font-titles font-semibold text-text-title">Historial de Viajes</span>
+            <img :src="historialIcon" alt="Historial de viajes" class="w-12 sm:w-16 h-12 sm:h-16 object-contain mb-3 sm:mb-4" />
+            <span class="text-base sm:text-xl font-titles font-semibold text-text-title">Historial de Viajes</span>
           </button>
 
           <button
             @click="goToAdminReports"
-            class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 h-52 flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
+            class="bg-white rounded-2xl shadow-lg border border-gray-100 p-5 sm:p-6 h-auto min-h-[140px] sm:h-52 flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
           >
-            <img :src="warningIcon" alt="Reportes" class="w-16 h-16 object-contain mb-4" />
-            <span class="text-xl font-titles font-semibold text-text-title">Reportes</span>
+            <img :src="warningIcon" alt="Reportes" class="w-12 sm:w-16 h-12 sm:h-16 object-contain mb-3 sm:mb-4" />
+            <span class="text-base sm:text-xl font-titles font-semibold text-text-title">Reportes</span>
           </button>
 
           <button
             @click="goToAdminMaintenance"
-            class="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 h-52 flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
+            class="bg-white rounded-2xl shadow-lg border border-gray-100 p-5 sm:p-6 h-auto min-h-[140px] sm:h-52 flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
           >
-            <img :src="repairIcon" alt="Mantenimiento Vehicular" class="w-16 h-16 object-contain mb-4" />
-            <span class="text-xl font-titles font-semibold text-text-title">Mantenimiento Vehicular</span>
+            <img :src="repairIcon" alt="Mantenimiento Vehicular" class="w-12 sm:w-16 h-12 sm:h-16 object-contain mb-3 sm:mb-4" />
+            <span class="text-base sm:text-xl font-titles font-semibold text-text-title">Mantenimiento Vehicular</span>
           </button>
         </div>
           </div>

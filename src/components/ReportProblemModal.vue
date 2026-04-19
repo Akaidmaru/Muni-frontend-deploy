@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import api from '@/services/axios'
 
-const props = defineProps({
+defineProps({
   isOpen: Boolean
 })
 
@@ -16,18 +16,14 @@ const selectedFile = ref(null)
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+const MIN_LOADING_DISPLAY_MS = 400
 
 const handleClose = () => {
+  isSubmitting.value = false
   emit('close')
   // Pequeño delay para que la animación termine antes de resetear
   setTimeout(() => {
-    title.value = ''
-    description.value = ''
-    selectedFileName.value = ''
-    selectedFile.value = null
-    errorMessage.value = ''
-    successMessage.value = ''
-    if(fileInput.value) fileInput.value.value = ''
+    resetForm()
   }, 300)
 }
 
@@ -46,12 +42,29 @@ const handleFileChange = (event) => {
   }
 }
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const resetForm = () => {
+  title.value = ''
+  description.value = ''
+  selectedFileName.value = ''
+  selectedFile.value = null
+  errorMessage.value = ''
+  successMessage.value = ''
+
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+}
+
 const submitReport = async () => {
-  if (!title.value || !description.value) return;
-  
+  if (!title.value || !description.value || isSubmitting.value) return
+
   isSubmitting.value = true
   errorMessage.value = ''
   successMessage.value = ''
+
+  await delay(MIN_LOADING_DISPLAY_MS)
 
   try {
     const formData = new FormData()
@@ -61,8 +74,6 @@ const submitReport = async () => {
       formData.append('file', selectedFile.value)
     }
 
-    // Usamos la instancia de axios pre-configurada. 
-    // El backend-dev deberá habilitar esta ruta POST /reports.
     await api.post('/reports', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
@@ -77,7 +88,6 @@ const submitReport = async () => {
   } catch (error) {
     console.error('Error al enviar el reporte:', error)
     errorMessage.value = 'Lo sentimos, ha ocurrido un error al enviar el reporte. Por favor intenta más tarde.'
-  } finally {
     isSubmitting.value = false
   }
 }
@@ -105,7 +115,7 @@ const submitReport = async () => {
         leave-from-class="opacity-100 translate-y-0 scale-100"
         leave-to-class="opacity-0 translate-y-4 scale-95"
       >
-        <div v-if="isOpen" class="bg-white rounded-2xl shadow-2xl w-full max-w-[620px] relative z-10 border border-gray-200 py-10 px-8 sm:px-14">
+        <div v-if="isOpen" class="bg-white rounded-2xl shadow-2xl w-full max-w-[620px] relative z-10 border border-gray-200 py-6 sm:py-10 px-5 sm:px-8 md:px-14">
             
             <!-- Left floating Icon -->
             <div class="absolute top-8 left-8 sm:left-10 w-[60px] h-[60px] bg-[#B71C1C] rounded-2xl flex items-center justify-center shadow-md">
@@ -115,7 +125,7 @@ const submitReport = async () => {
             </div>
 
             <!-- Headers -->
-            <div class="text-center mt-2 mb-8 px-8 sm:px-16">
+            <div class="text-center mt-2 mb-6 sm:mb-8 px-4 sm:px-8 md:px-16">
               <h2 class="text-[22px] font-titles font-extrabold text-[#111827] mb-3 tracking-tight">Reportar un problema</h2>
               <p class="text-[13px] font-body text-gray-500 leading-snug">
                 Ayúdanos a mejorar. Describe el error que has<br class="hidden sm:block">encontrado lo más detalladamente posible.
@@ -123,7 +133,7 @@ const submitReport = async () => {
             </div>
 
             <!-- Form -->
-            <form @submit.prevent="submitReport" class="space-y-5">
+            <form @submit.prevent="submitReport" class="space-y-5" :class="isSubmitting ? 'pointer-events-none select-none opacity-70' : ''">
               
               <!-- Título -->
               <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
@@ -176,6 +186,9 @@ const submitReport = async () => {
               </div>
 
               <!-- Mensajes de Error y Exito -->
+              <div v-if="isSubmitting" class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-center text-xs font-semibold text-blue-700">
+                Enviando reporte, por favor espera...
+              </div>
               <div v-if="errorMessage" class="text-xs text-red-600 font-medium text-center w-full">
                 {{ errorMessage }}
               </div>
@@ -187,11 +200,12 @@ const submitReport = async () => {
               <div class="pt-4 sm:pt-6 flex flex-col items-center gap-4">
                 <button 
                   type="submit" 
-                  :disabled="isSubmitting"
-                  class="bg-[#B71C1C] hover:bg-red-800 disabled:opacity-75 disabled:cursor-not-allowed text-white text-xs font-bold px-8 py-3 rounded-xl transition-all w-[240px] tracking-wide flex items-center justify-center font-body min-h-[44px]"
+                  :disabled="isSubmitting || !title || !description"
+                  :aria-busy="isSubmitting"
+                  class="bg-[#B71C1C] hover:bg-red-800 disabled:bg-slate-400 disabled:hover:bg-slate-400 disabled:opacity-100 disabled:cursor-not-allowed text-white text-xs font-bold px-8 py-3 rounded-xl transition-all w-full sm:w-[240px] tracking-wide flex items-center justify-center font-body min-h-[44px]"
                 >
-                  <span v-if="!isSubmitting">ENVIAR REPORTE</span>
-                  <svg v-else class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <span>{{ isSubmitting ? 'ENVIANDO...' : 'ENVIAR REPORTE' }}</span>
+                  <svg v-if="isSubmitting" class="ml-2 animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>

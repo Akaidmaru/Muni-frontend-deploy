@@ -130,9 +130,26 @@ const suggestedMileage = ref(0);
 const selectedTruckId = ref(null);
 const alreadyRegisteredToday = ref(false);
 const existingMaintenanceRecordId = ref(null);
+const selectedTruckFallback = ref(null);
+const editingDriverId = ref(null);
+const recordIdFromRoute = computed(() => {
+  const recordId = route.query.recordId;
+  return Array.isArray(recordId) ? recordId[0] : recordId || "";
+});
+const sourceFromRoute = computed(() => {
+  const source = route.query.source;
+  return Array.isArray(source) ? source[0] : source || "";
+});
+const modeFromRoute = computed(() => {
+  const mode = route.query.mode;
+  return Array.isArray(mode) ? mode[0] : mode || "";
+});
+const isReadOnlyMode = computed(() => modeFromRoute.value === "view");
 
 const getSelectedTruck = () =>
-  licensePlates.value.find((truck) => truck.id === selectedTruckId.value) || null;
+  licensePlates.value.find((truck) => truck.id === selectedTruckId.value) ||
+  selectedTruckFallback.value ||
+  null;
 
 const getDocumentStatusByExpiry = (expiryDate) => {
   if (!expiryDate) return "No tiene";
@@ -240,21 +257,34 @@ const createDefaultMaintenanceForm = (mileage = "") => ({
 });
 
 const formatDisplayDate = (dateValue) => {
+  if (!dateValue) return currentDate.value;
+
+  // Trata la fecha como calendario (YYYY-MM-DD) para evitar desfase por zona horaria.
+  const normalized = String(dateValue).slice(0, 10);
+  const parts = normalized.split("-");
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    if (year && month && day) {
+      return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
+    }
+  }
+
   const date = new Date(dateValue);
   if (Number.isNaN(date.getTime())) return currentDate.value;
 
-  return `${String(date.getDate()).padStart(2, "0")}/${String(
-    date.getMonth() + 1,
-  ).padStart(2, "0")}/${date.getFullYear()}`;
+  return `${String(date.getUTCDate()).padStart(2, "0")}/${String(
+    date.getUTCMonth() + 1,
+  ).padStart(2, "0")}/${date.getUTCFullYear()}`;
 };
 
 const populateMaintenanceFormFromRecord = (record) => {
   const form = createDefaultMaintenanceForm(record?.currentMileage ?? "");
   const itemsByCode = new Map(
-    (record?.maintenanceItems || []).map((item) => [item.itemCode, item]),
+    (record?.dailyMaintenanceItems || []).map((item) => [item.itemCode, item]),
   );
 
   form.identificationVehicle = selectedPlate.value || form.identificationVehicle;
+  form.conductor = record?.driver?.name || record?.driver?.email || form.conductor;
   form.licMunicipal = record?.municipalLicense || "";
   form.inspectionDate = formatDisplayDate(record?.inspectionDate);
   form.inspectionTime = record?.inspectionTime || getCurrentTime();
@@ -300,12 +330,50 @@ const plateFromRoute = computed(() => {
   return Array.isArray(plate) ? plate[0] : plate || "";
 });
 
+const toIsoDateFromDisplay = (displayDate) => {
+  if (!displayDate) return getLocalDateParam();
+  const [day, month, year] = String(displayDate).split("/");
+  if (!day || !month || !year) return getLocalDateParam();
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+};
+
+const loadMaintenanceRecordById = async (recordId) => {
+  const { data } = await api.get(`/daily-maintenance-records/${recordId}`);
+
+  existingMaintenanceRecordId.value = data?.id || null;
+  selectedTruckId.value = data?.truckId || data?.truck?.id || null;
+  selectedTruckFallback.value = data?.truck || null;
+  editingDriverId.value = data?.driverId || null;
+  selectedPlate.value = data?.truck?.plate || plateFromRoute.value || "";
+  selectedPlateStable.value = selectedPlate.value;
+  suggestedMileage.value =
+    data?.currentMileage !== null && data?.currentMileage !== undefined
+      ? Number(data.currentMileage)
+      : 0;
+
+  populateMaintenanceFormFromRecord(data);
+  confirmed.value = true;
+};
+
+const goBackFromMaintenance = () => {
+  if (sourceFromRoute.value === "admin-maintenance-monthly-history") {
+    router.push({ name: "admin-maintenance-monthly-history" });
+    return;
+  }
+  if (sourceFromRoute.value === "admin-maintenance-daily") {
+    router.push({ name: "admin-maintenance-daily" });
+    return;
+  }
+
+  confirmed.value = false;
+};
+
 const loadMileageSuggestionByPlate = async (plate) => {
   const foundTruck = licensePlates.value.find((t) => t.plate === plate);
   const fallbackTruckId = foundTruck ? foundTruck.id : null;
 
   try {
-    const { data } = await api.get(`/vehicle-maintenance-records/mileage-suggestion/plate/${encodeURIComponent(plate)}`);
+    const { data } = await api.get(`/daily-maintenance-records/mileage-suggestion/plate/${encodeURIComponent(plate)}`);
     suggestedMileage.value = data.suggestedMileage || 0;
     selectedTruckId.value = data.truckId || fallbackTruckId;
     if (maintenanceForm.value) {
@@ -332,7 +400,7 @@ const checkDailyMaintenanceByDriverAndTruck = async () => {
 
   try {
     const { data } = await api.get(
-      `/vehicle-maintenance-records/driver/${auth.user.id}/truck/${selectedTruckId.value}/date`,
+      `/daily-maintenance-records/driver/${auth.user.id}/truck/${selectedTruckId.value}/date`,
       {
         params: { date: getLocalDateParam() },
       },
@@ -409,6 +477,14 @@ const clearFieldError = (field) => {
   fieldErrors.value[field] = false;
 };
 
+const sanitizeMileageValue = (value) => String(value ?? "").replace(/[^\d]/g, "");
+
+const handleMileageInput = (event) => {
+  if (!maintenanceForm.value) return;
+  maintenanceForm.value.kilometraje = sanitizeMileageValue(event?.target?.value);
+  clearFieldError("kilometraje");
+};
+
 const toggleExists = (item, value) => {
   if (item.type === "section") return;
   item.exists = item.exists === value ? "" : value;
@@ -434,9 +510,7 @@ const buildAnnexAlertReason = (form) => {
     alertLines.push(`Seguro obligatorio: ${form.annex.seguroObligatorio}`);
   }
   if (["Vencido", "No tiene"].includes(form.annex.emisionContaminantes)) {
-    alertLines.push(
-      `Emisión contaminantes: ${form.annex.emisionContaminantes}`,
-    );
+    alertLines.push(`Emisión de contaminantes: ${form.annex.emisionContaminantes}`);
   }
 
   return alertLines.join("\n");
@@ -450,8 +524,14 @@ const saveMaintenanceForm = async () => {
   let hasErrors = false;
 
   // Validate required fields
-  if (!maintenanceForm.value.kilometraje.trim()) {
+  const mileageInput = sanitizeMileageValue(maintenanceForm.value.kilometraje);
+  maintenanceForm.value.kilometraje = mileageInput;
+  if (!mileageInput) {
     fieldErrors.value.kilometraje = true;
+    hasErrors = true;
+  } else if (!/^\d+$/.test(mileageInput)) {
+    fieldErrors.value.kilometraje = true;
+    maintenanceFormError.value = "El kilometraje debe ser un número entero.";
     hasErrors = true;
   }
 
@@ -473,7 +553,9 @@ const saveMaintenanceForm = async () => {
     return;
   }
 
-  if (!auth.user?.id) {
+  const resolvedDriverId = editingDriverId.value || auth.user?.id;
+
+  if (!resolvedDriverId) {
     maintenanceFormError.value = "No se pudo identificar el conductor autenticado.";
     return;
   }
@@ -491,22 +573,22 @@ const saveMaintenanceForm = async () => {
 
   const payload = {
     truckId: selectedTruckId.value,
-    driverId: auth.user?.id,
-    inspectionDate: getLocalDateParam(),
+    driverId: resolvedDriverId,
+    inspectionDate: toIsoDateFromDisplay(maintenanceForm.value.inspectionDate),
     inspectionTime: maintenanceForm.value.inspectionTime,
     municipalLicense: maintenanceForm.value.licMunicipal,
-    currentMileage: Number(maintenanceForm.value.kilometraje),
-    maintenanceItems,
+    currentMileage: Number.parseInt(maintenanceForm.value.kilometraje, 10),
+    dailyMaintenanceItems: maintenanceItems,
   };
 
   try {
     if (existingMaintenanceRecordId.value) {
       await api.patch(
-        `/vehicle-maintenance-records/${existingMaintenanceRecordId.value}`,
+        `/daily-maintenance-records/${existingMaintenanceRecordId.value}`,
         payload,
       );
     } else {
-      const { data } = await api.post("/vehicle-maintenance-records", payload);
+      const { data } = await api.post("/daily-maintenance-records", payload);
       existingMaintenanceRecordId.value = data?.id || null;
     }
 
@@ -514,7 +596,7 @@ const saveMaintenanceForm = async () => {
     if (annexAlertReason) {
       vehicleAlertsStore.addOutOfServiceAlert({
         plate: maintenanceForm.value.identificationVehicle,
-        driver: auth.fullName || auth.user?.email || "Conductor sin nombre",
+        driver: maintenanceForm.value.conductor || auth.fullName || auth.user?.email || "Conductor sin nombre",
         reason: annexAlertReason,
         category: "Checklist",
       });
@@ -523,10 +605,16 @@ const saveMaintenanceForm = async () => {
     maintenanceFormSuccess.value = existingMaintenanceRecordId.value
       ? "Formulario de mantenimiento actualizado correctamente."
       : "Formulario de mantenimiento guardado correctamente.";
-    router.push({
-      name: 'daily-registration-driver',
-      query: { plate: maintenanceForm.value.identificationVehicle }
-    });
+    if (sourceFromRoute.value === "admin-maintenance-monthly-history") {
+      router.push({ name: "admin-maintenance-monthly-history" });
+    } else if (sourceFromRoute.value === "admin-maintenance-daily") {
+      router.push({ name: "admin-maintenance-daily" });
+    } else {
+      router.push({
+        name: 'daily-registration-driver',
+        query: { plate: maintenanceForm.value.identificationVehicle }
+      });
+    }
   } catch (error) {
     const backendMessage = error.response?.data?.message;
     maintenanceFormError.value = Array.isArray(backendMessage)
@@ -870,6 +958,11 @@ onMounted(async () => {
   loadEmployees();
   loadDestinations();
 
+  if (recordIdFromRoute.value) {
+    await loadMaintenanceRecordById(recordIdFromRoute.value);
+    return;
+  }
+
   if (plateFromRoute.value) {
     selectedPlate.value = plateFromRoute.value;
     selectedPlateStable.value = plateFromRoute.value;
@@ -1019,8 +1112,10 @@ onMounted(async () => {
                           <input
                             type="text"
                             v-model="maintenanceForm.licMunicipal"
+                            :disabled="isReadOnlyMode"
                             placeholder="Ingrese la Lic-municipal"
-                            class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-text-title outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                            :class="isReadOnlyMode ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white text-text-title'"
+                            class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                           />
                         </div>
                       </div>
@@ -1040,10 +1135,25 @@ onMounted(async () => {
                         <span class="font-bold">PATENTE:</span>
                         {{ maintenanceForm?.identificationVehicle || "-" }}
                       </p>
-                      <p class="text-base">
-                        <span class="font-bold">KILOMETRAJE:</span>
-                        {{ maintenanceForm?.kilometraje || "-" }}
-                      </p>
+                      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        <p class="text-base">
+                          <span class="font-bold">KILOMETRAJE:</span>
+                        </p>
+                        <div class="w-full sm:w-[12rem]">
+                          <input
+                            type="number"
+                            v-model="maintenanceForm.kilometraje"
+                            @input="handleMileageInput"
+                            placeholder="Ingrese el kilometraje"
+                            min="0"
+                            step="1"
+                            inputmode="numeric"
+                            class="w-full rounded-xl border bg-white px-3 py-2 text-sm text-text-title outline-none focus:ring-1"
+                            :class="fieldErrors.kilometraje ? 'border-red-500 focus:border-red-500 focus:ring-red-200 animate-shake' : 'border-gray-300 focus:border-primary focus:ring-primary'"
+                          />
+                          <p v-if="fieldErrors.kilometraje" class="text-[10px] text-red-600 mt-1 font-medium">Ingrese un kilometraje entero</p>
+                        </div>
+                      </div>
                       <p class="text-base">
                         <span class="font-bold">HORA INSPECCIÓN:</span>
                         {{ maintenanceForm?.inspectionTime || "00:00" }}
@@ -1063,6 +1173,35 @@ onMounted(async () => {
             </div>
 
             <div class="overflow-x-auto px-4 pb-8 sm:px-10 md:px-14 w-full">
+              <div
+                class="mx-auto mb-4 flex w-full max-w-[58rem] items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:hidden"
+              >
+                <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-base font-bold text-amber-700 shadow-sm">
+                  i
+                </span>
+                <div class="flex min-w-0 flex-1 items-center justify-between gap-3">
+                  <div class="leading-snug">
+                  Desliza la tabla hacia la derecha para completar
+                  <span class="font-semibold">Existe</span>,
+                  <span class="font-semibold">Estado</span> y
+                  <span class="font-semibold">Observación</span>.
+                  </div>
+                  <div class="flex shrink-0 items-center text-amber-700">
+                    <svg
+                      class="h-6 w-6 animate-[bounce-x_1.2s_ease-in-out_infinite]"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M5 12h12"></path>
+                      <path d="m13 6 6 6-6 6"></path>
+                    </svg>
+                  </div>
+                </div>
+              </div>
               <div class="mx-auto w-full max-w-[58rem] overflow-x-auto overflow-y-visible pl-0 sm:pl-10">
                 <table class="w-full text-sm text-left border-collapse border border-slate-200 min-w-[700px] sm:min-w-full">
                   <thead class="bg-gray-100 text-gray-700">
@@ -1092,7 +1231,7 @@ onMounted(async () => {
                           <div class="relative">
                             <div
                               v-if="item.hasError"
-                              class="group absolute -left-10 top-0 z-20"
+                              class="group absolute -left-10 top-0 z-20 hidden sm:block"
                             >
                               <span
                                 class="flex h-9 w-9 shrink-0 cursor-help items-center justify-center rounded-full border-2 border-red-700 bg-white text-red-700 font-bold text-xl leading-none shadow-sm"
@@ -1106,7 +1245,24 @@ onMounted(async () => {
                                 {{ inlineRequiredMessage }}
                               </div>
                             </div>
-                            <div class="min-w-0 pr-2 uppercase">
+                            <div
+                              v-if="item.hasError"
+                              class="group absolute left-2 top-7 z-20 sm:hidden"
+                            >
+                              <button
+                                type="button"
+                                class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-red-700 bg-white text-sm font-bold leading-none text-red-700 shadow-sm"
+                              >
+                                i
+                              </button>
+                              <div
+                                class="pointer-events-none absolute left-8 top-0 hidden w-44 rounded-2xl bg-[#efefef] px-3 py-2 text-xs font-medium leading-snug text-gray-800 shadow-lg break-words group-focus-within:block group-active:block"
+                              >
+                                <span class="absolute -left-1.5 top-3 h-3 w-3 rotate-45 bg-[#efefef]"></span>
+                                Completa también las columnas de la derecha para continuar.
+                              </div>
+                            </div>
+                            <div class="min-w-0 pr-2 uppercase sm:pr-2" :class="item.hasError ? 'pl-8 sm:pl-0' : ''">
                               {{ item.label }}
                             </div>
                           </div>
@@ -1119,7 +1275,7 @@ onMounted(async () => {
                                 class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                                 :checked="item.exists === 'Si'"
                                 @change="toggleExists(item, 'Si')"
-                                :disabled="item.exists !== '' && item.exists !== 'Si'"
+                                :disabled="isReadOnlyMode || (item.exists !== '' && item.exists !== 'Si')"
                               />
                               Sí
                             </label>
@@ -1129,7 +1285,7 @@ onMounted(async () => {
                                 class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                                 :checked="item.exists === 'No'"
                                 @change="toggleExists(item, 'No')"
-                                :disabled="item.exists !== '' && item.exists !== 'No'"
+                                :disabled="isReadOnlyMode || (item.exists !== '' && item.exists !== 'No')"
                               />
                               No
                             </label>
@@ -1143,7 +1299,7 @@ onMounted(async () => {
                                 class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                                 :checked="item.state === 'Bueno'"
                                 @change="toggleState(item, 'Bueno')"
-                                :disabled="item.state !== '' && item.state !== 'Bueno'"
+                                :disabled="isReadOnlyMode || (item.state !== '' && item.state !== 'Bueno')"
                               />
                               Bueno
                             </label>
@@ -1153,7 +1309,7 @@ onMounted(async () => {
                                 class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                                 :checked="item.state === 'Regular'"
                                 @change="toggleState(item, 'Regular')"
-                                :disabled="item.state !== '' && item.state !== 'Regular'"
+                                :disabled="isReadOnlyMode || (item.state !== '' && item.state !== 'Regular')"
                               />
                               Regular
                             </label>
@@ -1163,7 +1319,7 @@ onMounted(async () => {
                                 class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                                 :checked="item.state === 'Malo'"
                                 @change="toggleState(item, 'Malo')"
-                                :disabled="item.state !== '' && item.state !== 'Malo'"
+                                :disabled="isReadOnlyMode || (item.state !== '' && item.state !== 'Malo')"
                               />
                               Malo
                             </label>
@@ -1178,7 +1334,9 @@ onMounted(async () => {
                           <input
                             type="text"
                             v-model="item.note"
+                            :disabled="isReadOnlyMode"
                             placeholder="Observación"
+                            :class="isReadOnlyMode ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'"
                             class="w-full rounded-xl border border-gray-300 px-2 py-1 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                           />
                         </td>
@@ -1196,55 +1354,35 @@ onMounted(async () => {
                 <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4">
                   <div>
                     <label class="block text-[11px] font-bold text-gray-500 mb-2">REVISIÓN TÉCNICA</label>
-                    <select
-                      v-model="maintenanceForm.annex.revisionTecnica"
-                      disabled
-                      class="w-full rounded-xl border border-gray-300 bg-gray-100 text-gray-700 px-3 py-2 text-sm outline-none"
+                    <div
+                      class="w-full rounded-xl border border-gray-200 bg-slate-100 px-3 py-2 text-sm text-slate-500"
                     >
-                      <option value="" disabled>Seleccione una opción</option>
-                      <option value="Vencido">Vencido</option>
-                      <option value="Vigente">Vigente</option>
-                      <option value="No tiene">No tiene</option>
-                    </select>
+                      {{ maintenanceForm.annex.revisionTecnica || "Sin información" }}
+                    </div>
                   </div>
                   <div>
                     <label class="block text-[11px] font-bold text-gray-500 mb-2">PERMISO DE CIRCULACIÓN</label>
-                    <select
-                      v-model="maintenanceForm.annex.permisoCirculacion"
-                      disabled
-                      class="w-full rounded-xl border border-gray-300 bg-gray-100 text-gray-700 px-3 py-2 text-sm outline-none"
+                    <div
+                      class="w-full rounded-xl border border-gray-200 bg-slate-100 px-3 py-2 text-sm text-slate-500"
                     >
-                      <option value="" disabled>Seleccione una opción</option>
-                      <option value="Vencido">Vencido</option>
-                      <option value="Vigente">Vigente</option>
-                      <option value="No tiene">No tiene</option>
-                    </select>
+                      {{ maintenanceForm.annex.permisoCirculacion || "Sin información" }}
+                    </div>
                   </div>
                   <div>
                     <label class="block text-[11px] font-bold text-gray-500 mb-2">SEGURO OBLIGATORIO</label>
-                    <select
-                      v-model="maintenanceForm.annex.seguroObligatorio"
-                      disabled
-                      class="w-full rounded-xl border border-gray-300 bg-gray-100 text-gray-700 px-3 py-2 text-sm outline-none"
+                    <div
+                      class="w-full rounded-xl border border-gray-200 bg-slate-100 px-3 py-2 text-sm text-slate-500"
                     >
-                      <option value="" disabled>Seleccione una opción</option>
-                      <option value="Vencido">Vencido</option>
-                      <option value="Vigente">Vigente</option>
-                      <option value="No tiene">No tiene</option>
-                    </select>
+                      {{ maintenanceForm.annex.seguroObligatorio || "Sin información" }}
+                    </div>
                   </div>
                   <div>
                     <label class="block text-[11px] font-bold text-gray-500 mb-2">EMISIÓN CONTAMINANTES</label>
-                    <select
-                      v-model="maintenanceForm.annex.emisionContaminantes"
-                      disabled
-                      class="w-full rounded-xl border border-gray-300 bg-gray-100 text-gray-700 px-3 py-2 text-sm outline-none"
+                    <div
+                      class="w-full rounded-xl border border-gray-200 bg-slate-100 px-3 py-2 text-sm text-slate-500"
                     >
-                      <option value="" disabled>Seleccione una opción</option>
-                      <option value="Vencido">Vencido</option>
-                      <option value="Vigente">Vigente</option>
-                      <option value="No tiene">No tiene</option>
-                    </select>
+                      {{ maintenanceForm.annex.emisionContaminantes || "Sin información" }}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1252,13 +1390,14 @@ onMounted(async () => {
 
             <div class="px-4 sm:px-8 py-4 flex flex-col gap-4 md:flex-row md:justify-between border-t border-gray-100">
               <button
-                @click="confirmed = false"
+                @click="goBackFromMaintenance"
                 class="w-full md:w-auto px-5 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 order-2 md:order-none"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
                 Volver
               </button>
               <button
+                v-if="!isReadOnlyMode"
                 type="button"
                 @click="saveMaintenanceForm"
                 class="w-full md:w-auto px-5 py-3 bg-[#215179] hover:bg-blue-900 text-white font-bold rounded-xl transition-all duration-200 order-1 md:order-none"
@@ -1662,5 +1801,30 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+@keyframes bounce-x {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(6px);
+  }
+}
+</style>
+
+<style scoped>
+.animate-shake {
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
 </style>
 

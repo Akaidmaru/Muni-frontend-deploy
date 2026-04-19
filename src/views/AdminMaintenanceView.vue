@@ -3,7 +3,7 @@ import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import dailyMaintenanceIcon from '@/assets/images/admin/tareas-diarias.png'
-import weeklyMaintenanceIcon from '@/assets/images/admin/calendario.png'
+import monthlyMaintenanceIcon from '@/assets/images/admin/calendario.png'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -42,18 +42,18 @@ const router = useRouter()
             </span>
           </button>
 
-          <!-- Card: Semanal -->
+          <!-- Card: Mensual -->
           <button
-            @click="router.push('/admin/mantencion-vehicular/semanal')"
+            @click="router.push('/admin/mantencion-vehicular/historial-mensual')"
             class="group flex items-center gap-8 bg-white rounded-2xl border-2 border-gray-200 shadow-sm px-10 py-8 hover:border-primary hover:shadow-md transition-all duration-200 text-left w-full"
           >
             <img
-              :src="weeklyMaintenanceIcon"
-              alt="Mantenimiento semanal"
+              :src="monthlyMaintenanceIcon"
+              alt="Mantenimiento mensual"
               class="w-20 h-20 object-contain shrink-0 transition-transform duration-200 group-hover:scale-105"
             />
             <span class="text-2xl font-titles font-bold text-slate-800 leading-tight group-hover:text-primary transition-colors">
-              Mantenimiento<br />vehicular semanal
+              Mantenimiento<br />vehicular mensual
             </span>
           </button>
 

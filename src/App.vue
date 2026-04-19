@@ -1,15 +1,21 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { useNotificationStore } from '@/stores/notifications'
 import Navbar from './components/Navbar.vue'
 import Footer from './components/Footer.vue'
 import WhatsAppFAB from './components/WhatsAppFAB.vue'
+import ToastNotification from '@/components/ToastNotification.vue'
 import { getApiBaseUrl, setRuntimeApiBaseUrl } from './services/axios'
 
 const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
+const notifications = useNotificationStore()
 
 // Páginas donde NO se muestra Navbar/Footer/FAB
-const hiddenPaths = ['/clientes', '/registro', '/verificar-correo']
+const hiddenPaths = ['/clientes', '/registro', '/verificar-correo', '/restablecer-contrasena']
 const isPublicPage = computed(() =>
   !route.meta.requiresAuth && !hiddenPaths.includes(route.path)
 )
@@ -47,12 +53,52 @@ const closeBackendPrompt = () => {
   showBackendPrompt.value = false
 }
 
+const showGlobalBackButton = computed(() => route.path !== '/')
+
+const fallbackRouteByRole = {
+  ADMIN: '/dashboard-admin',
+  DRIVER: '/dashboard',
+  EMPLOYEE: '/dashboard',
+  PATIENT: '/dashboard-paciente',
+}
+
+const goBack = () => {
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+
+  if (route.meta?.requiresAuth) {
+    const fallback = fallbackRouteByRole[auth.userRole] || '/dashboard'
+    router.push(fallback)
+    return
+  }
+
+  router.push('/')
+}
+
 onMounted(() => {
   const runtimeUrl = localStorage.getItem('runtime_api_base_url')
   if (!runtimeUrl) {
     openBackendPrompt()
   }
+
+  if (auth.token) {
+    notifications.connect(auth.token)
+  }
 })
+
+watch(
+  () => auth.token,
+  (token) => {
+    if (token) {
+      notifications.connect(token)
+      return
+    }
+
+    notifications.disconnect()
+  },
+)
 </script>
 
 <template>
@@ -104,13 +150,22 @@ onMounted(() => {
       Configurar backend
     </button>
 
+    <button
+      v-if="showGlobalBackButton"
+      @click="goBack"
+      class="fixed top-4 left-4 z-[999] px-3 py-2 rounded-full bg-white text-primary text-sm font-semibold shadow-md border border-gray-200 hover:bg-gray-50"
+      type="button"
+    >
+      Volver
+    </button>
+
     <Navbar v-if="isPublicPage" />
-    <main class="flex-grow">
+    <main class="flex-grow relative">
       <RouterView />
     </main>
     <Footer v-if="isPublicPage" />
     
     <WhatsAppFAB v-if="showFAB" />
+    <ToastNotification />
   </div>
 </template>
-

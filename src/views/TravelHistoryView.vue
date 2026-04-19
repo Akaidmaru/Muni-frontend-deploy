@@ -194,29 +194,20 @@ watch(currentPage, () => {
       <DashboardSidebar />
 
       <!-- Main content -->
-      <main class="flex-1 pt-16 pb-10 px-3 overflow-hidden flex items-start justify-center min-w-0">
+      <main class="flex-1 pt-8 sm:pt-16 pb-10 px-3 overflow-hidden flex items-start justify-center min-w-0">
         <div class="flex gap-6 w-full h-full min-h-0 min-w-0">
-          
+
           <!-- Main Card (Table) -->
           <div :class="[
             'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative min-w-0',
-            isFilterOpen ? 'max-w-[calc(100%-24rem)]' : 'w-full'
+            isFilterOpen ? 'sm:max-w-[calc(100%-24rem)]' : 'w-full'
           ]">
             <!-- Top section: Title and Filter Button -->
-            <div class="flex items-center justify-between p-8 pb-6 relative min-h-[5rem]">
+            <div class="flex items-center justify-between p-4 sm:p-8 pb-4 sm:pb-6 relative min-h-[4rem] sm:min-h-[5rem]">
                <!-- Botón Volver -->
-               <router-link
-                 to="/"
-                 class="flex items-center gap-1.5 text-sm font-semibold text-gray-600 hover:text-primary transition-colors z-10"
-                 title="Volver"
-               >
-                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                   <polyline points="15 18 9 12 15 6"></polyline>
-                 </svg>
-                 Volver
-               </router-link>
 
-               <h1 class="text-3xl font-titles font-bold text-text-title text-center m-0 absolute left-1/2 -translate-x-1/2">Historial de viajes</h1>
+
+               <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-bold text-text-title text-center m-0 absolute left-1/2 -translate-x-1/2">Historial de viajes</h1>
                
                <button v-if="!isFilterOpen" 
                        @click="isFilterOpen = true" 
@@ -233,7 +224,7 @@ watch(currentPage, () => {
             </div>
 
             <!-- Table Container -->
-            <div class="flex-1 overflow-auto px-12 md:px-16 relative mt-6 pb-6 min-w-0">
+            <div class="flex-1 overflow-auto px-3 sm:px-8 md:px-12 lg:px-16 relative mt-4 sm:mt-6 pb-6 min-w-0">
               <div class="min-w-[900px]">
                 <table class="history-table w-full text-sm text-center" style="border-collapse: separate; border-spacing: 0;">
                   <thead class="text-[13px] text-text-title font-bold sticky top-0 bg-white z-10">
@@ -303,7 +294,7 @@ watch(currentPage, () => {
             </div>
 
             <!-- Footer Pagination -->
-            <div class="px-12 md:px-16 py-4 bg-white flex justify-between items-center text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
+            <div class="px-3 sm:px-8 md:px-12 lg:px-16 py-4 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
               <div class="flex items-center gap-2">
                 <span>Filas por páginas</span>
                 <div class="relative">
@@ -343,9 +334,12 @@ watch(currentPage, () => {
 
           </div>
 
+          <!-- Backdrop móvil -->
+          <div v-if="isFilterOpen" class="fixed inset-0 bg-black/30 z-40 sm:hidden" @click="isFilterOpen = false" />
+
           <!-- Filter Panel -->
           <Transition name="slide">
-            <div v-show="isFilterOpen" class="w-[22rem] bg-[#EBEBEB] rounded-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 shrink-0 z-20 h-full overflow-y-auto relative">
+            <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[88px] z-50 sm:static sm:z-20 sm:w-[22rem] sm:h-full bg-[#EBEBEB] sm:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 sm:shrink-0 overflow-y-auto relative">
               
               <!-- Filter icon top right inside panel (serves as close button also) -->
               <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent">

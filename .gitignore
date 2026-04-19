@@ -44,3 +44,6 @@ __screenshots__/
 .env.local
 .env.*
 !.env.example
+
+# Claude Context
+.claude/

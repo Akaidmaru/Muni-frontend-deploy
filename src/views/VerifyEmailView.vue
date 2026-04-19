@@ -252,6 +252,12 @@ const initializeVerification = async () => {
 
     if (!alreadySent) {
       await sendVerificationCode(fullEmail.value)
+      await router.replace({
+        query: {
+          ...route.query,
+          sent: '1',
+        },
+      })
     }
   } catch (error) {
     errorMessage.value = getBackendMessage(

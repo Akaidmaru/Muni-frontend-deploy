@@ -427,7 +427,7 @@ const plateFromRoute = computed(() => {
 const resolveTruckIdByPlate = async (plate) => {
   try {
     const { data } = await api.get(
-      `/vehicle-maintenance-records/mileage-suggestion/plate/${encodeURIComponent(plate)}`,
+      `/daily-maintenance-records/mileage-suggestion/plate/${encodeURIComponent(plate)}`,
     );
     return data?.truckId || null;
   } catch {
@@ -440,7 +440,7 @@ const hasMaintenanceToday = async (driverId, truckId) => {
 
   try {
     const { data } = await api.get(
-      `/vehicle-maintenance-records/driver/${driverId}/truck/${truckId}/date`,
+      `/daily-maintenance-records/driver/${driverId}/truck/${truckId}/date`,
       {
         params: { date: getLocalDateParam() },
       },
@@ -941,13 +941,33 @@ const selectEmployee = (emp) => {
   closeEmpModal();
 };
 
-const goToChecklist = () => {
-  if (!selectedPlate.value) return;
+// ── Modal Editar Check List ───────────────────────────────────────────
+const checklistModal = ref({ open: false });
+const checklistEditReason = ref('');
+const checklistAccepted = ref(false);
 
+const openChecklistModal = () => {
+  if (!selectedPlate.value) return;
+  checklistEditReason.value = '';
+  checklistAccepted.value = false;
+  checklistModal.value.open = true;
+};
+
+const cancelChecklistModal = () => {
+  checklistModal.value.open = false;
+};
+
+const confirmChecklistModal = () => {
+  if (!checklistEditReason.value.trim() || !checklistAccepted.value) return;
+  checklistModal.value.open = false;
   router.push({
     name: "daily-registration-maintenance",
     query: { plate: selectedPlate.value },
   });
+};
+
+const goToChecklist = () => {
+  openChecklistModal();
 };
 
 onMounted(async () => {
@@ -969,7 +989,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
+  <div class="h-screen bg-background flex flex-col overflow-hidden">
     <!-- Header -->
     <div class="bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
@@ -986,7 +1006,7 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- Body -->
-    <div class="flex flex-1">
+    <div class="flex flex-1 overflow-hidden min-h-0">
       <DashboardSidebar />
 
       <main class="flex-1 py-10 px-6 overflow-hidden flex items-start justify-center">
@@ -1109,7 +1129,7 @@ onBeforeUnmount(() => {
                   Cambiar patente
                 </button>
                 <button
-                  @click="goToChecklist"
+                  @click="openChecklistModal"
                   class="px-5 py-2 bg-[#1E7F43] hover:bg-green-700 text-white text-sm font-bold rounded-lg shadow transition-all duration-200"
                 >
                   Check list
@@ -1241,6 +1261,92 @@ onBeforeUnmount(() => {
       </div>
     </transition>
     -->
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- MODAL: Editar Check List               -->
+    <!-- ═══════════════════════════════════════ -->
+    <transition
+      enter-active-class="transition duration-150 ease-out"
+      enter-from-class="opacity-0 scale-95"
+      enter-to-class="opacity-100 scale-100"
+      leave-active-class="transition duration-100 ease-in"
+      leave-from-class="opacity-100 scale-100"
+      leave-to-class="opacity-0 scale-95"
+    >
+      <div
+        v-if="checklistModal.open"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+      >
+        <div class="absolute inset-0 bg-black/40" @click="cancelChecklistModal" />
+        <div
+          class="relative bg-white rounded-2xl w-full max-w-lg z-10 p-10 shadow-[0_30px_80px_-5px_rgba(0,0,0,0.5),0_0_0_1px_rgba(0,0,0,0.06)]"
+        >
+          <!-- X -->
+          <button
+            @click="cancelChecklistModal"
+            class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+          <!-- Título -->
+          <h3 class="font-titles font-bold text-text-title text-center text-2xl mb-2">
+            Editar Check List
+          </h3>
+
+          <!-- Info patente/fecha -->
+          <p class="text-sm font-body font-semibold text-text-title mb-1">
+            Estás a punto de editar el check list para:
+          </p>
+          <p class="text-sm font-body text-text-title mb-1"><span class="font-semibold">Patente:</span> {{ selectedPlate }}</p>
+          <p class="text-sm font-body text-text-title mb-6"><span class="font-semibold">Fecha:</span> {{ currentDate }}</p>
+
+          <!-- Motivo -->
+          <div class="mb-5">
+            <label class="mb-2 block text-left text-sm font-bold text-text-title">
+              Motivo de la edición <span class="text-red-600">(Requerido)</span>
+            </label>
+            <textarea
+              v-model="checklistEditReason"
+              placeholder="Por favor, especifique detalladamente por qué es necesario realizar esta edición."
+              rows="4"
+              class="w-full text-sm font-body border border-gray-200 rounded-xl bg-gray-50 px-4 py-3 outline-none focus:border-primary resize-none placeholder-gray-400 transition-colors"
+            />
+          </div>
+
+          <!-- Checkbox responsabilidad -->
+          <label class="flex items-start gap-3 mb-8 cursor-pointer group">
+            <input
+              type="checkbox"
+              v-model="checklistAccepted"
+              class="mt-0.5 w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer flex-shrink-0"
+            />
+            <span class="text-xs font-body text-gray-600 leading-snug group-hover:text-gray-800 transition-colors">
+              He verificado que la información original no estaba completa o contenía errores y asumo la responsabilidad de la edición.
+            </span>
+          </label>
+
+          <!-- Botones -->
+          <div class="flex gap-4 justify-center">
+            <button
+              @click="confirmChecklistModal"
+              :disabled="!checklistEditReason.trim() || !checklistAccepted"
+              class="px-8 py-3 bg-[#9B2335] hover:bg-red-800 text-white font-bold rounded-lg shadow transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Confirmar
+            </button>
+            <button
+              @click="cancelChecklistModal"
+              class="px-8 py-3 bg-[#215179] hover:bg-blue-900 text-white font-bold rounded-lg shadow transition-all duration-200"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
 
     <!-- ═══════════════════════════════════════ -->
     <!-- MODAL PASO 1: ¿Está seguro?             -->
