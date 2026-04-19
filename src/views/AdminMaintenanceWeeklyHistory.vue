@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import JSZip from 'jszip'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
@@ -278,8 +279,47 @@ const loadRecords = async () => {
     isLoading.value = false
   }
 }
-const editRecord = (record) => {
+// ═══════════════════════════════════════════════════════════
+// MODAL EDITAR
+// ═══════════════════════════════════════════════════════════
+const editModal    = ref({ open: false, record: null })
+const editForm     = ref({ status: '' })
+const isSavingEdit = ref(false)
+const editError    = ref('')
+
+const openEditModal = (record) => {
+  editForm.value  = { status: record.status || 'Pendiente' }
+  editModal.value = { open: true, record }
+  editError.value = ''
+}
+
+const closeEditModal = () => {
+  editModal.value = { open: false, record: null }
+  editError.value = ''
+}
+
+const saveEditModal = () => {
+  if (!editModal.value.record) return
+  isSavingEdit.value = true
+
+  try {
+    const id = editModal.value.record.id
+    const idx = allRecords.value.findIndex(r => r.id === id)
+    if (idx !== -1) {
+      allRecords.value[idx] = { ...allRecords.value[idx], status: editForm.value.status }
+    }
+    updateStats()
+    closeEditModal()
+  } catch (err) {
+    editError.value = 'No se pudo guardar el cambio.'
+  } finally {
+    isSavingEdit.value = false
+  }
+}
+
+const editChecklist = (record) => {
   if (!record.truckId || !record.monthKey) return
+  closeEditModal()
   router.push({
     name: 'admin-maintenance-monthly',
     query: {
@@ -519,6 +559,78 @@ const exportRecordPdf = async (record) => {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// EXPORTAR ZIP
+// ═══════════════════════════════════════════════════════════
+const exportZipModal  = ref({ open: false })
+const exportZipForm   = ref({ startMonth: '', endMonth: '' })
+const isExportingZip  = ref(false)
+const exportZipError  = ref('')
+
+const openExportZipModal = () => {
+  exportZipModal.value = { open: true }
+  exportZipForm.value  = { startMonth: '', endMonth: '' }
+  exportZipError.value = ''
+}
+const closeExportZipModal = () => {
+  exportZipModal.value = { open: false }
+  exportZipError.value = ''
+}
+
+const exportZip = async () => {
+  if (!exportZipForm.value.startMonth || !exportZipForm.value.endMonth) {
+    exportZipError.value = 'Debe seleccionar ambos meses.'
+    return
+  }
+  if (exportZipForm.value.startMonth > exportZipForm.value.endMonth) {
+    exportZipError.value = 'El mes "Desde" debe ser anterior o igual a "Hasta".'
+    return
+  }
+
+  isExportingZip.value = true
+  exportZipError.value = ''
+
+  try {
+    const rangeRecords = allRecords.value.filter(
+      (r) => r.monthKey >= exportZipForm.value.startMonth && r.monthKey <= exportZipForm.value.endMonth,
+    )
+
+    if (rangeRecords.length === 0) {
+      exportZipError.value = 'No hay registros en el rango de meses seleccionado.'
+      isExportingZip.value = false
+      return
+    }
+
+    const zip = new JSZip()
+
+    await Promise.all(
+      rangeRecords.map(async (record) => {
+        const blob      = await buildMonthlyChecklistPdfBlob(record)
+        const safePlate = (record.plate    || 'sin_patente').replace(/[^a-zA-Z0-9]/g, '_')
+        const safeMonth = (record.monthKey || '').replace(/[^a-zA-Z0-9]/g, '_')
+        zip.file(`checklist_mensual_${safePlate}_${safeMonth}.pdf`, blob)
+      }),
+    )
+
+    const zipBlob = await zip.generateAsync({ type: 'blob' })
+    const url     = URL.createObjectURL(zipBlob)
+    const link    = document.createElement('a')
+    link.href     = url
+    link.download = `checklists_mensuales_${exportZipForm.value.startMonth}_al_${exportZipForm.value.endMonth}.zip`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+
+    closeExportZipModal()
+  } catch (err) {
+    exportZipError.value = 'Error al generar el ZIP. Intente nuevamente.'
+    console.error('[AdminMaintenanceMonthlyHistory] Error al exportar ZIP:', err)
+  } finally {
+    isExportingZip.value = false
+  }
+}
+
 watch([filterPatente, filterFecha, searchQuery], () => {
   currentPage.value = 1
 })
@@ -550,15 +662,15 @@ onMounted(() => {
           </button>
         </div>
         <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden w-full max-w-7xl">
-            <div class="px-10 pt-10 pb-6 flex flex-col md:flex-row items-start justify-between gap-6">
-    <h1 class="text-3xl font-titles font-extrabold text-slate-900 leading-tight">
+            <div class="px-4 sm:px-6 lg:px-10 pt-6 lg:pt-10 pb-6 flex flex-col lg:flex-row items-start justify-between gap-6">
+    <h1 class="text-2xl md:text-3xl font-titles font-extrabold text-slate-900 leading-tight">
       Historial de mantenimiento<br />vehicular mensual
     </h1>
 
     <!-- KPIs -->
-    <div class="flex flex-col sm:flex-row gap-4 shrink-0">
+    <div class="w-full lg:w-auto flex flex-col sm:flex-row flex-wrap gap-4">
       <!-- Vehículos fuera de servicio -->
-      <div class="rounded-2xl border-2 px-5 py-4 flex flex-col gap-3 min-w-[280px]"
+      <div class="rounded-2xl border-2 px-5 py-4 flex flex-col gap-3 flex-1 min-w-[180px]"
           style="background-color:#FEF2F2; border-color:#FECACA; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
         <div class="flex items-start justify-between gap-4">
           <span class="text-sm font-titles font-bold text-slate-800 leading-tight">Vehículos fuera<br />de servicio</span>
@@ -577,7 +689,7 @@ onMounted(() => {
       </div>
 
       <!-- Incidencias menores -->
-      <div class="rounded-[1.25rem] border border-[#FDBA74] px-6 py-4 flex flex-col gap-2 min-w-[280px]"
+      <div class="rounded-[1.25rem] border border-[#FDBA74] px-6 py-4 flex flex-col gap-2 flex-1 min-w-[180px]"
           style="background-color:#FFF7ED; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
         <div class="flex items-start justify-between gap-2">
           <span class="text-sm font-titles font-bold text-slate-800 leading-tight">Incidencias<br />menores:</span>
@@ -600,7 +712,7 @@ onMounted(() => {
     </div>
   </div>
 
-          <div class="px-10 pb-6 flex flex-col lg:flex-row items-start lg:items-end gap-6 justify-between">
+          <div class="px-4 sm:px-6 lg:px-10 pb-6 flex flex-col lg:flex-row items-start lg:items-end gap-6 justify-between">
             <div class="flex items-start sm:items-end gap-3 flex-wrap">
               <div class="mb-2 text-sm text-slate-500 font-semibold mr-1">Filtrar por:</div>
 
@@ -637,12 +749,18 @@ onMounted(() => {
               </div>
             </div>
 
+            <button @click="openExportZipModal" class="bg-[#C0392B] hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-bold text-xs tracking-wider shadow-md transition-all flex items-center gap-2 uppercase shrink-0">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
+              </svg>
+              Exportar ZIP
+            </button>
             <button @click="router.push('/admin/mantencion-vehicular/mensual')" class="bg-[#1b2e4b] text-white px-5 py-2.5 rounded-lg font-bold text-xs tracking-wider shadow-md hover:bg-opacity-90 transition-all flex items-center gap-2 uppercase shrink-0">
               <span>+</span> NUEVO CHECK LIST
             </button>
           </div>
 
-          <div class="flex-1 min-h-0 overflow-x-auto overflow-y-auto px-10 pt-4">
+          <div class="flex-1 min-h-0 overflow-x-auto overflow-y-auto px-4 sm:px-6 lg:px-10 pt-4">
             <p v-if="loadError" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {{ loadError }}
             </p>
@@ -678,26 +796,28 @@ onMounted(() => {
                     <span v-else-if="record.status === 'Pendiente'" class="inline-block px-5 py-1 rounded-full text-[11px] font-bold bg-[#D95F31] text-white tracking-wide">Pendiente</span>
                   </td>
                   <td class="py-5 px-5 text-center border border-gray-300">
-                    <div v-if="record.hasActions" class="flex flex-wrap items-center justify-center gap-2">
-                      <button type="button" @click="viewRecord(record)" class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-primary transition-colors bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200 shadow-sm">
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                        </svg>
-                        Ver
-                      </button>
+                    <div v-if="record.hasActions" class="flex flex-col items-center gap-2">
+                      <div class="flex items-center gap-2">
+                        <button type="button" @click="viewRecord(record)" class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-primary transition-colors bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200 shadow-sm">
+                          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                          </svg>
+                          Ver
+                        </button>
+                        <button type="button" @click="openEditModal(record)" class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-primary transition-colors bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200 shadow-sm">
+                          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                          </svg>
+                          Editar
+                        </button>
+                      </div>
                       <button type="button" @click="exportRecordPdf(record)" :disabled="isExportingPdf" class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-primary transition-colors bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M6 2h9a2 2 0 012 2v16a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2z"/>
                           <path stroke-linecap="round" stroke-linejoin="round" d="M13 2v6h6"/>
                         </svg>
                         Exportar PDF
-                      </button>
-                      <button type="button" @click="editRecord(record)" class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-primary transition-colors bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200 shadow-sm">
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                        </svg>
-                        Editar
                       </button>
                     </div>
                   </td>
@@ -706,7 +826,7 @@ onMounted(() => {
             </table>
           </div>
 
-          <div class="px-10 py-5 bg-white flex justify-between items-center text-xs font-semibold text-slate-500 mt-auto rounded-b-3xl">
+          <div class="px-4 sm:px-6 lg:px-10 py-5 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-semibold text-slate-500 mt-auto rounded-b-3xl">
             <div class="flex items-center gap-3">
               <span>Filas por páginas</span>
               <div class="relative">
@@ -913,6 +1033,146 @@ onMounted(() => {
         </div>
       </div>
     </Teleport>
+
+  <!-- ═══════════ MODAL EDITAR ═══════════ -->
+  <Teleport to="body">
+    <div v-if="editModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg border border-gray-200 relative">
+
+        <!-- X -->
+        <button @click="closeEditModal"
+                class="absolute top-4 right-4 w-8 h-8 border border-gray-300 rounded flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+
+        <!-- Título -->
+        <div class="bg-[#1b2e4b] px-6 py-5 rounded-t-3xl text-center">
+          <h3 class="text-2xl font-bold text-white">Editar registro</h3>
+        </div>
+
+        <!-- Body -->
+        <div class="px-10 pt-6 pb-10 space-y-7">
+
+          <!-- Mes / Patente -->
+          <div class="grid grid-cols-2 gap-6">
+            <div>
+              <p class="text-sm font-semibold text-slate-700 mb-2">Mes</p>
+              <p class="text-base font-medium text-slate-900">{{ formatMonthLabel(editModal.record?.monthKey) || '—' }}</p>
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-slate-700 mb-2">Patente</p>
+              <p class="text-base font-medium text-slate-900">{{ editModal.record?.plate || '—' }}</p>
+            </div>
+          </div>
+
+          <!-- Estado -->
+          <div>
+            <p class="text-sm font-semibold text-slate-700 mb-3">Estado</p>
+            <div class="flex gap-4">
+              <button
+                @click="editForm.status = 'Revisado'"
+                :class="editForm.status === 'Revisado' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                class="flex-1 py-3 rounded-xl text-sm font-semibold transition-all">
+                Revisado
+              </button>
+              <button
+                @click="editForm.status = 'Pendiente'"
+                :class="editForm.status === 'Pendiente' ? 'bg-[#E85D26] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                class="flex-1 py-3 rounded-xl text-sm font-semibold transition-all">
+                Pendiente
+              </button>
+            </div>
+          </div>
+
+          <!-- Acciones secundarias -->
+          <div class="flex gap-3">
+            <button
+              @click="editChecklist(editModal.record)"
+              class="flex-1 py-2 bg-[#007ACC] hover:bg-[#005fa3] text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide">
+              Editar Check List
+            </button>
+            <button
+              @click="exportRecordPdf(editModal.record); closeEditModal()"
+              :disabled="isExportingPdf"
+              class="flex-1 py-2 bg-[#007ACC] hover:bg-[#005fa3] text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed">
+              Exportar PDF
+            </button>
+          </div>
+
+          <!-- Confirmar / Cancelar -->
+          <div class="flex justify-between">
+            <button @click="saveEditModal" :disabled="isSavingEdit"
+                    class="px-10 py-3 bg-[#C0392B] hover:bg-red-700 text-white text-base font-bold rounded-xl transition-all disabled:opacity-50">
+              {{ isSavingEdit ? 'Guardando…' : 'Confirmar' }}
+            </button>
+            <button @click="closeEditModal"
+                    class="px-10 py-3 bg-[#215179] hover:bg-blue-900 text-white text-base font-bold rounded-xl transition-all">
+              Cancelar
+            </button>
+          </div>
+
+          <!-- Error -->
+          <p v-if="editError" class="text-sm text-red-600 text-center -mt-2">{{ editError }}</p>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- ═══════════ MODAL EXPORTAR ZIP ═══════════ -->
+  <Teleport to="body">
+    <div v-if="exportZipModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md border border-gray-200 relative">
+
+        <button @click="closeExportZipModal"
+                class="absolute top-4 right-4 w-8 h-8 border border-gray-300 rounded flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+
+        <div class="bg-[#1b2e4b] px-6 py-5 rounded-t-3xl text-center">
+          <h3 class="text-xl font-bold text-white">Exportar .ZIP</h3>
+        </div>
+
+        <div class="px-10 pt-6 pb-8 space-y-6">
+          <p class="text-sm text-slate-500 text-center">Seleccione el rango de meses a exportar.</p>
+
+          <div class="grid grid-cols-2 gap-5">
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Desde</label>
+              <input type="month" v-model="exportZipForm.startMonth"
+                     class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Hasta</label>
+              <input type="month" v-model="exportZipForm.endMonth"
+                     class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+            </div>
+          </div>
+
+          <p v-if="exportZipError" class="text-sm text-red-600 text-center">{{ exportZipError }}</p>
+
+          <div class="flex justify-between pt-1">
+            <button @click="exportZip" :disabled="isExportingZip"
+                    class="px-10 py-3 bg-[#C0392B] hover:bg-red-700 text-white text-base font-bold rounded-xl transition-all disabled:opacity-50 flex items-center gap-2">
+              <svg v-if="isExportingZip" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+              {{ isExportingZip ? 'Generando…' : 'Confirmar' }}
+            </button>
+            <button @click="closeExportZipModal" :disabled="isExportingZip"
+                    class="px-10 py-3 bg-[#215179] hover:bg-blue-900 text-white text-base font-bold rounded-xl transition-all disabled:opacity-50">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
   </div>
 </template>
 

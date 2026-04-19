@@ -14,7 +14,7 @@ const auth = useAuthStore()
 const notifications = useNotificationStore()
 
 // Páginas donde NO se muestra Navbar/Footer/FAB
-const hiddenPaths = ['/clientes', '/registro', '/verificar-correo']
+const hiddenPaths = ['/clientes', '/registro', '/verificar-correo', '/restablecer-contrasena']
 const isPublicPage = computed(() =>
   !route.meta.requiresAuth && !hiddenPaths.includes(route.path)
 )

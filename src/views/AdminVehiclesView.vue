@@ -266,7 +266,7 @@ onMounted(() => {
             <div class="flex items-center justify-center p-4 sm:p-8 relative min-h-[4rem] sm:min-h-[5rem]">
                <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center">Administración de Vehículos</h1>
                
-               <div class="absolute right-8 top-8">
+               <div class="absolute right-4 sm:right-6 lg:right-8 top-4 sm:top-6 lg:top-8">
                  <button v-if="!isFilterOpen"
                          @click="isFilterOpen = true"
                          class="p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors outline-none focus:ring-2 focus:ring-primary border border-gray-300"

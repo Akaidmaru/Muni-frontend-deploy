@@ -18,16 +18,11 @@ const note = ref('')
 const selectedStatus = ref('')
 const isUpdating = ref(false)
 const updateError = ref('')
-
-const timeline = computed(() => report.value?.timeline || [])
+const isImageModalOpen = ref(false)
 
 const hasPendingChanges = computed(() => {
   if (!report.value) return false
-
-  const hasStatusChange = selectedStatus.value && selectedStatus.value !== report.value.status
-  const hasNote = !!note.value.trim()
-
-  return hasStatusChange || hasNote
+  return selectedStatus.value && selectedStatus.value !== report.value.status
 })
 
 const loadReport = async () => {
@@ -51,16 +46,12 @@ const updateStatus = async () => {
   updateError.value = ''
 
   try {
-    const payload = {
+    const { data } = await api.patch(`/reports/${report.value.id}/status`, {
       status: selectedStatus.value,
-      note: note.value.trim() || undefined,
-    }
-
-    const { data } = await api.patch(`/reports/${report.value.id}/respond`, payload)
+    })
 
     report.value.status = data.status
     report.value.updatedAt = data.updatedAt
-    report.value.timeline = [data.timelineEntry, ...(report.value.timeline || [])]
     note.value = ''
   } catch (err) {
     const msg = err?.response?.data?.message
@@ -90,30 +81,6 @@ const getStatusLabel = (status) => {
     RESOLVED: 'Resuelto'
   }
   return labels[status] || status
-}
-
-const getEventLabel = (eventType) => {
-  const labels = {
-    CREATED: 'Reporte creado',
-    STATUS_CHANGED: 'Estado actualizado',
-    NOTE_ADDED: 'Nota agregada',
-    NOTE_AND_STATUS_CHANGED: 'Nota y estado actualizados',
-  }
-  return labels[eventType] || eventType
-}
-
-const formatDateTime = (iso) => {
-  if (!iso) return '-'
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return '-'
-
-  return d.toLocaleString('es-CL', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 onMounted(loadReport)
@@ -211,7 +178,7 @@ onMounted(loadReport)
                       <img :src="report.screenshotUrl" alt="Adjunto" class="w-full h-full object-cover">
                     </div>
                     <span class="text-[10px] text-gray-500 mb-1">Evidencia.png</span>
-                    <button class="text-[10px] font-bold bg-[#E5E7EB] px-3 py-1 rounded-full hover:bg-gray-300 transition-colors">Ampliar</button>
+                    <button @click="isImageModalOpen = true" class="text-[10px] font-bold bg-[#E5E7EB] px-3 py-1 rounded-full hover:bg-gray-300 transition-colors">Ampliar</button>
                   </div>
                   <div v-else class="flex items-center justify-center w-full text-gray-400 text-sm">
                     No hay archivos adjuntos
@@ -257,50 +224,22 @@ onMounted(loadReport)
                   class="bg-[#1B2A4A] hover:bg-[#253860] text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span v-if="isUpdating">Procesando...</span>
-                  <span v-else>Responder al usuario</span>
+                  <span v-else>Notificar al usuario</span>
                 </button>
               </div>
 
-              <div class="mt-8 border-t border-[#E5E7EB] pt-6">
-                <h3 class="text-sm font-bold text-[#111827] mb-3">Historial de trazabilidad</h3>
-
-                <div v-if="timeline.length === 0" class="text-sm text-gray-500">
-                  Aun no existen registros en el historial.
-                </div>
-
-                <div v-else class="space-y-3 max-h-72 overflow-y-auto pr-2">
-                  <article
-                    v-for="entry in timeline"
-                    :key="entry.id"
-                    class="border border-[#E5E7EB] rounded-xl p-3"
-                  >
-                    <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
-                      <p class="text-sm font-semibold text-[#111827]">
-                        {{ getEventLabel(entry.eventType) }}
-                      </p>
-                      <p class="text-xs text-gray-500">
-                        {{ formatDateTime(entry.createdAt) }}
-                      </p>
-                    </div>
-
-                    <p class="text-xs text-gray-600 mb-1">
-                      Por: {{ entry.actor?.name || entry.actor?.email || 'Usuario' }}
-                    </p>
-
-                    <p class="text-xs text-gray-600 mb-2">
-                      Estado: {{ getStatusLabel(entry.previousStatus) }} -> {{ getStatusLabel(entry.newStatus) }}
-                    </p>
-
-                    <p v-if="entry.note" class="text-sm text-gray-700 whitespace-pre-wrap">
-                      {{ entry.note }}
-                    </p>
-                  </article>
-                </div>
-              </div>
             </div>
 
             <!-- Footer Buttons -->
-            <div class="flex justify-end mb-4">
+            <div class="flex items-center justify-between mb-4">
+              <button
+                @click="updateStatus"
+                :disabled="isUpdating"
+                class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span v-if="isUpdating">Guardando...</span>
+                <span v-else>Guardar</span>
+              </button>
               <button @click="goBack" class="px-6 py-2 border border-[#E5E7EB] rounded-xl text-sm font-bold text-[#4B5563] hover:bg-gray-50 transition-colors">
                 Cerrar Reporte
               </button>
@@ -320,6 +259,28 @@ onMounted(loadReport)
         </div>
       </main>
     </div>
+
+    <!-- Image modal -->
+    <Teleport to="body">
+      <div
+        v-if="isImageModalOpen"
+        @click="isImageModalOpen = false"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+      >
+        <button
+          @click="isImageModalOpen = false"
+          class="absolute top-4 right-4 text-white bg-black/50 hover:bg-black/70 rounded-full w-9 h-9 flex items-center justify-center transition-colors"
+        >
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <img
+          :src="report.screenshotUrl"
+          alt="Evidencia ampliada"
+          @click.stop
+          class="max-w-full max-h-full rounded-xl shadow-2xl object-contain"
+        >
+      </div>
+    </Teleport>
   </div>
 </template>
 

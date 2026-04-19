@@ -871,15 +871,15 @@ const exportChecklistPDF = async (record) => {
         <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden w-full">
 
           <!-- Título -->
-          <div class="px-10 pt-8 pb-8 flex flex-col md:flex-row items-start justify-between gap-6">
-  <h1 class="text-3xl font-titles font-extrabold text-slate-900 leading-tight shrink-0">
+          <div class="px-4 sm:px-6 lg:px-10 pt-6 pb-6 flex flex-col lg:flex-row items-start justify-between gap-6">
+  <h1 class="text-2xl md:text-3xl font-titles font-extrabold text-slate-900 leading-tight shrink-0">
     Historial de mantenimiento<br />vehicular diario
   </h1>
 
-  <div class="flex flex-col sm:flex-row gap-5">
+  <div class="w-full lg:w-auto flex flex-col sm:flex-row flex-wrap gap-4">
 
     <!-- Incidencias menores -->
-    <div class="rounded-2xl border-2 px-5 py-4 flex flex-col gap-2 min-w-[280px]"
+    <div class="rounded-2xl border-2 px-5 py-4 flex flex-col gap-2 flex-1 min-w-[180px]"
          style="background-color:#FFF7ED; border-color:#FDBA74; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
       <div class="flex items-start justify-between gap-4">
         <span class="text-sm font-titles font-bold text-slate-800 leading-tight">Incidencias<br />menores:</span>
@@ -898,7 +898,7 @@ const exportChecklistPDF = async (record) => {
     </div>
 
     <!-- Registros del día -->
-    <div class="rounded-2xl border-2 px-5 py-4 flex flex-col gap-2 min-w-[280px]"
+    <div class="rounded-2xl border-2 px-5 py-4 flex flex-col gap-2 flex-1 min-w-[180px]"
          style="background-color:#F0FDF4; border-color:#BBF7D0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
       <div class="flex items-start justify-between gap-4">
         <span class="text-sm font-titles font-bold text-slate-800 leading-tight">Registros<br />del día</span>
@@ -918,7 +918,7 @@ const exportChecklistPDF = async (record) => {
     </div>
 
     <!-- Registros pendientes -->
-    <div class="rounded-2xl border-2 px-5 py-4 flex flex-col gap-2 min-w-[280px]"
+    <div class="rounded-2xl border-2 px-5 py-4 flex flex-col gap-2 flex-1 min-w-[180px]"
          style="background-color:#FEFCE8; border-color:#FEF08A; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
       <div class="flex items-start justify-between gap-4">
         <span class="text-sm font-titles font-bold text-slate-800 leading-tight">Registros<br />pendientes</span>
@@ -939,12 +939,12 @@ const exportChecklistPDF = async (record) => {
 </div>
 
           <!-- Error de carga -->
-          <div v-if="recordsError" class="mx-10 mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
+          <div v-if="recordsError" class="mx-4 sm:mx-6 lg:mx-10 mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
             {{ recordsError }}
           </div>
 
           <!-- Barra de filtros -->
-          <div class="px-10 pb-4 flex flex-wrap items-center gap-3">
+          <div class="px-4 sm:px-6 lg:px-10 pb-4 flex flex-wrap items-center gap-3">
             <span class="text-sm font-medium text-slate-500 shrink-0">Filtrar por:</span>
 
             <!-- Patente -->
@@ -986,7 +986,7 @@ const exportChecklistPDF = async (record) => {
           <!-- Tabla -->
           <div
             ref="tableScrollRef"
-            class="flex-1 min-h-0 overflow-x-auto overflow-y-auto px-10 cursor-grab active:cursor-grabbing"
+            class="flex-1 min-h-0 overflow-x-auto overflow-y-auto px-4 sm:px-6 lg:px-10 cursor-grab active:cursor-grabbing"
             @mousedown="onTableMouseDown"
           >
             <table class="w-full text-sm" style="border-collapse: collapse;">
@@ -1066,7 +1066,7 @@ const exportChecklistPDF = async (record) => {
           </div>
 
           <!-- Footer paginación -->
-          <div class="px-10 py-4 bg-white flex justify-between items-center text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
+          <div class="px-4 sm:px-6 lg:px-10 py-4 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
             <div class="flex items-center gap-2">
               <span>Filas por páginas</span>
               <div class="relative">

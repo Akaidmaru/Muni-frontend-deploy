@@ -59,6 +59,11 @@ const router = createRouter({
             component: VerifyEmailView
         },
         {
+            path: '/restablecer-contrasena',
+            name: 'reset-password',
+            component: () => import('../views/ResetPasswordView.vue')
+        },
+        {
             path: '/contacto',
             name: 'contact',
             component: ContactView

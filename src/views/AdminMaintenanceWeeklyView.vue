@@ -398,7 +398,24 @@ onMounted(async () => {
         </div>
         <div class="max-w-6xl mx-auto bg-white rounded-2xl sm:rounded-3xl border border-slate-300 shadow-sm p-4 sm:p-10 overflow-x-hidden">
 
-          <h1 class="text-2xl font-bold text-center text-slate-900 mb-8 uppercase tracking-wide">{{ tituloMesPrincipal }}</h1>
+          <h1 class="text-2xl font-bold text-center text-slate-900 mb-4 uppercase tracking-wide">{{ tituloMesPrincipal }}</h1>
+
+          <!-- Recordatorio mobile -->
+          <div class="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:hidden">
+            <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-base font-bold text-amber-700 shadow-sm">i</span>
+            <div class="flex min-w-0 flex-1 items-center justify-between gap-3">
+              <div class="leading-snug">
+                Las tablas tienen más columnas. Desliza hacia la derecha para ver los
+                <span class="font-semibold">sábados/domingos</span> y la
+                <span class="font-semibold">observación</span>.
+              </div>
+              <div class="shrink-0 text-amber-700">
+                <svg class="h-6 w-6 animate-bounce-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h12"/><path d="m13 6 6 6-6 6"/>
+                </svg>
+              </div>
+            </div>
+          </div>
 
           <section class="flex flex-col gap-10 mb-12">
             <div>
@@ -589,4 +606,14 @@ textarea:focus, input:focus { background-color: rgba(248, 250, 252, 1); }
 main::-webkit-scrollbar { width: 6px; }
 main::-webkit-scrollbar-track { background: transparent; }
 main::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+</style>
+
+<style>
+@keyframes bounce-x {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(6px); }
+}
+.animate-bounce-x {
+  animation: bounce-x 1.2s ease-in-out infinite;
+}
 </style>
