@@ -16,6 +16,13 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.{js,mjs,jsx,ts,tsx,vue}"],
+  "include": [
+    "src/**/*.js",
+    "src/**/*.mjs",
+    "src/**/*.jsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue"
+  ],
   "exclude": ["node_modules", "dist", "build"]
 }

@@ -64,6 +64,28 @@ export const useAuthStore = defineStore('auth', () => {
         lastSessionSyncAt.value = Date.now()
     }
 
+    function buildErrorDetails(error) {
+        const config = error?.config || {}
+        const baseURL = config.baseURL || getApiBaseUrl() || ''
+        const endpoint = config.url || ''
+        const method = (config.method || 'get').toUpperCase()
+        const fullUrl = endpoint.startsWith('http')
+            ? endpoint
+            : `${baseURL}${endpoint}`
+
+        return {
+            method,
+            fullUrl,
+            baseURL,
+            endpoint,
+            code: error?.code,
+            status: error?.response?.status,
+            backendMessage: error?.response?.data?.message,
+            responseData: error?.response?.data,
+            rawMessage: error?.message,
+        }
+    }
+
     // ── Actions ────────────────────────────────────────────────────────────
 
     /**
@@ -159,6 +181,9 @@ export const useAuthStore = defineStore('auth', () => {
             setSession(jwt, backendUser, normalizedRole)
             return { success: true }
         } catch (error) {
+            const details = buildErrorDetails(error)
+            console.error('[Auth] Login request failed', details)
+
             const backendMessage = error.response?.data?.message
             const isNetworkError =
                 error.code === 'ERR_NETWORK' || !error.response
@@ -167,7 +192,7 @@ export const useAuthStore = defineStore('auth', () => {
                 ? backendMessage.join(', ')
                 : backendMessage ||
                 (isNetworkError
-                    ? `No se pudo conectar con el servidor. Verifica que el backend este corriendo y accesible en ${apiBaseUrl}.`
+                    ? `No se pudo conectar con el servidor. URL usada: ${details.fullUrl || apiBaseUrl}. Verifica que el backend este corriendo y accesible.`
                     : 'Credenciales incorrectas')
             return { success: false, message }
         }

@@ -20,7 +20,6 @@ import AdminReportsView from '../views/AdminReportsView.vue'
 import AdminMaintenanceView from '../views/AdminMaintenanceView.vue'
 import AdminMaintenanceDailyView from '../views/AdminMaintenanceDailyView.vue'
 import AdminMaintenanceWeeklyView from '../views/AdminMaintenanceWeeklyView.vue'
-import AdminAiAssistantView from '../views/AdminAiAssistantView.vue'
 import AdminMaintenanceWeeklyHistory from '../views/AdminMaintenanceWeeklyHistory.vue'
 import AdminUserRoleSetupView from '../views/AdminUserRoleSetupView.vue'
 import AccessDeniedView from '../views/AccessDeniedView.vue'
@@ -206,13 +205,6 @@ const router = createRouter({
             component: AdminDestinyView,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
-        {
-            path: '/admin/asistente-ia',
-            name: 'admin-ai-assistant',
-            component: AdminAiAssistantView,
-            meta: { requiresAuth: true, roles: ['ADMIN'] }
-        },
-
         // ── Rutas del paciente ────────────────────────────────
         {
             path: '/dashboard-paciente',

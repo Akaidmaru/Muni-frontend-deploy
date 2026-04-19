@@ -1,37 +1,14 @@
 // src/services/axios.js
 import axios from 'axios';
 
-const RUNTIME_API_URL_KEY = 'runtime_api_base_url';
-
 const normalizeBaseUrl = (url) => {
   if (!url || typeof url !== 'string') return '';
   return url.trim().replace(/\/+$/, '');
 };
 
-const getRuntimeApiBaseUrl = () => {
-  try {
-    return normalizeBaseUrl(localStorage.getItem(RUNTIME_API_URL_KEY));
-  } catch {
-    return '';
-  }
-};
-
 const getEnvApiBaseUrl = () => normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
-export const getApiBaseUrl = () => getRuntimeApiBaseUrl() || getEnvApiBaseUrl();
-
-export const setRuntimeApiBaseUrl = (url) => {
-  const normalized = normalizeBaseUrl(url);
-  if (!normalized) {
-    localStorage.removeItem(RUNTIME_API_URL_KEY);
-    return;
-  }
-  localStorage.setItem(RUNTIME_API_URL_KEY, normalized);
-};
-
-export const clearRuntimeApiBaseUrl = () => {
-  localStorage.removeItem(RUNTIME_API_URL_KEY);
-};
+export const getApiBaseUrl = () => getEnvApiBaseUrl();
 
 const api = axios.create({
   baseURL: getApiBaseUrl(),
@@ -51,5 +28,29 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const config = error?.config || {};
+    const baseURL = config.baseURL || getApiBaseUrl() || '';
+    const endpoint = config.url || '';
+    const method = (config.method || 'get').toUpperCase();
+    const fullUrl = endpoint.startsWith('http') ? endpoint : `${baseURL}${endpoint}`;
+
+    console.error('[API] Request failed', {
+      method,
+      fullUrl,
+      baseURL,
+      endpoint,
+      code: error?.code,
+      status: error?.response?.status,
+      responseData: error?.response?.data,
+      message: error?.message,
+    });
+
+    return Promise.reject(error);
+  }
+);
 
 export default api;
