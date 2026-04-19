@@ -17,7 +17,7 @@ const clients = [
 <template>
   <div class="min-h-screen bg-background">
     <!-- Hero Section with Truck Background -->
-    <div class="relative h-[500px] w-full mb-12">
+    <div class="relative h-[280px] sm:h-[380px] md:h-[500px] w-full mb-12">
        <img :src="heroBgImg" alt="Fondo Camión" class="w-full h-full object-cover" />
        
        <!-- Overlay Card -->
@@ -70,9 +70,9 @@ const clients = [
            <h2 class="text-h1 font-titles font-semibold text-text-title mb-2">Nuestros clientes</h2>
            <p class="text-text-secondary font-body text-body mb-10">Empresas que confían en nuestros servicios</p>
            
-           <div class="flex flex-wrap justify-center items-center gap-12grayscale hover:grayscale-0 transition-all duration-300">
+           <div class="flex flex-wrap justify-center items-center gap-6 sm:gap-10 md:gap-12">
                <!-- Client Logo Card -->
-               <div class="bg-white p-8 rounded-xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-center h-48 w-96 max-w-full">
+               <div class="bg-white p-6 sm:p-8 rounded-xl shadow-sm hover:shadow-md transition-shadow flex items-center justify-center h-32 sm:h-40 md:h-48 w-full sm:w-72 md:w-96 max-w-full">
                   <img :src="clients[0].logo" alt="Municipalidad de Iquique" class="max-h-32 object-contain" />
                </div>
            </div>

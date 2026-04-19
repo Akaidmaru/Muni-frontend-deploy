@@ -1,9 +1,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import api from '@/services/axios'
+
+const router = useRouter()
 
 const filterDesde = ref('')
 const filterHasta = ref('')
@@ -36,26 +39,34 @@ const formEdit = ref({
   insuranceExpiresAt: ''
 })
 
-const getDocumentStatus = (statusLabel, expiryDate) => {
-  if (statusLabel === 'No tiene' || !statusLabel) return { label: 'No tiene', isVigente: false, text: 'N/A' }
-  
-  let formattedDate = '--/--/----'
-  if (expiryDate) {
-    const date = new Date(expiryDate)
-    if (!Number.isNaN(date.getTime())) {
-      // Adding timezone offset so local users see correct date
-      const adjustedDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000)
-      const day = String(adjustedDate.getDate()).padStart(2, '0')
-      const month = String(adjustedDate.getMonth() + 1).padStart(2, '0')
-      const year = adjustedDate.getFullYear()
-      formattedDate = `${day}/${month}/${year}`
-    }
+const getDocumentStatus = (maybeStatusOrDate, maybeExpiryDate) => {
+  const expiryDate = maybeExpiryDate ?? maybeStatusOrDate
+  if (!expiryDate) {
+    return { label: 'No tiene', isVigente: false, text: 'N/A' }
   }
 
-  if (statusLabel === 'Vigente') {
-    return { label: 'Vigente', isVigente: true, text: formattedDate }
-  } else {
-    return { label: 'Vencido', isVigente: false, text: formattedDate }
+  const date = new Date(expiryDate)
+  if (Number.isNaN(date.getTime())) {
+    return { label: 'No tiene', isVigente: false, text: 'N/A' }
+  }
+
+  // Ajustar para mostrar correctamente la fecha local en documentos @db.Date
+  const adjustedDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000)
+  const day = String(adjustedDate.getDate()).padStart(2, '0')
+  const month = String(adjustedDate.getMonth() + 1).padStart(2, '0')
+  const year = adjustedDate.getFullYear()
+  const formattedDate = `${day}/${month}/${year}`
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const expiryOnly = new Date(adjustedDate)
+  expiryOnly.setHours(0, 0, 0, 0)
+
+  const isVigente = expiryOnly >= today
+  return {
+    label: isVigente ? 'Vigente' : 'Vencido',
+    isVigente,
+    text: formattedDate,
   }
 }
 
@@ -152,15 +163,20 @@ const formatForInput = (dateStr) => {
 }
 
 const editVehicle = (vehicle) => {
+  const inferStatusFromDate = (dateStr) => {
+    const doc = getDocumentStatus(dateStr)
+    return doc.label
+  }
+
   vehicleToEdit.value = vehicle
   formEdit.value = {
-    circulationPermitStatus: vehicle.circulationPermitStatus || 'No tiene',
+    circulationPermitStatus: inferStatusFromDate(vehicle.circulationPermitExpiresAt),
     circulationPermitExpiresAt: formatForInput(vehicle.circulationPermitExpiresAt),
-    technicalReviewStatus: vehicle.technicalReviewStatus || 'No tiene',
+    technicalReviewStatus: inferStatusFromDate(vehicle.technicalReviewExpiresAt),
     technicalReviewExpiresAt: formatForInput(vehicle.technicalReviewExpiresAt),
-    emissionsStatus: vehicle.emissionsStatus || 'No tiene',
+    emissionsStatus: inferStatusFromDate(vehicle.emissionsExpiresAt),
     emissionsExpiresAt: formatForInput(vehicle.emissionsExpiresAt),
-    insuranceStatus: vehicle.insuranceStatus || 'No tiene',
+    insuranceStatus: inferStatusFromDate(vehicle.insuranceExpiresAt),
     insuranceExpiresAt: formatForInput(vehicle.insuranceExpiresAt)
   }
   isEditModalOpen.value = true
@@ -176,27 +192,31 @@ const saveEdit = async () => {
   isLoading.value = true
   try {
     const payload = {}
-    
-    const mapDoc = (statusStr, dateStr) => {
-       if (statusStr === 'No tiene') return { status: 'No tiene', date: null }
-       return { status: statusStr, date: dateStr ? new Date(`${dateStr}T00:00:00`).toISOString() : null }
+
+    const mapDocDate = (statusStr, dateStr) => {
+      if (statusStr === 'No tiene' || !dateStr) return null
+      return new Date(`${dateStr}T00:00:00`).toISOString()
     }
-    
-    const cp = mapDoc(formEdit.value.circulationPermitStatus, formEdit.value.circulationPermitExpiresAt)
-    payload.circulationPermitStatus = cp.status
-    payload.circulationPermitExpiresAt = cp.date
 
-    const tr = mapDoc(formEdit.value.technicalReviewStatus, formEdit.value.technicalReviewExpiresAt)
-    payload.technicalReviewStatus = tr.status
-    payload.technicalReviewExpiresAt = tr.date
+    payload.circulationPermitExpiresAt = mapDocDate(
+      formEdit.value.circulationPermitStatus,
+      formEdit.value.circulationPermitExpiresAt,
+    )
 
-    const em = mapDoc(formEdit.value.emissionsStatus, formEdit.value.emissionsExpiresAt)
-    payload.emissionsStatus = em.status
-    payload.emissionsExpiresAt = em.date
+    payload.technicalReviewExpiresAt = mapDocDate(
+      formEdit.value.technicalReviewStatus,
+      formEdit.value.technicalReviewExpiresAt,
+    )
 
-    const ins = mapDoc(formEdit.value.insuranceStatus, formEdit.value.insuranceExpiresAt)
-    payload.insuranceStatus = ins.status
-    payload.insuranceExpiresAt = ins.date
+    payload.emissionsExpiresAt = mapDocDate(
+      formEdit.value.emissionsStatus,
+      formEdit.value.emissionsExpiresAt,
+    )
+
+    payload.insuranceExpiresAt = mapDocDate(
+      formEdit.value.insuranceStatus,
+      formEdit.value.insuranceExpiresAt,
+    )
 
     await api.patch(`/trucks/${vehicleToEdit.value.id}`, payload)
     await loadVehicles()
@@ -229,18 +249,24 @@ onMounted(() => {
     <div class="flex flex-1 overflow-hidden min-w-0">
       <DashboardSidebar />
 
-      <main class="flex-1 pt-12 pb-10 px-6 lg:px-8 overflow-hidden flex flex-col min-w-0">
+      <main class="flex-1 pt-4 pb-10 px-3 sm:px-6 lg:px-8 overflow-hidden flex flex-col min-w-0">
+        <div class="mb-3 pl-10 sm:pl-12 shrink-0">
+          <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Volver
+          </button>
+        </div>
         <div class="flex gap-6 w-full h-full min-h-0 min-w-0">
-          
+
           <div :class="[
             'bg-white rounded-[2rem] border-2 border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative min-w-0',
-            isFilterOpen ? 'max-w-[calc(100%-23rem)]' : 'w-full'
+            isFilterOpen ? 'sm:max-w-[calc(100%-23rem)]' : 'w-full'
           ]">
-            
-            <div class="flex items-center justify-center p-8 relative min-h-[5rem]">
-               <h1 class="text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center">Administración de Vehículos</h1>
+
+            <div class="flex items-center justify-center p-4 sm:p-8 relative min-h-[4rem] sm:min-h-[5rem]">
+               <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center">Administración de Vehículos</h1>
                
-               <div class="absolute right-8 top-8">
+               <div class="absolute right-4 sm:right-6 lg:right-8 top-4 sm:top-6 lg:top-8">
                  <button v-if="!isFilterOpen"
                          @click="isFilterOpen = true"
                          class="p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors outline-none focus:ring-2 focus:ring-primary border border-gray-300"
@@ -255,7 +281,7 @@ onMounted(() => {
                </div>
             </div>
 
-            <div class="flex-1 w-full overflow-x-auto overflow-y-auto px-10 relative pb-6 min-w-0 custom-scrollbar">
+            <div class="flex-1 w-full overflow-x-auto overflow-y-auto px-3 sm:px-6 md:px-10 relative pb-6 min-w-0 custom-scrollbar">
               <table class="w-full text-sm border-collapse min-w-[1000px]">
                 <thead class="bg-white sticky top-0 z-10 shadow-sm border-b border-gray-100">
                   <tr>
@@ -302,7 +328,7 @@ onMounted(() => {
                           <span v-else class="text-xs text-gray-400">N/A</span>
                         </div>
                         <span v-if="vehicle.users && vehicle.users.length > 0" class="text-[10px] font-semibold text-gray-400 mt-0.5">
-                          {{ vehicle.users.filter(u => u.user?.status === 'ACTIVE').length }} Activos
+                          {{ vehicle.users.length }} Conductor{{ vehicle.users.length === 1 ? '' : 'es' }}
                         </span>
                       </div>
                     </td>
@@ -381,7 +407,7 @@ onMounted(() => {
               </table>
             </div>
 
-            <div class="px-10 py-5 bg-white flex justify-between items-center text-xs font-semibold text-slate-500 border-t border-gray-100 mt-auto rounded-b-3xl">
+            <div class="px-3 sm:px-6 md:px-10 py-4 sm:py-5 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-semibold text-slate-500 border-t border-gray-100 mt-auto rounded-b-3xl">
               <div class="flex items-center gap-3">
                 <span>Filas por páginas</span>
                 <div class="relative">
@@ -405,8 +431,11 @@ onMounted(() => {
             </div>
           </div>
 
+          <!-- Backdrop móvil -->
+          <div v-if="isFilterOpen" class="fixed inset-0 bg-black/30 z-40 sm:hidden" @click="isFilterOpen = false" />
+
           <Transition name="slide">
-            <div v-show="isFilterOpen" class="w-[22rem] bg-[#DADBDB] rounded-[2rem] border border-gray-300/50 shadow-sm flex flex-col p-6 shrink-0 z-20 h-full overflow-y-auto relative">
+            <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[140px] z-50 sm:static sm:z-20 sm:w-[22rem] sm:h-full bg-[#DADBDB] sm:rounded-[2rem] rounded-t-[2rem] border border-gray-300/50 shadow-sm flex flex-col p-6 sm:shrink-0 overflow-y-auto relative">
               <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent">
                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                    <line x1="8" y1="5" x2="8" y2="19"></line>
@@ -598,10 +627,10 @@ onMounted(() => {
                 <div class="absolute right-0 top-0 h-full w-1" :class="getDocumentStatus(vehicleToView?.circulationPermitStatus, vehicleToView?.circulationPermitExpiresAt).label === 'No tiene' ? 'bg-gray-400' : getDocumentStatus(vehicleToView?.circulationPermitStatus, vehicleToView?.circulationPermitExpiresAt).isVigente ? 'bg-[#3b8e53]' : 'bg-[#A61919]'"></div>
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Permiso de circulación</label>
                 <div class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  {{ vehicleToView?.circulationPermitStatus || 'No tiene' }}
+                  {{ getDocumentStatus(vehicleToView?.circulationPermitExpiresAt).label }}
                 </div>
-                <div v-if="vehicleToView?.circulationPermitStatus !== 'No tiene'" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  Vence: {{ getDocumentStatus(vehicleToView?.circulationPermitStatus, vehicleToView?.circulationPermitExpiresAt).text }}
+                <div v-if="vehicleToView?.circulationPermitExpiresAt" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
+                  Vence: {{ getDocumentStatus(vehicleToView?.circulationPermitExpiresAt).text }}
                 </div>
               </div>
 
@@ -609,10 +638,10 @@ onMounted(() => {
                 <div class="absolute right-0 top-0 h-full w-1" :class="getDocumentStatus(vehicleToView?.technicalReviewStatus, vehicleToView?.technicalReviewExpiresAt).label === 'No tiene' ? 'bg-gray-400' : getDocumentStatus(vehicleToView?.technicalReviewStatus, vehicleToView?.technicalReviewExpiresAt).isVigente ? 'bg-[#3b8e53]' : 'bg-[#A61919]'"></div>
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Revisión técnica</label>
                 <div class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  {{ vehicleToView?.technicalReviewStatus || 'No tiene' }}
+                  {{ getDocumentStatus(vehicleToView?.technicalReviewExpiresAt).label }}
                 </div>
-                <div v-if="vehicleToView?.technicalReviewStatus !== 'No tiene'" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  Vence: {{ getDocumentStatus(vehicleToView?.technicalReviewStatus, vehicleToView?.technicalReviewExpiresAt).text }}
+                <div v-if="vehicleToView?.technicalReviewExpiresAt" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
+                  Vence: {{ getDocumentStatus(vehicleToView?.technicalReviewExpiresAt).text }}
                 </div>
               </div>
 
@@ -620,10 +649,10 @@ onMounted(() => {
                 <div class="absolute right-0 top-0 h-full w-1" :class="getDocumentStatus(vehicleToView?.emissionsStatus, vehicleToView?.emissionsExpiresAt).label === 'No tiene' ? 'bg-gray-400' : getDocumentStatus(vehicleToView?.emissionsStatus, vehicleToView?.emissionsExpiresAt).isVigente ? 'bg-[#3b8e53]' : 'bg-[#A61919]'"></div>
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Emisión contaminante</label>
                 <div class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  {{ vehicleToView?.emissionsStatus || 'No tiene' }}
+                  {{ getDocumentStatus(vehicleToView?.emissionsExpiresAt).label }}
                 </div>
-                <div v-if="vehicleToView?.emissionsStatus !== 'No tiene'" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  Vence: {{ getDocumentStatus(vehicleToView?.emissionsStatus, vehicleToView?.emissionsExpiresAt).text }}
+                <div v-if="vehicleToView?.emissionsExpiresAt" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
+                  Vence: {{ getDocumentStatus(vehicleToView?.emissionsExpiresAt).text }}
                 </div>
               </div>
 
@@ -631,10 +660,10 @@ onMounted(() => {
                 <div class="absolute right-0 top-0 h-full w-1" :class="getDocumentStatus(vehicleToView?.insuranceStatus, vehicleToView?.insuranceExpiresAt).label === 'No tiene' ? 'bg-gray-400' : getDocumentStatus(vehicleToView?.insuranceStatus, vehicleToView?.insuranceExpiresAt).isVigente ? 'bg-[#3b8e53]' : 'bg-[#A61919]'"></div>
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Seguro obligatorio</label>
                 <div class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  {{ vehicleToView?.insuranceStatus || 'No tiene' }}
+                  {{ getDocumentStatus(vehicleToView?.insuranceExpiresAt).label }}
                 </div>
-                <div v-if="vehicleToView?.insuranceStatus !== 'No tiene'" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  Vence: {{ getDocumentStatus(vehicleToView?.insuranceStatus, vehicleToView?.insuranceExpiresAt).text }}
+                <div v-if="vehicleToView?.insuranceExpiresAt" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
+                  Vence: {{ getDocumentStatus(vehicleToView?.insuranceExpiresAt).text }}
                 </div>
               </div>
 

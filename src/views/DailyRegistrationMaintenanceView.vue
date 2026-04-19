@@ -257,18 +257,30 @@ const createDefaultMaintenanceForm = (mileage = "") => ({
 });
 
 const formatDisplayDate = (dateValue) => {
+  if (!dateValue) return currentDate.value;
+
+  // Trata la fecha como calendario (YYYY-MM-DD) para evitar desfase por zona horaria.
+  const normalized = String(dateValue).slice(0, 10);
+  const parts = normalized.split("-");
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    if (year && month && day) {
+      return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
+    }
+  }
+
   const date = new Date(dateValue);
   if (Number.isNaN(date.getTime())) return currentDate.value;
 
-  return `${String(date.getDate()).padStart(2, "0")}/${String(
-    date.getMonth() + 1,
-  ).padStart(2, "0")}/${date.getFullYear()}`;
+  return `${String(date.getUTCDate()).padStart(2, "0")}/${String(
+    date.getUTCMonth() + 1,
+  ).padStart(2, "0")}/${date.getUTCFullYear()}`;
 };
 
 const populateMaintenanceFormFromRecord = (record) => {
   const form = createDefaultMaintenanceForm(record?.currentMileage ?? "");
   const itemsByCode = new Map(
-    (record?.maintenanceItems || []).map((item) => [item.itemCode, item]),
+    (record?.dailyMaintenanceItems || []).map((item) => [item.itemCode, item]),
   );
 
   form.identificationVehicle = selectedPlate.value || form.identificationVehicle;
@@ -326,7 +338,7 @@ const toIsoDateFromDisplay = (displayDate) => {
 };
 
 const loadMaintenanceRecordById = async (recordId) => {
-  const { data } = await api.get(`/vehicle-maintenance-records/${recordId}`);
+  const { data } = await api.get(`/daily-maintenance-records/${recordId}`);
 
   existingMaintenanceRecordId.value = data?.id || null;
   selectedTruckId.value = data?.truckId || data?.truck?.id || null;
@@ -344,8 +356,12 @@ const loadMaintenanceRecordById = async (recordId) => {
 };
 
 const goBackFromMaintenance = () => {
-  if (sourceFromRoute.value === "admin-maintenance-weekly-history") {
-    router.push({ name: "admin-maintenance-weekly-history" });
+  if (sourceFromRoute.value === "admin-maintenance-monthly-history") {
+    router.push({ name: "admin-maintenance-monthly-history" });
+    return;
+  }
+  if (sourceFromRoute.value === "admin-maintenance-daily") {
+    router.push({ name: "admin-maintenance-daily" });
     return;
   }
 
@@ -357,7 +373,7 @@ const loadMileageSuggestionByPlate = async (plate) => {
   const fallbackTruckId = foundTruck ? foundTruck.id : null;
 
   try {
-    const { data } = await api.get(`/vehicle-maintenance-records/mileage-suggestion/plate/${encodeURIComponent(plate)}`);
+    const { data } = await api.get(`/daily-maintenance-records/mileage-suggestion/plate/${encodeURIComponent(plate)}`);
     suggestedMileage.value = data.suggestedMileage || 0;
     selectedTruckId.value = data.truckId || fallbackTruckId;
     if (maintenanceForm.value) {
@@ -384,7 +400,7 @@ const checkDailyMaintenanceByDriverAndTruck = async () => {
 
   try {
     const { data } = await api.get(
-      `/vehicle-maintenance-records/driver/${auth.user.id}/truck/${selectedTruckId.value}/date`,
+      `/daily-maintenance-records/driver/${auth.user.id}/truck/${selectedTruckId.value}/date`,
       {
         params: { date: getLocalDateParam() },
       },
@@ -461,6 +477,14 @@ const clearFieldError = (field) => {
   fieldErrors.value[field] = false;
 };
 
+const sanitizeMileageValue = (value) => String(value ?? "").replace(/[^\d]/g, "");
+
+const handleMileageInput = (event) => {
+  if (!maintenanceForm.value) return;
+  maintenanceForm.value.kilometraje = sanitizeMileageValue(event?.target?.value);
+  clearFieldError("kilometraje");
+};
+
 const toggleExists = (item, value) => {
   if (item.type === "section") return;
   item.exists = item.exists === value ? "" : value;
@@ -500,8 +524,14 @@ const saveMaintenanceForm = async () => {
   let hasErrors = false;
 
   // Validate required fields
-  if (!maintenanceForm.value.kilometraje.trim()) {
+  const mileageInput = sanitizeMileageValue(maintenanceForm.value.kilometraje);
+  maintenanceForm.value.kilometraje = mileageInput;
+  if (!mileageInput) {
     fieldErrors.value.kilometraje = true;
+    hasErrors = true;
+  } else if (!/^\d+$/.test(mileageInput)) {
+    fieldErrors.value.kilometraje = true;
+    maintenanceFormError.value = "El kilometraje debe ser un número entero.";
     hasErrors = true;
   }
 
@@ -547,18 +577,18 @@ const saveMaintenanceForm = async () => {
     inspectionDate: toIsoDateFromDisplay(maintenanceForm.value.inspectionDate),
     inspectionTime: maintenanceForm.value.inspectionTime,
     municipalLicense: maintenanceForm.value.licMunicipal,
-    currentMileage: Number(maintenanceForm.value.kilometraje),
-    maintenanceItems,
+    currentMileage: Number.parseInt(maintenanceForm.value.kilometraje, 10),
+    dailyMaintenanceItems: maintenanceItems,
   };
 
   try {
     if (existingMaintenanceRecordId.value) {
       await api.patch(
-        `/vehicle-maintenance-records/${existingMaintenanceRecordId.value}`,
+        `/daily-maintenance-records/${existingMaintenanceRecordId.value}`,
         payload,
       );
     } else {
-      const { data } = await api.post("/vehicle-maintenance-records", payload);
+      const { data } = await api.post("/daily-maintenance-records", payload);
       existingMaintenanceRecordId.value = data?.id || null;
     }
 
@@ -575,8 +605,10 @@ const saveMaintenanceForm = async () => {
     maintenanceFormSuccess.value = existingMaintenanceRecordId.value
       ? "Formulario de mantenimiento actualizado correctamente."
       : "Formulario de mantenimiento guardado correctamente.";
-    if (sourceFromRoute.value === "admin-maintenance-weekly-history") {
-      router.push({ name: "admin-maintenance-weekly-history" });
+    if (sourceFromRoute.value === "admin-maintenance-monthly-history") {
+      router.push({ name: "admin-maintenance-monthly-history" });
+    } else if (sourceFromRoute.value === "admin-maintenance-daily") {
+      router.push({ name: "admin-maintenance-daily" });
     } else {
       router.push({
         name: 'daily-registration-driver',
@@ -1111,12 +1143,15 @@ onMounted(async () => {
                           <input
                             type="number"
                             v-model="maintenanceForm.kilometraje"
-                            @input="clearFieldError('kilometraje')"
+                            @input="handleMileageInput"
                             placeholder="Ingrese el kilometraje"
+                            min="0"
+                            step="1"
+                            inputmode="numeric"
                             class="w-full rounded-xl border bg-white px-3 py-2 text-sm text-text-title outline-none focus:ring-1"
                             :class="fieldErrors.kilometraje ? 'border-red-500 focus:border-red-500 focus:ring-red-200 animate-shake' : 'border-gray-300 focus:border-primary focus:ring-primary'"
                           />
-                          <p v-if="fieldErrors.kilometraje" class="text-[10px] text-red-600 mt-1 font-medium">Este campo es obligatorio</p>
+                          <p v-if="fieldErrors.kilometraje" class="text-[10px] text-red-600 mt-1 font-medium">Ingrese un kilometraje entero</p>
                         </div>
                       </div>
                       <p class="text-base">

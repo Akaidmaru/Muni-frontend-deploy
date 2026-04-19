@@ -3,16 +3,47 @@ import { ref, computed, onMounted, watch } from 'vue'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/axios'
 
 const router = useRouter()
+const route = useRoute()
+
+const isReadOnly = computed(() => {
+  const mode = route.query.mode
+  return Array.isArray(mode) ? mode[0] === 'view' : mode === 'view'
+})
 
 // --- 1. CONFIGURACIÓN GLOBAL & TÍTULO DINÁMICO ---
 const mesesAnio = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-const diasSemana = ['Sab/Dom_1', 'Sab/Dom_2', 'Sab/Dom_3', 'Sab/Dom_4', 'Sab/Dom_5'];
 
 const currentDateStr = ref(new Date().toISOString().slice(0, 7)); // YYYY-MM
+
+const getWeekendColumnCount = (monthStr) => {
+  const [year, month] = String(monthStr || '').split('-').map(Number)
+  if (!year || !month) return 5
+
+  const daysInMonth = new Date(year, month, 0).getDate()
+  let saturdayCount = 0
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const weekday = new Date(year, month - 1, day).getDay()
+    if (weekday === 6) saturdayCount += 1
+  }
+
+  // Un mes tendrá 4 o 5 pares Sab/Dom.
+  return Math.max(5, Math.min(4, saturdayCount))
+}
+
+const weekendColumns = computed(() =>
+  Array.from({ length: getWeekendColumnCount(currentDateStr.value) }, (_, idx) => `Sab/Dom_${idx + 1}`),
+)
+
+const createEmptySanitizationRows = () =>
+  Array.from({ length: weekendColumns.value.length }, () => ({
+    fecha: '',
+    observacion: '',
+  }))
 
 const tituloMesPrincipal = computed(() => {
   const [year, month] = currentDateStr.value.split('-').map(Number);
@@ -73,25 +104,30 @@ const registros = ref({
   luces: {},
   mecanica: {},
   accesorios: {},
-  sanitizacion: Array.from({ length: 5 }, () => ({
-    fecha: '',
-    observacion: ''
-  }))
+  sanitizacion: createEmptySanitizationRows()
 });
 
 const inicializarSeccion = (items, target) => {
   items.forEach(item => {
-    registros.value[target][item] = { ...Object.fromEntries(diasSemana.map(dia => [dia, ''])), observacion: '' };
+    registros.value[target][item] = { ...Object.fromEntries(weekendColumns.value.map(dia => [dia, ''])), observacion: '' };
   });
 };
+
+const resetWeeklyTables = () => {
+  inicializarSeccion(itemsLuces, 'luces')
+  inicializarSeccion(itemsMecanica, 'mecanica')
+  inicializarSeccion(itemsAccesorios, 'accesorios')
+  registros.value.sanitizacion = createEmptySanitizationRows()
+}
+
 inicializarSeccion(itemsLuces, 'luces');
 inicializarSeccion(itemsMecanica, 'mecanica');
 inicializarSeccion(itemsAccesorios, 'accesorios');
 
 
 
-// --- 6. MAPEO: nombre del ítem semanal → itemCode diario ---
-const itemCodeMap = {
+// --- 6. MAPEO: nombre del ítem mensual → itemCode diario ---
+const legacyDailyItemCodeMap = {
   'Luces Bajas':                   'bajas',
   'Luces Altas':                   'altas',
   'Luz retroceso':                 'marchaAtras',
@@ -114,6 +150,26 @@ const itemCodeMap = {
   'Extintor':                      'extintor',
   'Llave de rueda':                'llaveRueda',
   'Neumático repuesto':            'repuesto',
+}
+
+const normalizeItemCode = (itemName) =>
+  String(itemName || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+const getMonthlyItemCode = (itemName) => {
+  const normalized = normalizeItemCode(itemName)
+  return normalized || `item_${Date.now()}`
+}
+
+const resolveCategoryByItemName = (itemName) => {
+  if (itemsLuces.includes(itemName)) return 'systemLights'
+  if (itemsMecanica.includes(itemName)) return 'systemMechanical'
+  if (itemsAccesorios.includes(itemName)) return 'systemAccessories'
+  return 'systemGeneral'
 }
 
 // --- 7. CARGAR TODOS LOS CAMIONES (ADMIN) ---
@@ -140,10 +196,7 @@ const loadTruckData = async (truckId) => {
   truckLoadError.value = ''
 
   // Resetear tablas antes de cargar
-  inicializarSeccion(itemsLuces,    'luces')
-  inicializarSeccion(itemsMecanica, 'mecanica')
-  inicializarSeccion(itemsAccesorios, 'accesorios')
-  registros.value.sanitizacion = Array.from({ length: 5 }, () => ({ fecha: '', observacion: '' }))
+  resetWeeklyTables()
 
   try {
     // 9a. Datos básicos del camión
@@ -176,44 +229,44 @@ const loadTruckData = async (truckId) => {
       },
     }
 
-    // 9b. Registros de mantenimiento del camión (ordenados DESC por fecha)
-    const { data: records } = await api.get(`/vehicle-maintenance-records/truck/${truckId}`)
+    // 9b. Registro mensual del camión (solo admin)
+    const { data: monthlyRecord } = await api.get(
+      `/monthly-maintenance-records/admin/truck/${truckId}/month`,
+      { params: { month: currentDateStr.value } },
+    )
 
-    if (!records || records.length === 0) return
+    if (!monthlyRecord || !Array.isArray(monthlyRecord.monthlyMaintenanceItems)) return
 
-    // Último registro → estados documentos
-    // 9c. Poblar tablas mapeando cada registro a uno de los 5 fines de semana del mes seleccionado
-    records.forEach(record => {
-      const recordDate = new Date(record.inspectionDate)
-      
-      // Filtrar sólo registros del mes seleccionado
-      const recYYYYMM = recordDate.getUTCFullYear() + '-' + String(recordDate.getUTCMonth() + 1).padStart(2, '0');
-      if (recYYYYMM !== currentDateStr.value) return;
+    const byWeekAndCode = new Map(
+      monthlyRecord.monthlyMaintenanceItems.map((item) => [
+        `${item.weekIndex}-${item.itemCode}`,
+        item,
+      ]),
+    )
 
-      // Calcular a qué fin de semana del mes pertenece (1 al 5)
-      const firstDay = new Date(Date.UTC(recordDate.getUTCFullYear(), recordDate.getUTCMonth(), 1));
-      const firstDayOfWeek = firstDay.getUTCDay() === 0 ? 7 : firstDay.getUTCDay();
-      const dateNum = recordDate.getUTCDate();
-      const weekOfMonthNum = Math.ceil((dateNum + firstDayOfWeek - 1) / 7);
-      
-      const dayName = `Sab/Dom_${Math.min(weekOfMonthNum, 5)}`;
-      const byCode = new Map((record.maintenanceItems || []).map(i => [i.itemCode, i]))
+    const populateSection = (items, section) => {
+      items.forEach((itemName) => {
+        const monthlyCode = getMonthlyItemCode(itemName)
+        const legacyCode = legacyDailyItemCodeMap[itemName]
 
-      const populateSection = (items, section) => {
-        items.forEach(itemName => {
-          const code = itemCodeMap[itemName]
-          if (!code || !byCode.has(code)) return
-          const dbItem = byCode.get(code)
-          if (registros.value[section][itemName]) {
+        weekendColumns.value.forEach((_, idx) => {
+          const weekIndex = idx + 1
+          const keyMonthly = `${weekIndex}-${monthlyCode}`
+          const keyLegacy = legacyCode ? `${weekIndex}-${legacyCode}` : ''
+          const dbItem = byWeekAndCode.get(keyMonthly) || (keyLegacy ? byWeekAndCode.get(keyLegacy) : null)
+          if (!dbItem) return
+
+          const dayName = `Sab/Dom_${weekIndex}`
+          if (registros.value[section][itemName] && dayName in registros.value[section][itemName]) {
             registros.value[section][itemName][dayName] = dbItem.status || '-'
           }
         })
-      }
+      })
+    }
 
-      populateSection(itemsLuces,      'luces')
-      populateSection(itemsMecanica,   'mecanica')
-      populateSection(itemsAccesorios, 'accesorios')
-    })
+    populateSection(itemsLuces, 'luces')
+    populateSection(itemsMecanica, 'mecanica')
+    populateSection(itemsAccesorios, 'accesorios')
 
   } catch (err) {
     const msg = err?.response?.data?.message
@@ -235,21 +288,61 @@ const onTruckSelect = async () => {
       emisionContaminantes: { estado: 'N/D', vencimiento: 'N/D' },
       seguroObligatorio:    { estado: 'N/D', vencimiento: 'N/D' },
     }
-    inicializarSeccion(itemsLuces,      'luces')
-    inicializarSeccion(itemsMecanica,   'mecanica')
-    inicializarSeccion(itemsAccesorios, 'accesorios')
+    resetWeeklyTables()
   }
 }
 
 // --- 10. ACCIONES ---
-const guardarFormulario = () => {
-  console.log("Guardando datos...", registros.value);
-  alert("¡Cambios guardados con éxito!");
-  router.push('/admin/mantencion-vehicular/historial-semanal');
+const guardarFormulario = async () => {
+  if (!selectedTruckId.value) {
+    alert('Debe seleccionar un camión antes de guardar.')
+    return
+  }
+
+  const monthlyMaintenanceItems = []
+  const pushSectionItems = (items, section) => {
+    items.forEach((itemName) => {
+      const code = getMonthlyItemCode(itemName)
+
+      weekendColumns.value.forEach((_, idx) => {
+        const weekIndex = idx + 1
+        const dayName = `Sab/Dom_${weekIndex}`
+        const status = registros.value[section]?.[itemName]?.[dayName]
+        if (!status) return
+
+        monthlyMaintenanceItems.push({
+          weekIndex,
+          itemCode: code,
+          itemName,
+          category: resolveCategoryByItemName(itemName),
+          status,
+          notes: registros.value[section]?.[itemName]?.observacion || '',
+        })
+      })
+    })
+  }
+
+  pushSectionItems(itemsLuces, 'luces')
+  pushSectionItems(itemsMecanica, 'mecanica')
+  pushSectionItems(itemsAccesorios, 'accesorios')
+
+  try {
+    await api.post('/monthly-maintenance-records/admin', {
+      truckId: Number(selectedTruckId.value),
+      monthKey: currentDateStr.value,
+      monthlyMaintenanceItems,
+    })
+    alert('¡Cambios guardados con éxito!')
+    router.push('/admin/mantencion-vehicular/historial-mensual')
+  } catch (err) {
+    const msg = err?.response?.data?.message
+    const detail = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo guardar el mantenimiento mensual.'
+    alert(detail)
+  }
 };
 
 const cancelarEdicion = () => {
-  router.push('/admin/mantencion-vehicular/historial-semanal');
+  router.push('/admin/mantencion-vehicular/historial-mensual');
 };
 
 const changeMonth = (delta) => {
@@ -264,12 +357,25 @@ watch(currentDateStr, (newVal) => {
   if (selectedTruckId.value) {
     loadTruckData(selectedTruckId.value);
   } else {
-    // Si no hay vehículo, al menos limpiamos las tablas para que no queden sucias si no las habían guardado.
+    // Si no hay vehículo seleccionado, ajustar columnas/filas al mes elegido.
+    resetWeeklyTables();
   }
 });
 
-onMounted(() => {
-  loadTrucks()
+onMounted(async () => {
+  await loadTrucks()
+
+  const routeMonth = route.query.month
+  if (routeMonth) {
+    currentDateStr.value = Array.isArray(routeMonth) ? routeMonth[0] : routeMonth
+  }
+
+  const routeTruckId = route.query.truckId
+  const truckId = Array.isArray(routeTruckId) ? routeTruckId[0] : routeTruckId
+  if (truckId && !Number.isNaN(Number(truckId))) {
+    selectedTruckId.value = Number(truckId)
+    await loadTruckData(Number(truckId))
+  }
 })
 </script>
 
@@ -283,10 +389,33 @@ onMounted(() => {
     <div class="flex flex-1 overflow-hidden">
       <DashboardSidebar />
       
-      <main class="flex-1 py-6 px-4 sm:py-10 sm:px-6 overflow-y-auto overflow-x-hidden bg-slate-50 min-w-0">
+      <main class="flex-1 py-4 px-4 sm:pt-6 sm:pb-10 sm:px-6 overflow-y-auto overflow-x-hidden bg-slate-50 min-w-0">
+        <div class="max-w-6xl mx-auto mb-3 pl-10 sm:pl-12">
+          <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Volver
+          </button>
+        </div>
         <div class="max-w-6xl mx-auto bg-white rounded-2xl sm:rounded-3xl border border-slate-300 shadow-sm p-4 sm:p-10 overflow-x-hidden">
 
-          <h1 class="text-2xl font-bold text-center text-slate-900 mb-8 uppercase tracking-wide">{{ tituloMesPrincipal }}</h1>
+          <h1 class="text-2xl font-bold text-center text-slate-900 mb-4 uppercase tracking-wide">{{ tituloMesPrincipal }}</h1>
+
+          <!-- Recordatorio mobile -->
+          <div class="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:hidden">
+            <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-base font-bold text-amber-700 shadow-sm">i</span>
+            <div class="flex min-w-0 flex-1 items-center justify-between gap-3">
+              <div class="leading-snug">
+                Las tablas tienen más columnas. Desliza hacia la derecha para ver los
+                <span class="font-semibold">sábados/domingos</span> y la
+                <span class="font-semibold">observación</span>.
+              </div>
+              <div class="shrink-0 text-amber-700">
+                <svg class="h-6 w-6 animate-bounce-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h12"/><path d="m13 6 6 6-6 6"/>
+                </svg>
+              </div>
+            </div>
+          </div>
 
           <section class="flex flex-col gap-10 mb-12">
             <div>
@@ -309,7 +438,7 @@ onMounted(() => {
                           id="truck-selector"
                           v-model="selectedTruckId"
                           @change="onTruckSelect"
-                          :disabled="isLoadingTrucks || isLoadingTruckData"
+                          :disabled="isLoadingTrucks || isLoadingTruckData || isReadOnly"
                           class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <option :value="null">-- Seleccione --</option>
@@ -362,14 +491,14 @@ onMounted(() => {
                 <thead class="bg-slate-50 border-b border-slate-300 text-slate-700 font-bold">
                   <tr>
                     <th class="p-3 border-r border-slate-300 w-1/4">Descripción</th>
-                    <th v-for="dia in diasSemana" :key="dia" class="p-3 border-r border-slate-300 w-[10%]">{{ dia.split('_')[0] }}</th>
+                    <th v-for="dia in weekendColumns" :key="dia" class="p-3 border-r border-slate-300 w-[10%]">{{ dia.split('_')[0] }}</th>
                     <th class="p-3 w-1/4">Observación</th>
                   </tr>
                 </thead>
                 <tbody class="text-slate-600 bg-white">
                   <tr v-for="item in sec.i" :key="item" class="border-b border-slate-200 last:border-0 hover:bg-slate-50 transition-colors">
                     <td class="p-3 border-r border-slate-200 text-left pl-6 font-medium text-slate-700">{{ item }}</td>
-                    <td v-for="dia in diasSemana" :key="dia" class="p-1.5 border-r border-slate-200 text-center align-middle">
+                    <td v-for="dia in weekendColumns" :key="dia" class="p-1.5 border-r border-slate-200 text-center align-middle">
                       <!-- Dato de la BD (Bueno / Regular / Malo) → badge de sólo lectura -->
                       <template v-if="registros[sec.r][item][dia] && !['Si','No'].includes(registros[sec.r][item][dia])">
                         <span :class="[
@@ -388,6 +517,7 @@ onMounted(() => {
                               type="checkbox"
                               :checked="registros[sec.r][item][dia] === 'Si'"
                               @change="registros[sec.r][item][dia] = $event.target.checked ? 'Si' : ''"
+                              :disabled="isReadOnly"
                               class="sr-only peer"
                             >
                             <div class="w-5 h-5 bg-white border-2 border-slate-300 rounded-md peer peer-checked:bg-emerald-500 peer-checked:border-emerald-500 transition-all flex items-center justify-center">
@@ -402,7 +532,8 @@ onMounted(() => {
                         v-model="registros[sec.r][item].observacion" 
                         placeholder="Ingrese observación si requiere..." 
                         rows="1" 
-                        class="w-full bg-transparent border-none focus:ring-0 text-[11px] resize-none text-slate-500 italic placeholder:text-slate-300 p-2"
+                        :disabled="isReadOnly"
+                        class="w-full bg-transparent border-none focus:ring-0 text-[11px] resize-none text-slate-500 italic placeholder:text-slate-300 p-2 disabled:cursor-not-allowed disabled:text-slate-400"
                       ></textarea>
                     </td>
                   </tr>
@@ -415,17 +546,7 @@ onMounted(() => {
             <h2 class="text-lg font-bold text-slate-900 underline tracking-tight text-center w-full mb-8">Sanitización Vehículo</h2>
             <div class="max-w-3xl mx-auto flex flex-col items-start px-2 sm:px-0">
               
-              <div class="flex items-center gap-2 bg-white p-1 rounded-full shadow-sm border border-slate-200 mb-3">
-                <button @click="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all active:scale-95">←</button>
-                <div class="relative flex items-center">
-                  <input 
-                    type="month" 
-                    v-model="currentDateStr" 
-                    class="bg-transparent border-none focus:ring-0 text-sm font-bold text-slate-700 uppercase cursor-pointer py-0 px-2"
-                  />
-                </div>
-                <button @click="changeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all active:scale-95">→</button>
-              </div>
+
               
               <div class="border border-slate-300 rounded overflow-x-auto shadow-sm w-full">
                 <table class="w-full text-center border-collapse text-sm min-w-[500px] sm:min-w-full">
@@ -462,7 +583,7 @@ onMounted(() => {
           </section>
 
           <footer class="flex flex-col sm:flex-row justify-between items-center mt-8 sm:mt-12 pt-8 border-t-2 border-slate-200 gap-4">
-            <button @click="guardarFormulario" class="w-full sm:w-auto bg-red-800 hover:bg-red-900 text-white px-12 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95 order-1 sm:order-none">
+            <button v-if="!isReadOnly" @click="guardarFormulario" class="w-full sm:w-auto bg-red-800 hover:bg-red-900 text-white px-12 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95 order-1 sm:order-none">
               Continuar
             </button>
             <button @click="cancelarEdicion" class="w-full sm:w-auto bg-slate-700 hover:bg-slate-800 text-white px-12 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95 order-2 sm:order-none">
@@ -485,4 +606,14 @@ textarea:focus, input:focus { background-color: rgba(248, 250, 252, 1); }
 main::-webkit-scrollbar { width: 6px; }
 main::-webkit-scrollbar-track { background: transparent; }
 main::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+</style>
+
+<style>
+@keyframes bounce-x {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(6px); }
+}
+.animate-bounce-x {
+  animation: bounce-x 1.2s ease-in-out infinite;
+}
 </style>

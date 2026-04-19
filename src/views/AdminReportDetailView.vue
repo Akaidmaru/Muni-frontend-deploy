@@ -3,7 +3,6 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import UserMenu from '@/components/UserMenu.vue'
-import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import api from '@/services/axios'
 
 const route = useRoute()
@@ -18,23 +17,21 @@ const error = ref('')
 const note = ref('')
 const selectedStatus = ref('')
 const isUpdating = ref(false)
+const updateError = ref('')
+const isImageModalOpen = ref(false)
+
+const hasPendingChanges = computed(() => {
+  if (!report.value) return false
+  return selectedStatus.value && selectedStatus.value !== report.value.status
+})
 
 const loadReport = async () => {
   isLoading.value = true
   error.value = ''
   try {
-    // We should ideally have a single report endpoint: GET /reports/:id
-    // But based on report.service.ts, there isn't one. 
-    // I'll check report.controller.ts to be sure.
-    // If not, I'll fetch all and filter, or I might need to add the endpoint.
-    const { data } = await api.get('/reports')
-    const found = data.find(r => r.id === parseInt(reportId))
-    if (!found) {
-      error.value = 'Reporte no encontrado'
-    } else {
-      report.value = found
-      selectedStatus.value = found.status
-    }
+    const { data } = await api.get(`/reports/${reportId}`)
+    report.value = data
+    selectedStatus.value = data.status
   } catch (err) {
     error.value = 'Error al cargar el reporte'
   } finally {
@@ -43,15 +40,22 @@ const loadReport = async () => {
 }
 
 const updateStatus = async () => {
-  if (!report.value || isUpdating.value) return
+  if (!report.value || isUpdating.value || !hasPendingChanges.value) return
+
   isUpdating.value = true
+  updateError.value = ''
+
   try {
-    await api.patch(`/reports/${report.value.id}/status`, { status: selectedStatus.value })
-    report.value.status = selectedStatus.value
-    // In a real app, we'd also save the note if the backend supported it.
-    alert('Estado actualizado correctamente')
+    const { data } = await api.patch(`/reports/${report.value.id}/status`, {
+      status: selectedStatus.value,
+    })
+
+    report.value.status = data.status
+    report.value.updatedAt = data.updatedAt
+    note.value = ''
   } catch (err) {
-    alert('Error al actualizar el estado')
+    const msg = err?.response?.data?.message
+    updateError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'Error al actualizar el reporte'
   } finally {
     isUpdating.value = false
   }
@@ -95,6 +99,12 @@ onMounted(loadReport)
     <div class="flex flex-1 min-h-0 overflow-hidden relative justify-center">
       <!-- Main Content Area -->
       <main class="flex-1 p-6 overflow-y-auto">
+        <div class="mb-4 pl-10 sm:pl-12">
+          <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Volver
+          </button>
+        </div>
         <div v-if="isLoading" class="flex flex-col items-center justify-center h-64">
            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
            <p class="mt-4 text-gray-500">Cargando detalles...</p>
@@ -106,11 +116,7 @@ onMounted(loadReport)
         </div>
 
         <div v-else class="max-w-[1100px] mx-auto">
-          <!-- Back button -->
-          <button @click="goBack" class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-blue-900 transition-colors mb-4">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            Volver
-          </button>
+
 
           <!-- Main Card Container -->
           <div class="detail-card border border-[#D9E3ED] rounded-[30px] p-8 relative">
@@ -172,7 +178,7 @@ onMounted(loadReport)
                       <img :src="report.screenshotUrl" alt="Adjunto" class="w-full h-full object-cover">
                     </div>
                     <span class="text-[10px] text-gray-500 mb-1">Evidencia.png</span>
-                    <button class="text-[10px] font-bold bg-[#E5E7EB] px-3 py-1 rounded-full hover:bg-gray-300 transition-colors">Ampliar</button>
+                    <button @click="isImageModalOpen = true" class="text-[10px] font-bold bg-[#E5E7EB] px-3 py-1 rounded-full hover:bg-gray-300 transition-colors">Ampliar</button>
                   </div>
                   <div v-else class="flex items-center justify-center w-full text-gray-400 text-sm">
                     No hay archivos adjuntos
@@ -192,6 +198,10 @@ onMounted(loadReport)
                 class="w-full h-32 p-4 border border-[#E5E7EB] rounded-xl outline-none focus:ring-1 focus:ring-primary resize-none text-sm text-gray-600 mb-6"
               ></textarea>
 
+              <p v-if="updateError" class="text-sm text-red-600 mb-4">
+                {{ updateError }}
+              </p>
+
               <div class="flex items-center justify-between gap-4 flex-wrap">
                 <div class="flex items-center gap-3">
                   <span class="text-sm font-bold text-[#111827]">Cambiar estado:</span>
@@ -210,17 +220,26 @@ onMounted(loadReport)
 
                 <button 
                   @click="updateStatus"
-                  :disabled="isUpdating"
-                  class="bg-[#1B2A4A] hover:bg-[#253860] text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center gap-2"
+                  :disabled="isUpdating || !hasPendingChanges"
+                  class="bg-[#1B2A4A] hover:bg-[#253860] text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span v-if="isUpdating">Procesando...</span>
-                  <span v-else>Responder al usuario</span>
+                  <span v-else>Notificar al usuario</span>
                 </button>
               </div>
+
             </div>
 
             <!-- Footer Buttons -->
-            <div class="flex justify-end mb-4">
+            <div class="flex items-center justify-between mb-4">
+              <button
+                @click="updateStatus"
+                :disabled="isUpdating"
+                class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span v-if="isUpdating">Guardando...</span>
+                <span v-else>Guardar</span>
+              </button>
               <button @click="goBack" class="px-6 py-2 border border-[#E5E7EB] rounded-xl text-sm font-bold text-[#4B5563] hover:bg-gray-50 transition-colors">
                 Cerrar Reporte
               </button>
@@ -240,6 +259,28 @@ onMounted(loadReport)
         </div>
       </main>
     </div>
+
+    <!-- Image modal -->
+    <Teleport to="body">
+      <div
+        v-if="isImageModalOpen"
+        @click="isImageModalOpen = false"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+      >
+        <button
+          @click="isImageModalOpen = false"
+          class="absolute top-4 right-4 text-white bg-black/50 hover:bg-black/70 rounded-full w-9 h-9 flex items-center justify-center transition-colors"
+        >
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <img
+          :src="report.screenshotUrl"
+          alt="Evidencia ampliada"
+          @click.stop
+          class="max-w-full max-h-full rounded-xl shadow-2xl object-contain"
+        >
+      </div>
+    </Teleport>
   </div>
 </template>
 

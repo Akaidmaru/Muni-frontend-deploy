@@ -5,6 +5,9 @@ import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import api from '@/services/axios'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import JSZip from 'jszip'
 
 const router = useRouter()
 const alertsModal = ref(false)
@@ -123,11 +126,11 @@ const formatDateTime = (dateValue, timeValue) => {
 const pluralize = (count, singular, plural) =>
   `${count} ${count === 1 ? singular : plural}`
 
-const buildFaultSummaryFromItems = (maintenanceItems = []) => {
+const buildFaultSummaryFromItems = (dailyMaintenanceItems = []) => {
   let badCount = 0
   let regularCount = 0
 
-  maintenanceItems.forEach((item) => {
+  dailyMaintenanceItems.forEach((item) => {
     if (isBadState(item?.status)) badCount += 1
     else if (isRegularState(item?.status)) regularCount += 1
   })
@@ -141,7 +144,7 @@ const buildFaultSummaryFromItems = (maintenanceItems = []) => {
 }
 
 const hasPendingIssues = (record) => {
-  const hasProblematicChecklist = (record?.maintenanceItems || []).some(
+  const hasProblematicChecklist = (record?.dailyMaintenanceItems || []).some(
     (item) => isBadState(item?.status) || isRegularState(item?.status),
   )
 
@@ -165,7 +168,7 @@ const buildTopCategories = (recordsList) => {
   const categoryCount = new Map()
 
   recordsList.forEach((record) => {
-    ;(record.maintenanceItems || []).forEach((item) => {
+    ;(record.dailyMaintenanceItems || []).forEach((item) => {
       if (!isBadState(item?.status) && !isRegularState(item?.status)) {
         return
       }
@@ -188,19 +191,55 @@ const mapRecordFromApi = (record) => ({
   plate: record.truck?.plate || 'Sin patente',
   driver:
     record.driver?.name || record.driver?.email || `Conductor ${record.driverId}`,
-  faultSummary: buildFaultSummaryFromItems(record.maintenanceItems),
+  faultSummary: buildFaultSummaryFromItems(record.dailyMaintenanceItems),
   status: deriveStatus(record),
   inspectionDateRaw: record.inspectionDate,
   inspectionTime: record.inspectionTime,
   municipalLicense: record.municipalLicense,
   currentMileage: record.currentMileage,
-  maintenanceItems: Array.isArray(record.maintenanceItems)
-    ? record.maintenanceItems
+  dailyMaintenanceItems: Array.isArray(record.dailyMaintenanceItems)
+    ? record.dailyMaintenanceItems
     : [],
 })
 
+// ═══════════════════════════════════════════════════════════
+// FILTROS DE TABLA
+// ═══════════════════════════════════════════════════════════
+const filterPlate  = ref('')
+const filterDate   = ref('')
+const filterSearch = ref('')
+
+const uniquePlates = computed(() =>
+  [...new Set(allRecords.value.map(r => r.plate).filter(Boolean))].sort()
+)
+
+const filteredAllRecords = computed(() => {
+  let result = allRecords.value
+
+  if (filterPlate.value)
+    result = result.filter(r => r.plate === filterPlate.value)
+
+  if (filterDate.value) {
+    const [y, m, d] = filterDate.value.split('-')
+    const formatted = `${d}-${m}-${y}`
+    result = result.filter(r => r.date === formatted)
+  }
+
+  if (filterSearch.value) {
+    const q = filterSearch.value.toLowerCase()
+    result = result.filter(r =>
+      r.plate?.toLowerCase().includes(q) ||
+      r.driver?.toLowerCase().includes(q) ||
+      r.date?.includes(q)
+    )
+  }
+
+  return result
+})
+
 const updatePagedRecords = () => {
-  totalItems.value = allRecords.value.length
+  const source = filteredAllRecords.value
+  totalItems.value = source.length
   totalPages.value = Math.max(
     1,
     Math.ceil(totalItems.value / Number(itemsPerPage.value || 1)),
@@ -212,7 +251,7 @@ const updatePagedRecords = () => {
 
   const start = (currentPage.value - 1) * Number(itemsPerPage.value)
   const end = start + Number(itemsPerPage.value)
-  records.value = allRecords.value.slice(start, end)
+  records.value = source.slice(start, end)
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -242,7 +281,7 @@ const loadStats = async () => {
     }
 
     const minorIncidents = allRecords.value.reduce((acc, record) => {
-      const regularInRecord = (record.maintenanceItems || []).reduce(
+      const regularInRecord = (record.dailyMaintenanceItems || []).reduce(
         (count, item) => (isRegularState(item?.status) ? count + 1 : count),
         0,
       )
@@ -333,7 +372,7 @@ const loadRecords = async () => {
   isLoadingRecords.value = true
   recordsError.value = ''
   try {
-    const { data } = await api.get('/vehicle-maintenance-records')
+    const { data } = await api.get('/daily-maintenance-records/admin')
     const payload = Array.isArray(data) ? data : []
 
     allRecords.value = payload.map(mapRecordFromApi)
@@ -376,6 +415,11 @@ const goToNextPage = () => {
 }
 
 watch(itemsPerPage, () => {
+  currentPage.value = 1
+  updatePagedRecords()
+})
+
+watch([filterPlate, filterDate, filterSearch], () => {
   currentPage.value = 1
   updatePagedRecords()
 })
@@ -472,7 +516,7 @@ const toAnnexStatusLabel = (expiryDate) => getDocumentStatusByExpiry(expiryDate)
 
 const viewRecord = async (record) => {
   try {
-    const { data } = await api.get(`/vehicle-maintenance-records/${record.id}`)
+    const { data } = await api.get(`/daily-maintenance-records/admin/${record.id}`)
     const normalized = mapRecordFromApi(data)
 
     viewModal.value = {
@@ -485,7 +529,7 @@ const viewRecord = async (record) => {
           normalized.currentMileage !== null
             ? `${Number(normalized.currentMileage).toLocaleString('es-CL')} km`
             : '—',
-        items: groupItemsByCategory(normalized.maintenanceItems),
+        items: groupItemsByCategory(normalized.dailyMaintenanceItems),
         annex: {
           revisionTecnica: toAnnexStatusLabel(data?.truck?.technicalReviewExpiresAt),
           permisoCirculacion: toAnnexStatusLabel(
@@ -558,6 +602,248 @@ const saveEdit = async () => {
     isSavingEdit.value = false
   }
 }
+
+// ═══════════════════════════════════════════════════════════
+// EXPORTAR ZIP
+// ═══════════════════════════════════════════════════════════
+const exportZipModal = ref({ open: false })
+const exportZipForm  = ref({ startDate: '', endDate: '' })
+const isExportingZip = ref(false)
+const exportZipError = ref('')
+
+const openExportZipModal = () => {
+  exportZipModal.value = { open: true }
+  exportZipForm.value  = { startDate: '', endDate: '' }
+  exportZipError.value = ''
+}
+const closeExportZipModal = () => {
+  exportZipModal.value = { open: false }
+  exportZipError.value = ''
+}
+
+const buildChecklistPdfBlob = async (recordId) => {
+  const { data } = await api.get(`/daily-maintenance-records/admin/${recordId}`)
+  const normalized = mapRecordFromApi(data)
+  const sections   = groupItemsByCategory(normalized.dailyMaintenanceItems)
+
+  const doc       = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const col2      = pageWidth / 2   // columna derecha ≈ x=105
+
+  // ── Logo ────────────────────────────────────────────────────────────
+  try { doc.addImage(logoCompleto, 'PNG', 14, 8, 28, 13) } catch (_) {}
+
+  // ── Título ──────────────────────────────────────────────────────────
+  doc.setFontSize(13)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(33, 33, 33)
+  doc.text('Registro de Mantención Diaria Vehicular', 50, 16)
+
+  // ── Fecha generación ────────────────────────────────────────────────
+  doc.setFontSize(7)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(120, 120, 120)
+  const now = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  doc.text(`Generado: ${now}`, pageWidth - 14, 10, { align: 'right' })
+
+  // ── Separador 1 ─────────────────────────────────────────────────────
+  doc.setDrawColor(180, 180, 180)
+  doc.setLineWidth(0.4)
+  doc.line(14, 25, pageWidth - 14, 25)
+
+  // ── ANEXO I título ──────────────────────────────────────────────────
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(20, 20, 20)
+  doc.text('ANEXO I. LISTA DE VERIFICACIÓN DE VEHÍCULOS', 14, 32)
+
+  // ── Subencabezados de columnas ───────────────────────────────────────
+  doc.setFontSize(9)
+  doc.setTextColor(40, 40, 40)
+  doc.text('Identificación del conductor', 14, 40)
+  doc.text('Identificación del vehículo', col2, 40)
+
+  // ── Filas de datos del encabezado ────────────────────────────────────
+  const labelX1 = 14,  valX1 = 52
+  const labelX2 = col2, valX2 = col2 + 36
+
+  const headerRows = [
+    { y: 48, l1: 'NOMBRE:',           v1: normalized.driver || '—',
+              l2: 'PATENTE:',          v2: normalized.plate  || '—' },
+    { y: 55, l1: 'LIC-MUNICIPAL:',    v1: normalized.municipalLicense || '—',
+              l2: 'KILOMETRAJE:',      v2: normalized.currentMileage != null ? String(normalized.currentMileage) : '—' },
+    { y: 62, l1: 'FECHA INSPECCIÓN:', v1: normalized.date || '—',
+              l2: 'HORA INSPECCIÓN:',  v2: normalized.inspectionTime || '—' },
+    { y: 69, l1: 'ESTADO:',           v1: normalized.status === 'REVISADO' ? 'Revisado' : 'Pendiente',
+              l2: '',                  v2: '' },
+  ]
+
+  headerRows.forEach(({ y, l1, v1, l2, v2 }) => {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(60, 60, 60)
+    doc.text(l1, labelX1, y)
+    if (l2) doc.text(l2, labelX2, y)
+
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(20, 20, 20)
+    doc.text(v1, valX1, y)
+    if (v2) doc.text(v2, valX2, y)
+  })
+
+  // ── Separador 2 ─────────────────────────────────────────────────────
+  doc.setDrawColor(180, 180, 180)
+  doc.setLineWidth(0.3)
+  doc.line(14, 74, pageWidth - 14, 74)
+
+  // ── Checklist ────────────────────────────────────────────────────────
+  const tableBody = []
+  for (const section of sections) {
+    tableBody.push([
+      { content: section.section, colSpan: 4, styles: { fillColor: [27, 46, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } } },
+    ])
+    for (const row of section.rows) {
+      tableBody.push([row.label, row.exists, row.state, row.note || '—'])
+    }
+  }
+
+  autoTable(doc, {
+    startY: 77,
+    head: [['Ítem', '¿Existe?', 'Estado', 'Observación']],
+    body: tableBody,
+    styles: { fontSize: 7, cellPadding: 2, lineColor: [209, 209, 209], lineWidth: 0.3, textColor: [33, 33, 33] },
+    headStyles: { fillColor: [33, 81, 121], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+    alternateRowStyles: { fillColor: [247, 248, 250] },
+    columnStyles: {
+      0: { cellWidth: 82 },
+      1: { cellWidth: 22, halign: 'center' },
+      2: { cellWidth: 22, halign: 'center' },
+      3: { cellWidth: 'auto' },
+    },
+  })
+
+  // ── ANEXO II: Documentación ──────────────────────────────────────────
+  const annexStartY = doc.lastAutoTable.finalY + 7
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(20, 20, 20)
+  doc.text('ANEXO II. Fechas de Vencimiento Documentación', 14, annexStartY)
+
+  autoTable(doc, {
+    startY: annexStartY + 4,
+    head: [['Rev. Técnica', 'Permiso Circulación', 'Seguro Obligatorio', 'Emisión Contaminantes']],
+    body: [[
+      toAnnexStatusLabel(data?.truck?.technicalReviewExpiresAt),
+      toAnnexStatusLabel(data?.truck?.circulationPermitExpiresAt),
+      toAnnexStatusLabel(data?.truck?.insuranceExpiresAt),
+      toAnnexStatusLabel(data?.truck?.emissionsExpiresAt),
+    ]],
+    styles: { fontSize: 8, cellPadding: 3, halign: 'center', lineColor: [209, 209, 209], lineWidth: 0.3 },
+    headStyles: { fillColor: [33, 81, 121], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+  })
+
+  // ── Número de página ─────────────────────────────────────────────────
+  const totalPages = doc.internal.getNumberOfPages()
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i)
+    doc.setFontSize(7)
+    doc.setTextColor(150, 150, 150)
+    doc.text(`Página ${i} de ${totalPages}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 6, { align: 'center' })
+  }
+
+  return doc.output('blob')
+}
+
+const exportZip = async () => {
+  if (!exportZipForm.value.startDate || !exportZipForm.value.endDate) {
+    exportZipError.value = 'Debe seleccionar ambas fechas.'
+    return
+  }
+  if (exportZipForm.value.startDate > exportZipForm.value.endDate) {
+    exportZipError.value = 'La fecha "Desde" debe ser anterior o igual a "Hasta".'
+    return
+  }
+
+  isExportingZip.value = true
+  exportZipError.value = ''
+
+  try {
+    const { data } = await api.get('/daily-maintenance-records/admin', {
+      params: {
+        startDate: exportZipForm.value.startDate,
+        endDate:   exportZipForm.value.endDate,
+      },
+    })
+
+    const rangeRecords = Array.isArray(data) ? data : []
+
+    if (rangeRecords.length === 0) {
+      exportZipError.value = 'No hay registros en el rango de fechas seleccionado.'
+      isExportingZip.value = false
+      return
+    }
+
+    const zip = new JSZip()
+
+    await Promise.all(
+      rangeRecords.map(async (record) => {
+        const blob    = await buildChecklistPdfBlob(record.id)
+        const mapped  = mapRecordFromApi(record)
+        const safePlate = (mapped.plate || 'sin_patente').replace(/[^a-zA-Z0-9]/g, '_')
+        const safeDate  = (mapped.date  || '').replace(/\//g, '-')
+        zip.file(`checklist_${safePlate}_${safeDate}.pdf`, blob)
+      })
+    )
+
+    const zipBlob = await zip.generateAsync({ type: 'blob' })
+    const url  = URL.createObjectURL(zipBlob)
+    const link = document.createElement('a')
+    link.href     = url
+    link.download = `checklists_${exportZipForm.value.startDate}_al_${exportZipForm.value.endDate}.zip`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+
+    closeExportZipModal()
+  } catch (err) {
+    exportZipError.value = 'Error al generar el ZIP. Intente nuevamente.'
+    console.error('[AdminMaintenanceDaily] Error al exportar ZIP:', err)
+  } finally {
+    isExportingZip.value = false
+  }
+}
+
+const editChecklist = (record) => {
+  closeEditModal()
+  router.push({
+    name: 'daily-registration-maintenance',
+    query: {
+      recordId: record.id,
+      source: 'admin-maintenance-daily',
+    },
+  })
+}
+
+const exportChecklistPDF = async (record) => {
+  try {
+    const { data } = await api.get(`/daily-maintenance-records/admin/${record.id}`)
+    const normalized = mapRecordFromApi(data)
+    const blob = await buildChecklistPdfBlob(record.id)
+    const safePlate = (normalized.plate || 'sin_patente').replace(/[^a-zA-Z0-9]/g, '_')
+    const safeDate  = (normalized.date  || '').replace(/\//g, '-')
+    const url  = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href     = url
+    link.download = `checklist_diario_${safePlate}_${safeDate}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  } catch (err) {
+    console.error('[AdminMaintenanceDaily] Error al exportar PDF:', err)
+  }
+}
 </script>
 
 <template>
@@ -575,104 +861,132 @@ const saveEdit = async () => {
     <div class="flex flex-1 overflow-hidden min-w-0">
       <DashboardSidebar />
 
-      <main class="flex-1 pt-16 pb-10 px-3 overflow-hidden flex items-start justify-center min-w-0">
+      <main class="flex-1 pt-4 pb-10 px-3 overflow-hidden flex flex-col items-center min-w-0">
+        <div class="w-full mb-3 pl-10 sm:pl-12 shrink-0">
+          <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Volver
+          </button>
+        </div>
         <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden w-full">
 
           <!-- Título -->
-          <div class="px-10 pt-8 pb-6">
-            <h1 class="text-3xl font-titles font-extrabold text-slate-900 leading-tight">
-              Historial de mantenimiento<br />vehicular diario
-            </h1>
-          </div>
+          <div class="px-4 sm:px-6 lg:px-10 pt-6 pb-6 flex flex-col lg:flex-row items-start justify-between gap-6">
+  <h1 class="text-2xl md:text-3xl font-titles font-extrabold text-slate-900 leading-tight shrink-0">
+    Historial de mantenimiento<br />vehicular diario
+  </h1>
 
-          <!-- KPI Cards -->
-          <div class="px-10 pb-8 grid grid-cols-2 lg:grid-cols-4 gap-5">
+  <div class="w-full lg:w-auto flex flex-col sm:flex-row flex-wrap gap-4">
 
-            <!-- Incidencias menores -->
-            <div class="rounded-2xl border-2 px-5 py-4 flex flex-col gap-2"
-                 style="background-color:#FFF7ED; border-color:#FDBA74;">
-              <div class="flex items-start justify-between gap-2">
-                <span class="text-sm font-titles font-bold text-slate-800 leading-tight">Incidencias<br />menores:</span>
-                <span class="text-4xl font-titles font-extrabold text-slate-900 leading-none shrink-0">
-                  {{ isLoadingKpis ? '…' : kpis.minorIncidents }}
-                </span>
-              </div>
-              <div class="flex items-start gap-2 mt-1">
-                <svg class="w-5 h-5 mt-0.5 shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                </svg>
-                <p class="text-[11px] text-slate-600 leading-snug whitespace-pre-line">
-                  Top categorías afectadas:<br/>{{ kpis.topCategories }}
-                </p>
-              </div>
-            </div>
+    <!-- Incidencias menores -->
+    <div class="rounded-2xl border-2 px-5 py-4 flex flex-col gap-2 flex-1 min-w-[180px]"
+         style="background-color:#FFF7ED; border-color:#FDBA74; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+      <div class="flex items-start justify-between gap-4">
+        <span class="text-sm font-titles font-bold text-slate-800 leading-tight">Incidencias<br />menores:</span>
+        <span class="text-4xl font-titles font-extrabold text-slate-900 leading-none shrink-0">
+          {{ isLoadingKpis ? '…' : kpis.minorIncidents }}
+        </span>
+      </div>
+      <div class="flex items-start gap-2 mt-1">
+        <svg class="w-5 h-5 mt-0.5 shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+        </svg>
+        <p class="text-[11px] text-slate-600 leading-snug whitespace-pre-line">
+          Top categorías afectadas:<br/>{{ kpis.topCategories }}
+        </p>
+      </div>
+    </div>
 
-            <!-- Vehículos fuera de servicio -->
-            <div class="rounded-2xl border-2 px-5 py-4 flex flex-col gap-3"
-                 style="background-color:#FEF2F2; border-color:#FECACA;">
-              <div class="flex items-start justify-between gap-2">
-                <span class="text-sm font-titles font-bold text-slate-800 leading-tight">Vehículos fuera<br />de servicio</span>
-                <span class="text-4xl font-titles font-extrabold text-slate-900 leading-none shrink-0">
-                  {{ isLoadingKpis ? '…' : outOfServiceCount }}
-                </span>
-              </div>
-              <div class="flex items-center gap-3">
-                <svg class="w-9 h-9 shrink-0 text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.4">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 18H5.5A1.5 1.5 0 014 16.5v-10A1.5 1.5 0 015.5 5H16a2 2 0 012 2v1m0 0h1.5a2 2 0 011.9 1.368L22 12.5V17a1 1 0 01-1 1h-1M18 8h-2M6 16.5a1.5 1.5 0 103 0 1.5 1.5 0 00-3 0zm9 0a1.5 1.5 0 103 0 1.5 1.5 0 00-3 0z"/>
-                </svg>
-                <button
-                  type="button"
-                  @click="openAlertsModal"
-                  class="text-sm text-blue-500 font-semibold hover:underline"
-                >
-                  Ver alertas
-                </button>
-              </div>
-            </div>
+    <!-- Registros del día -->
+    <div class="rounded-2xl border-2 px-5 py-4 flex flex-col gap-2 flex-1 min-w-[180px]"
+         style="background-color:#F0FDF4; border-color:#BBF7D0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+      <div class="flex items-start justify-between gap-4">
+        <span class="text-sm font-titles font-bold text-slate-800 leading-tight">Registros<br />del día</span>
+        <span class="text-4xl font-titles font-extrabold text-slate-900 leading-none shrink-0">
+          {{ isLoadingKpis ? '…' : kpis.dailyRegistrations }}
+        </span>
+      </div>
+      <div class="flex items-center gap-2 mt-1">
+        <svg class="w-5 h-5 shrink-0 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+          <line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/>
+        </svg>
+        <p class="text-[11px] text-slate-600 leading-snug">Registros completados hoy</p>
+      </div>
+    </div>
 
-            <!-- Registros del día -->
-            <div class="rounded-2xl border-2 px-5 py-4 flex flex-col gap-3"
-                 style="background-color:#F0FDF4; border-color:#BBF7D0;">
-              <span class="text-sm font-titles font-bold text-slate-800">Registros del día</span>
-              <div class="flex items-center gap-4">
-                <svg class="w-9 h-9 shrink-0 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
-                  <line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/>
-                </svg>
-                <span class="text-4xl font-titles font-extrabold text-slate-900">
-                  {{ isLoadingKpis ? '…' : kpis.dailyRegistrations }}
-                </span>
-              </div>
-            </div>
+    <!-- Registros pendientes -->
+    <div class="rounded-2xl border-2 px-5 py-4 flex flex-col gap-2 flex-1 min-w-[180px]"
+         style="background-color:#FEFCE8; border-color:#FEF08A; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+      <div class="flex items-start justify-between gap-4">
+        <span class="text-sm font-titles font-bold text-slate-800 leading-tight">Registros<br />pendientes</span>
+        <span class="text-4xl font-titles font-extrabold text-slate-900 leading-none shrink-0">
+          {{ isLoadingKpis ? '…' : kpis.pendingRegistrations }}
+        </span>
+      </div>
+      <div class="flex items-center gap-2 mt-1">
+        <svg class="w-5 h-5 shrink-0 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <p class="text-[11px] text-slate-600 leading-snug">Registros sin revisar</p>
+      </div>
+    </div>
 
-            <!-- Registros pendientes -->
-            <div class="rounded-2xl border-2 px-5 py-4 flex flex-col gap-3"
-                 style="background-color:#FEFCE8; border-color:#FEF08A;">
-              <span class="text-sm font-titles font-bold text-slate-800">Registros pendientes</span>
-              <div class="flex items-center gap-4">
-                <svg class="w-9 h-9 shrink-0 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                  <circle cx="12" cy="12" r="10"/>
-                  <polyline points="12 6 12 12 16 14"/>
-                </svg>
-                <span class="text-4xl font-titles font-extrabold text-slate-900">
-                  {{ isLoadingKpis ? '…' : kpis.pendingRegistrations }}
-                </span>
-              </div>
-            </div>
-
-          </div>
+  </div>
+</div>
 
           <!-- Error de carga -->
-          <div v-if="recordsError" class="mx-10 mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
+          <div v-if="recordsError" class="mx-4 sm:mx-6 lg:mx-10 mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
             {{ recordsError }}
+          </div>
+
+          <!-- Barra de filtros -->
+          <div class="px-4 sm:px-6 lg:px-10 pb-4 flex flex-wrap items-center gap-3">
+            <span class="text-sm font-medium text-slate-500 shrink-0">Filtrar por:</span>
+
+            <!-- Patente -->
+            <div class="relative">
+              <select v-model="filterPlate"
+                      class="appearance-none border border-gray-300 rounded-lg px-3 py-2 pr-8 text-sm bg-white text-slate-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer min-w-[130px]">
+                <option value="">Patente</option>
+                <option v-for="plate in uniquePlates" :key="plate" :value="plate">{{ plate }}</option>
+              </select>
+              <svg class="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+
+            <!-- Fecha -->
+            <input
+              type="date"
+              v-model="filterDate"
+              class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+
+            <!-- Buscar -->
+            <div class="relative">
+              <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input
+                type="text"
+                v-model="filterSearch"
+                placeholder="Buscar..."
+                class="border border-gray-300 rounded-lg pl-9 pr-4 py-2 text-sm bg-white text-slate-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary w-44"
+              />
+            </div>
+
+            <!-- Exportar ZIP -->
+            <button
+              @click="openExportZipModal"
+              class="ml-auto bg-[#C0392B] hover:bg-red-700 text-white font-semibold py-2 px-5 rounded-xl shadow-sm transition-colors text-sm uppercase tracking-wide">
+              Exportar .ZIP
+            </button>
           </div>
 
           <!-- Tabla -->
           <div
             ref="tableScrollRef"
-            class="flex-1 min-h-0 overflow-x-auto overflow-y-auto px-10 cursor-grab active:cursor-grabbing"
+            class="flex-1 min-h-0 overflow-x-auto overflow-y-auto px-4 sm:px-6 lg:px-10 cursor-grab active:cursor-grabbing"
             @mousedown="onTableMouseDown"
           >
             <table class="w-full text-sm" style="border-collapse: collapse;">
@@ -752,7 +1066,7 @@ const saveEdit = async () => {
           </div>
 
           <!-- Footer paginación -->
-          <div class="px-10 py-4 bg-white flex justify-between items-center text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
+          <div class="px-4 sm:px-6 lg:px-10 py-4 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
             <div class="flex items-center gap-2">
               <span>Filas por páginas</span>
               <div class="relative">
@@ -971,74 +1285,147 @@ const saveEdit = async () => {
   <!-- ═══════════ MODAL EDITAR ═══════════ -->
   <Teleport to="body">
     <div v-if="editModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div class="bg-white rounded-3xl shadow-xl w-full max-w-md border border-gray-200 overflow-hidden">
-        <!-- Header -->
-        <div class="bg-[#215179] px-6 py-5 flex items-center justify-between">
-          <h3 class="text-white font-titles font-bold text-lg">Editar registro</h3>
-          <button @click="closeEditModal" class="text-white/70 hover:text-white transition-colors">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg border border-gray-200 relative">
+
+        <!-- X button -->
+        <button @click="closeEditModal"
+                class="absolute top-4 right-4 w-8 h-8 border border-gray-300 rounded flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+
+        <!-- Título -->
+        <div class="bg-[#1b2e4b] px-6 py-5 rounded-t-3xl text-center">
+          <h3 class="text-2xl font-bold text-white">Editar registro</h3>
         </div>
+
         <!-- Body -->
-        <div class="p-6 space-y-4">
-          <!-- Info readonly -->
-          <div class="grid grid-cols-2 gap-3 text-sm">
+        <div class="px-10 pt-6 pb-10 space-y-7">
+
+          <!-- Fecha / Conductor -->
+          <div class="grid grid-cols-2 gap-6">
             <div>
-              <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">Fecha</p>
-              <p class="font-medium text-slate-700">{{ editModal.record?.date || '—' }}</p>
+              <p class="text-sm font-semibold text-slate-700 mb-2">Fecha</p>
+              <p class="text-base font-medium text-slate-900">{{ editModal.record?.date || '—' }}</p>
             </div>
             <div>
-              <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">Conductor</p>
-              <p class="font-medium text-slate-700">{{ editModal.record?.driver || '—' }}</p>
+              <p class="text-sm font-semibold text-slate-700 mb-2">Conductor</p>
+              <p class="text-base font-medium text-slate-900">{{ editModal.record?.driver || '—' }}</p>
             </div>
           </div>
 
-          <!-- Estado editable -->
+          <!-- Estado -->
           <div>
-            <label class="block text-xs text-slate-500 font-semibold uppercase tracking-wide mb-2">Estado</label>
-            <div class="flex gap-3">
+            <p class="text-sm font-semibold text-slate-700 mb-3">Estado</p>
+            <div class="flex gap-4">
               <button
                 @click="editForm.status = 'REVISADO'"
-                :class="editForm.status === 'REVISADO' ? 'bg-[#1b2e4b] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-                class="flex-1 py-2 rounded-xl text-sm font-bold transition-all">
+                :class="editForm.status === 'REVISADO' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                class="flex-1 py-3 rounded-xl text-sm font-semibold transition-all">
                 Revisado
               </button>
               <button
                 @click="editForm.status = 'PENDIENTE'"
                 :class="editForm.status === 'PENDIENTE' ? 'bg-[#E85D26] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-                class="flex-1 py-2 rounded-xl text-sm font-bold transition-all">
+                class="flex-1 py-3 rounded-xl text-sm font-semibold transition-all">
                 Pendiente
               </button>
             </div>
           </div>
 
-          <!-- Resumen de fallos editable -->
-          <div>
-            <label class="block text-xs text-slate-500 font-semibold uppercase tracking-wide mb-2">Resumen de fallos</label>
-            <textarea
-              v-model="editForm.faultSummary"
-              rows="3"
-              placeholder="Ej: 1 Ítem Malo&#10;2 Regulares"
-              class="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm text-slate-700 resize-none outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
-            />
+          <!-- Acciones secundarias -->
+          <div class="flex gap-3">
+            <button
+              @click="editChecklist(editModal.record)"
+              class="flex-1 py-2 bg-[#007ACC] hover:bg-[#005fa3] text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide">
+              Editar Check List
+            </button>
+            <button
+              @click="exportChecklistPDF(editModal.record)"
+              class="flex-1 py-2 bg-[#007ACC] hover:bg-[#005fa3] text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide">
+              Exportar PDF
+            </button>
+          </div>
+
+          <!-- Confirmar / Cancelar -->
+          <div class="flex justify-between">
+            <button @click="saveEdit" :disabled="isSavingEdit"
+                    class="px-10 py-3 bg-[#C0392B] hover:bg-red-700 text-white text-base font-bold rounded-xl transition-all disabled:opacity-50">
+              {{ isSavingEdit ? 'Guardando…' : 'Confirmar' }}
+            </button>
+            <button @click="closeEditModal"
+                    class="px-10 py-3 bg-[#215179] hover:bg-blue-900 text-white text-base font-bold rounded-xl transition-all">
+              Cancelar
+            </button>
           </div>
 
           <!-- Error -->
-          <p v-if="editError" class="text-sm text-red-600">{{ editError }}</p>
+          <p v-if="editError" class="text-sm text-red-600 text-center -mt-2">{{ editError }}</p>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- ═══════════ MODAL EXPORTAR ZIP ═══════════ -->
+  <Teleport to="body">
+    <div v-if="exportZipModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md border border-gray-200 relative">
+
+        <!-- X button -->
+        <button @click="closeExportZipModal"
+                class="absolute top-4 right-4 w-8 h-8 border border-gray-300 rounded flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+
+        <!-- Título -->
+        <div class="bg-[#1b2e4b] px-6 py-5 rounded-t-3xl text-center">
+          <h3 class="text-xl font-bold text-white">Exportar .ZIP</h3>
         </div>
 
-        <!-- Footer -->
-        <div class="px-6 pb-6 flex justify-end gap-3">
-          <button @click="closeEditModal"
-                  class="px-5 py-2 border border-slate-300 text-slate-600 text-sm rounded-xl font-semibold hover:bg-slate-50 transition-all">
-            Cancelar
-          </button>
-          <button @click="saveEdit" :disabled="isSavingEdit"
-                  class="px-6 py-2 bg-[#A61919] text-white text-sm rounded-xl font-bold hover:bg-red-800 transition-all disabled:opacity-50">
-            {{ isSavingEdit ? 'Guardando…' : 'Guardar' }}
-          </button>
+        <!-- Body -->
+        <div class="px-10 pt-6 pb-8 space-y-6">
+          <p class="text-sm text-slate-500 text-center">Por favor seleccione las fechas.</p>
+
+          <div class="grid grid-cols-2 gap-5">
+            <!-- Desde -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Desde</label>
+              <div class="relative">
+                <input type="date" v-model="exportZipForm.startDate"
+                       class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+              </div>
+            </div>
+            <!-- Hasta -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Hasta</label>
+              <div class="relative">
+                <input type="date" v-model="exportZipForm.endDate"
+                       class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Error -->
+          <p v-if="exportZipError" class="text-sm text-red-600 text-center">{{ exportZipError }}</p>
+
+          <!-- Botones -->
+          <div class="flex justify-between pt-1">
+            <button @click="exportZip" :disabled="isExportingZip"
+                    class="px-10 py-3 bg-[#C0392B] hover:bg-red-700 text-white text-base font-bold rounded-xl transition-all disabled:opacity-50 flex items-center gap-2">
+              <svg v-if="isExportingZip" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+              {{ isExportingZip ? 'Generando…' : 'Confirmar' }}
+            </button>
+            <button @click="closeExportZipModal" :disabled="isExportingZip"
+                    class="px-10 py-3 bg-[#215179] hover:bg-blue-900 text-white text-base font-bold rounded-xl transition-all disabled:opacity-50">
+              Cancelar
+            </button>
+          </div>
         </div>
       </div>
     </div>

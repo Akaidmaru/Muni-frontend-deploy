@@ -13,6 +13,7 @@ import DailyRegistrationFuncionarioView from '../views/DailyRegistrationFunciona
 import TravelHistoryView from '../views/TravelHistoryView.vue'
 import TravelHistoryFuncionarioView from '../views/TravelHistoryFuncionarioView.vue'
 import TravelHistoryAdminView from '../views/TravelHistoryAdminView.vue'
+import AdminDestinyView from '../views/AdminDestinyView.vue'
 import AdminUsersView from '../views/AdminUsersView.vue'
 import AdminVehiclesView from '../views/AdminVehiclesView.vue'
 import AdminReportsView from '../views/AdminReportsView.vue'
@@ -24,6 +25,9 @@ import AdminUserRoleSetupView from '../views/AdminUserRoleSetupView.vue'
 import AccessDeniedView from '../views/AccessDeniedView.vue'
 import DashboardAdminView from '../views/DashboardAdminView.vue'
 import DashboardPacienteView from '../views/DashboardPacienteView.vue'
+import AdminRegistrationHubView from '../views/AdminRegistrationHubView.vue'
+import AdminMaintenanceHubView from '../views/AdminMaintenanceHubView.vue'
+import AdminMaintenanceStatsView from '../views/AdminMaintenanceStatsView.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -53,6 +57,11 @@ const router = createRouter({
             path: '/verificar-correo',
             name: 'verify-email',
             component: VerifyEmailView
+        },
+        {
+            path: '/restablecer-contrasena',
+            name: 'reset-password',
+            component: () => import('../views/ResetPasswordView.vue')
         },
         {
             path: '/contacto',
@@ -116,6 +125,12 @@ const router = createRouter({
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
         {
+            path: '/admin/registro',
+            name: 'admin-registro-hub',
+            component: AdminRegistrationHubView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+        {
             path: '/admin/gestion-usuarios',
             name: 'admin-users',
             component: AdminUsersView,
@@ -148,7 +163,13 @@ const router = createRouter({
         {
             path: '/admin/mantencion-vehicular',
             name: 'admin-maintenance',
-            component: AdminMaintenanceView,
+            component: AdminMaintenanceHubView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+        {
+            path: '/admin/mantencion-vehicular/estadisticas',
+            name: 'admin-maintenance-estadisticas',
+            component: AdminMaintenanceStatsView,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
         {
@@ -158,15 +179,30 @@ const router = createRouter({
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
         {
-            path: '/admin/mantencion-vehicular/semanal',
-            name: 'admin-maintenance-weekly',
+            path: '/admin/mantencion-vehicular/mensual',
+            name: 'admin-maintenance-monthly',
             component: AdminMaintenanceWeeklyView,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
         {
-            path: '/admin/mantencion-vehicular/historial-semanal',
-            name: 'admin-maintenance-weekly-history',
+            path: '/admin/mantencion-vehicular/historial-mensual',
+            name: 'admin-maintenance-monthly-history',
             component: AdminMaintenanceWeeklyHistory,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+
+        },
+        {
+            path: '/admin/mantencion-vehicular/semanal',
+            redirect: { name: 'admin-maintenance-monthly' },
+        },
+        {
+            path: '/admin/mantencion-vehicular/historial-semanal',
+            redirect: { name: 'admin-maintenance-monthly-history' },
+        },
+        {
+            path: '/admin/destinos',
+            name: 'admin-destinations',
+            component: AdminDestinyView,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
 

@@ -149,20 +149,20 @@ const truncate = (str, n = 38) => str?.length > n ? str.slice(0, n) + '…' : (s
       <DashboardSidebar />
 
       <!-- ── Main content ────────────────────────────────────────────────── -->
-      <main class="flex-1 py-10 px-4 md:px-8 overflow-y-auto flex items-start justify-center">
+      <main class="flex-1 py-6 px-4 md:px-8 overflow-y-auto flex items-start justify-center">
         <div class="w-full max-w-5xl">
-
-          <!-- Back + title -->
-          <button @click="goBack" class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-blue-900 transition-colors mb-4">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            Volver
-          </button>
+          <div class="mb-4 pl-10 sm:pl-12">
+            <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              Volver
+            </button>
+          </div>
 
           <!-- Card container -->
           <div class="bg-white rounded-3xl border-2 border-slate-200 shadow-sm flex flex-col overflow-hidden">
 
             <!-- Card header -->
-            <div class="px-8 pt-7 pb-5">
+            <div class="px-4 sm:px-6 lg:px-8 pt-5 lg:pt-7 pb-5">
               <h1 class="text-2xl font-titles font-bold text-text-title mb-5">Lista de reportes</h1>
 
               <!-- Search + filter row -->
@@ -199,7 +199,7 @@ const truncate = (str, n = 38) => str?.length > n ? str.slice(0, n) + '…' : (s
             </div>
 
             <!-- ── Table ─────────────────────────────────────────────────── -->
-            <div class="flex-1 px-8 pb-4">
+            <div class="flex-1 px-4 sm:px-6 lg:px-8 pb-4 overflow-x-auto">
 
               <!-- Loading -->
               <div v-if="isLoading" class="flex items-center justify-center py-20 gap-3">
@@ -275,7 +275,7 @@ const truncate = (str, n = 38) => str?.length > n ? str.slice(0, n) + '…' : (s
             </div>
 
             <!-- ── Pagination footer ─────────────────────────────────────── -->
-            <div class="px-8 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500 font-medium">
+            <div class="px-4 sm:px-6 lg:px-8 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500 font-medium">
               <!-- Rows per page -->
               <div class="flex items-center gap-2">
                 <span>Filas por páginas</span>
