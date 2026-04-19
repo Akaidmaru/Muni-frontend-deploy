@@ -105,7 +105,7 @@ const submitReport = async () => {
         leave-from-class="opacity-100 translate-y-0 scale-100"
         leave-to-class="opacity-0 translate-y-4 scale-95"
       >
-        <div v-if="isOpen" class="bg-white rounded-2xl shadow-2xl w-full max-w-[620px] relative z-10 border border-gray-200 py-10 px-8 sm:px-14">
+        <div v-if="isOpen" class="bg-white rounded-2xl shadow-2xl w-full max-w-[620px] relative z-10 border border-gray-200 py-6 sm:py-10 px-5 sm:px-8 md:px-14">
             
             <!-- Left floating Icon -->
             <div class="absolute top-8 left-8 sm:left-10 w-[60px] h-[60px] bg-[#B71C1C] rounded-2xl flex items-center justify-center shadow-md">
@@ -115,7 +115,7 @@ const submitReport = async () => {
             </div>
 
             <!-- Headers -->
-            <div class="text-center mt-2 mb-8 px-8 sm:px-16">
+            <div class="text-center mt-2 mb-6 sm:mb-8 px-4 sm:px-8 md:px-16">
               <h2 class="text-[22px] font-titles font-extrabold text-[#111827] mb-3 tracking-tight">Reportar un problema</h2>
               <p class="text-[13px] font-body text-gray-500 leading-snug">
                 Ayúdanos a mejorar. Describe el error que has<br class="hidden sm:block">encontrado lo más detalladamente posible.
@@ -188,7 +188,7 @@ const submitReport = async () => {
                 <button 
                   type="submit" 
                   :disabled="isSubmitting"
-                  class="bg-[#B71C1C] hover:bg-red-800 disabled:opacity-75 disabled:cursor-not-allowed text-white text-xs font-bold px-8 py-3 rounded-xl transition-all w-[240px] tracking-wide flex items-center justify-center font-body min-h-[44px]"
+                  class="bg-[#B71C1C] hover:bg-red-800 disabled:opacity-75 disabled:cursor-not-allowed text-white text-xs font-bold px-8 py-3 rounded-xl transition-all w-full sm:w-[240px] tracking-wide flex items-center justify-center font-body min-h-[44px]"
                 >
                   <span v-if="!isSubmitting">ENVIAR REPORTE</span>
                   <svg v-else class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

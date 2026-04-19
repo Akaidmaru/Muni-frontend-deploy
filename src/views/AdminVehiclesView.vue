@@ -1,9 +1,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import api from '@/services/axios'
+
+const router = useRouter()
 
 const filterDesde = ref('')
 const filterHasta = ref('')
@@ -246,16 +249,22 @@ onMounted(() => {
     <div class="flex flex-1 overflow-hidden min-w-0">
       <DashboardSidebar />
 
-      <main class="flex-1 pt-12 pb-10 px-6 lg:px-8 overflow-hidden flex flex-col min-w-0">
+      <main class="flex-1 pt-4 pb-10 px-3 sm:px-6 lg:px-8 overflow-hidden flex flex-col min-w-0">
+        <div class="mb-3 pl-10 sm:pl-12 shrink-0">
+          <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Volver
+          </button>
+        </div>
         <div class="flex gap-6 w-full h-full min-h-0 min-w-0">
-          
+
           <div :class="[
             'bg-white rounded-[2rem] border-2 border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative min-w-0',
-            isFilterOpen ? 'max-w-[calc(100%-23rem)]' : 'w-full'
+            isFilterOpen ? 'sm:max-w-[calc(100%-23rem)]' : 'w-full'
           ]">
-            
-            <div class="flex items-center justify-center p-8 relative min-h-[5rem]">
-               <h1 class="text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center">Administración de Vehículos</h1>
+
+            <div class="flex items-center justify-center p-4 sm:p-8 relative min-h-[4rem] sm:min-h-[5rem]">
+               <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center">Administración de Vehículos</h1>
                
                <div class="absolute right-8 top-8">
                  <button v-if="!isFilterOpen"
@@ -272,7 +281,7 @@ onMounted(() => {
                </div>
             </div>
 
-            <div class="flex-1 w-full overflow-x-auto overflow-y-auto px-10 relative pb-6 min-w-0 custom-scrollbar">
+            <div class="flex-1 w-full overflow-x-auto overflow-y-auto px-3 sm:px-6 md:px-10 relative pb-6 min-w-0 custom-scrollbar">
               <table class="w-full text-sm border-collapse min-w-[1000px]">
                 <thead class="bg-white sticky top-0 z-10 shadow-sm border-b border-gray-100">
                   <tr>
@@ -398,7 +407,7 @@ onMounted(() => {
               </table>
             </div>
 
-            <div class="px-10 py-5 bg-white flex justify-between items-center text-xs font-semibold text-slate-500 border-t border-gray-100 mt-auto rounded-b-3xl">
+            <div class="px-3 sm:px-6 md:px-10 py-4 sm:py-5 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-semibold text-slate-500 border-t border-gray-100 mt-auto rounded-b-3xl">
               <div class="flex items-center gap-3">
                 <span>Filas por páginas</span>
                 <div class="relative">
@@ -422,8 +431,11 @@ onMounted(() => {
             </div>
           </div>
 
+          <!-- Backdrop móvil -->
+          <div v-if="isFilterOpen" class="fixed inset-0 bg-black/30 z-40 sm:hidden" @click="isFilterOpen = false" />
+
           <Transition name="slide">
-            <div v-show="isFilterOpen" class="w-[22rem] bg-[#DADBDB] rounded-[2rem] border border-gray-300/50 shadow-sm flex flex-col p-6 shrink-0 z-20 h-full overflow-y-auto relative">
+            <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[140px] z-50 sm:static sm:z-20 sm:w-[22rem] sm:h-full bg-[#DADBDB] sm:rounded-[2rem] rounded-t-[2rem] border border-gray-300/50 shadow-sm flex flex-col p-6 sm:shrink-0 overflow-y-auto relative">
               <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent">
                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                    <line x1="8" y1="5" x2="8" y2="19"></line>

@@ -356,8 +356,12 @@ const loadMaintenanceRecordById = async (recordId) => {
 };
 
 const goBackFromMaintenance = () => {
-  if (sourceFromRoute.value === "admin-maintenance-weekly-history") {
-    router.push({ name: "admin-maintenance-weekly-history" });
+  if (sourceFromRoute.value === "admin-maintenance-monthly-history") {
+    router.push({ name: "admin-maintenance-monthly-history" });
+    return;
+  }
+  if (sourceFromRoute.value === "admin-maintenance-daily") {
+    router.push({ name: "admin-maintenance-daily" });
     return;
   }
 
@@ -473,6 +477,14 @@ const clearFieldError = (field) => {
   fieldErrors.value[field] = false;
 };
 
+const sanitizeMileageValue = (value) => String(value ?? "").replace(/[^\d]/g, "");
+
+const handleMileageInput = (event) => {
+  if (!maintenanceForm.value) return;
+  maintenanceForm.value.kilometraje = sanitizeMileageValue(event?.target?.value);
+  clearFieldError("kilometraje");
+};
+
 const toggleExists = (item, value) => {
   if (item.type === "section") return;
   item.exists = item.exists === value ? "" : value;
@@ -512,8 +524,14 @@ const saveMaintenanceForm = async () => {
   let hasErrors = false;
 
   // Validate required fields
-  if (!maintenanceForm.value.kilometraje.trim()) {
+  const mileageInput = sanitizeMileageValue(maintenanceForm.value.kilometraje);
+  maintenanceForm.value.kilometraje = mileageInput;
+  if (!mileageInput) {
     fieldErrors.value.kilometraje = true;
+    hasErrors = true;
+  } else if (!/^\d+$/.test(mileageInput)) {
+    fieldErrors.value.kilometraje = true;
+    maintenanceFormError.value = "El kilometraje debe ser un número entero.";
     hasErrors = true;
   }
 
@@ -559,7 +577,7 @@ const saveMaintenanceForm = async () => {
     inspectionDate: toIsoDateFromDisplay(maintenanceForm.value.inspectionDate),
     inspectionTime: maintenanceForm.value.inspectionTime,
     municipalLicense: maintenanceForm.value.licMunicipal,
-    currentMileage: Number(maintenanceForm.value.kilometraje),
+    currentMileage: Number.parseInt(maintenanceForm.value.kilometraje, 10),
     dailyMaintenanceItems: maintenanceItems,
   };
 
@@ -587,8 +605,10 @@ const saveMaintenanceForm = async () => {
     maintenanceFormSuccess.value = existingMaintenanceRecordId.value
       ? "Formulario de mantenimiento actualizado correctamente."
       : "Formulario de mantenimiento guardado correctamente.";
-    if (sourceFromRoute.value === "admin-maintenance-weekly-history") {
-      router.push({ name: "admin-maintenance-weekly-history" });
+    if (sourceFromRoute.value === "admin-maintenance-monthly-history") {
+      router.push({ name: "admin-maintenance-monthly-history" });
+    } else if (sourceFromRoute.value === "admin-maintenance-daily") {
+      router.push({ name: "admin-maintenance-daily" });
     } else {
       router.push({
         name: 'daily-registration-driver',
@@ -1123,12 +1143,15 @@ onMounted(async () => {
                           <input
                             type="number"
                             v-model="maintenanceForm.kilometraje"
-                            @input="clearFieldError('kilometraje')"
+                            @input="handleMileageInput"
                             placeholder="Ingrese el kilometraje"
+                            min="0"
+                            step="1"
+                            inputmode="numeric"
                             class="w-full rounded-xl border bg-white px-3 py-2 text-sm text-text-title outline-none focus:ring-1"
                             :class="fieldErrors.kilometraje ? 'border-red-500 focus:border-red-500 focus:ring-red-200 animate-shake' : 'border-gray-300 focus:border-primary focus:ring-primary'"
                           />
-                          <p v-if="fieldErrors.kilometraje" class="text-[10px] text-red-600 mt-1 font-medium">Este campo es obligatorio</p>
+                          <p v-if="fieldErrors.kilometraje" class="text-[10px] text-red-600 mt-1 font-medium">Ingrese un kilometraje entero</p>
                         </div>
                       </div>
                       <p class="text-base">

@@ -25,6 +25,9 @@ import AdminUserRoleSetupView from '../views/AdminUserRoleSetupView.vue'
 import AccessDeniedView from '../views/AccessDeniedView.vue'
 import DashboardAdminView from '../views/DashboardAdminView.vue'
 import DashboardPacienteView from '../views/DashboardPacienteView.vue'
+import AdminRegistrationHubView from '../views/AdminRegistrationHubView.vue'
+import AdminMaintenanceHubView from '../views/AdminMaintenanceHubView.vue'
+import AdminMaintenanceStatsView from '../views/AdminMaintenanceStatsView.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -117,6 +120,12 @@ const router = createRouter({
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
         {
+            path: '/admin/registro',
+            name: 'admin-registro-hub',
+            component: AdminRegistrationHubView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+        {
             path: '/admin/gestion-usuarios',
             name: 'admin-users',
             component: AdminUsersView,
@@ -149,7 +158,13 @@ const router = createRouter({
         {
             path: '/admin/mantencion-vehicular',
             name: 'admin-maintenance',
-            component: AdminMaintenanceView,
+            component: AdminMaintenanceHubView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+        {
+            path: '/admin/mantencion-vehicular/estadisticas',
+            name: 'admin-maintenance-estadisticas',
+            component: AdminMaintenanceStatsView,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
         {
@@ -159,17 +174,25 @@ const router = createRouter({
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
         {
-            path: '/admin/mantencion-vehicular/semanal',
-            name: 'admin-maintenance-weekly',
+            path: '/admin/mantencion-vehicular/mensual',
+            name: 'admin-maintenance-monthly',
             component: AdminMaintenanceWeeklyView,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
         {
-            path: '/admin/mantencion-vehicular/historial-semanal',
-            name: 'admin-maintenance-weekly-history',
+            path: '/admin/mantencion-vehicular/historial-mensual',
+            name: 'admin-maintenance-monthly-history',
             component: AdminMaintenanceWeeklyHistory,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
 
+        },
+        {
+            path: '/admin/mantencion-vehicular/semanal',
+            redirect: { name: 'admin-maintenance-monthly' },
+        },
+        {
+            path: '/admin/mantencion-vehicular/historial-semanal',
+            redirect: { name: 'admin-maintenance-monthly-history' },
         },
         {
             path: '/admin/destinos',

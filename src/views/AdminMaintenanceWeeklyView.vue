@@ -3,10 +3,16 @@ import { ref, computed, onMounted, watch } from 'vue'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/axios'
 
 const router = useRouter()
+const route = useRoute()
+
+const isReadOnly = computed(() => {
+  const mode = route.query.mode
+  return Array.isArray(mode) ? mode[0] === 'view' : mode === 'view'
+})
 
 // --- 1. CONFIGURACIÓN GLOBAL & TÍTULO DINÁMICO ---
 const mesesAnio = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -26,7 +32,7 @@ const getWeekendColumnCount = (monthStr) => {
   }
 
   // Un mes tendrá 4 o 5 pares Sab/Dom.
-  return Math.max(4, Math.min(5, saturdayCount))
+  return Math.max(5, Math.min(4, saturdayCount))
 }
 
 const weekendColumns = computed(() =>
@@ -120,7 +126,7 @@ inicializarSeccion(itemsAccesorios, 'accesorios');
 
 
 
-// --- 6. MAPEO: nombre del ítem semanal → itemCode diario ---
+// --- 6. MAPEO: nombre del ítem mensual → itemCode diario ---
 const legacyDailyItemCodeMap = {
   'Luces Bajas':                   'bajas',
   'Luces Altas':                   'altas',
@@ -327,7 +333,7 @@ const guardarFormulario = async () => {
       monthlyMaintenanceItems,
     })
     alert('¡Cambios guardados con éxito!')
-    router.push('/admin/mantencion-vehicular/historial-semanal')
+    router.push('/admin/mantencion-vehicular/historial-mensual')
   } catch (err) {
     const msg = err?.response?.data?.message
     const detail = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo guardar el mantenimiento mensual.'
@@ -336,7 +342,7 @@ const guardarFormulario = async () => {
 };
 
 const cancelarEdicion = () => {
-  router.push('/admin/mantencion-vehicular/historial-semanal');
+  router.push('/admin/mantencion-vehicular/historial-mensual');
 };
 
 const changeMonth = (delta) => {
@@ -356,8 +362,20 @@ watch(currentDateStr, (newVal) => {
   }
 });
 
-onMounted(() => {
-  loadTrucks()
+onMounted(async () => {
+  await loadTrucks()
+
+  const routeMonth = route.query.month
+  if (routeMonth) {
+    currentDateStr.value = Array.isArray(routeMonth) ? routeMonth[0] : routeMonth
+  }
+
+  const routeTruckId = route.query.truckId
+  const truckId = Array.isArray(routeTruckId) ? routeTruckId[0] : routeTruckId
+  if (truckId && !Number.isNaN(Number(truckId))) {
+    selectedTruckId.value = Number(truckId)
+    await loadTruckData(Number(truckId))
+  }
 })
 </script>
 
@@ -371,7 +389,13 @@ onMounted(() => {
     <div class="flex flex-1 overflow-hidden">
       <DashboardSidebar />
       
-      <main class="flex-1 py-6 px-4 sm:py-10 sm:px-6 overflow-y-auto overflow-x-hidden bg-slate-50 min-w-0">
+      <main class="flex-1 py-4 px-4 sm:pt-6 sm:pb-10 sm:px-6 overflow-y-auto overflow-x-hidden bg-slate-50 min-w-0">
+        <div class="max-w-6xl mx-auto mb-3 pl-10 sm:pl-12">
+          <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Volver
+          </button>
+        </div>
         <div class="max-w-6xl mx-auto bg-white rounded-2xl sm:rounded-3xl border border-slate-300 shadow-sm p-4 sm:p-10 overflow-x-hidden">
 
           <h1 class="text-2xl font-bold text-center text-slate-900 mb-8 uppercase tracking-wide">{{ tituloMesPrincipal }}</h1>
@@ -397,7 +421,7 @@ onMounted(() => {
                           id="truck-selector"
                           v-model="selectedTruckId"
                           @change="onTruckSelect"
-                          :disabled="isLoadingTrucks || isLoadingTruckData"
+                          :disabled="isLoadingTrucks || isLoadingTruckData || isReadOnly"
                           class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs text-slate-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <option :value="null">-- Seleccione --</option>
@@ -476,6 +500,7 @@ onMounted(() => {
                               type="checkbox"
                               :checked="registros[sec.r][item][dia] === 'Si'"
                               @change="registros[sec.r][item][dia] = $event.target.checked ? 'Si' : ''"
+                              :disabled="isReadOnly"
                               class="sr-only peer"
                             >
                             <div class="w-5 h-5 bg-white border-2 border-slate-300 rounded-md peer peer-checked:bg-emerald-500 peer-checked:border-emerald-500 transition-all flex items-center justify-center">
@@ -490,7 +515,8 @@ onMounted(() => {
                         v-model="registros[sec.r][item].observacion" 
                         placeholder="Ingrese observación si requiere..." 
                         rows="1" 
-                        class="w-full bg-transparent border-none focus:ring-0 text-[11px] resize-none text-slate-500 italic placeholder:text-slate-300 p-2"
+                        :disabled="isReadOnly"
+                        class="w-full bg-transparent border-none focus:ring-0 text-[11px] resize-none text-slate-500 italic placeholder:text-slate-300 p-2 disabled:cursor-not-allowed disabled:text-slate-400"
                       ></textarea>
                     </td>
                   </tr>
@@ -503,17 +529,7 @@ onMounted(() => {
             <h2 class="text-lg font-bold text-slate-900 underline tracking-tight text-center w-full mb-8">Sanitización Vehículo</h2>
             <div class="max-w-3xl mx-auto flex flex-col items-start px-2 sm:px-0">
               
-              <div class="flex items-center gap-2 bg-white p-1 rounded-full shadow-sm border border-slate-200 mb-3">
-                <button @click="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all active:scale-95">←</button>
-                <div class="relative flex items-center">
-                  <input 
-                    type="month" 
-                    v-model="currentDateStr" 
-                    class="bg-transparent border-none focus:ring-0 text-sm font-bold text-slate-700 uppercase cursor-pointer py-0 px-2"
-                  />
-                </div>
-                <button @click="changeMonth(1)" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all active:scale-95">→</button>
-              </div>
+
               
               <div class="border border-slate-300 rounded overflow-x-auto shadow-sm w-full">
                 <table class="w-full text-center border-collapse text-sm min-w-[500px] sm:min-w-full">
@@ -550,7 +566,7 @@ onMounted(() => {
           </section>
 
           <footer class="flex flex-col sm:flex-row justify-between items-center mt-8 sm:mt-12 pt-8 border-t-2 border-slate-200 gap-4">
-            <button @click="guardarFormulario" class="w-full sm:w-auto bg-red-800 hover:bg-red-900 text-white px-12 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95 order-1 sm:order-none">
+            <button v-if="!isReadOnly" @click="guardarFormulario" class="w-full sm:w-auto bg-red-800 hover:bg-red-900 text-white px-12 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95 order-1 sm:order-none">
               Continuar
             </button>
             <button @click="cancelarEdicion" class="w-full sm:w-auto bg-slate-700 hover:bg-slate-800 text-white px-12 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95 order-2 sm:order-none">

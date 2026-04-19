@@ -12,7 +12,8 @@ import camionIcon from '@/assets/images/Images admin nabvar left/camion.png'
 import destinoIcon from '@/assets/images/Images admin nabvar left/destino.png'
 import viajesIcon from '@/assets/images/Images admin nabvar left/agencia-de-viajes.png'
 import dailyMaintenanceIcon from '@/assets/images/admin/tareas-diarias.png'
-import weeklyMaintenanceIcon from '@/assets/images/admin/calendario.png'
+import monthlyMaintenanceIcon from '@/assets/images/admin/calendario.png'
+import estadisticasIcon from '@/assets/images/Images admin nabvar left/stadistics.png'
 import ReportProblemModal from './ReportProblemModal.vue'
 
 const router = useRouter()
@@ -35,21 +36,22 @@ const allNavItems = {
       label: 'Registro',
       icon: tableIcon,
       alt: 'Registro',
+      path: '/admin/registro',
       subItems: [
-        { label: 'Usuarios', path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Usuarios'
-        },
-        { label: 'Veh\xEDculos', path: '/admin/vehiculos', icon: camionIcon, alt: 'Veh\xEDculos' },
-        { label: 'Destinos', path: '/admin/destinos', icon: destinoIcon, alt: 'Destinos' },
-        { label: 'Viajes', path: '/admin/viajes', icon: viajesIcon, alt: 'Viajes' },
+        { label: 'Usuarios',  path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Usuarios'  },
+        { label: 'Veh\xEDculos', path: '/admin/vehiculos',    icon: camionIcon,       alt: 'Veh\xEDculos' },
+        { label: 'Destinos',  path: '/admin/destinos',         icon: destinoIcon,      alt: 'Destinos'  },
       ],
     },
     {
       label: 'Mantenimiento\nvehicular',
       icon: repairIcon,
       alt: 'Mantenimiento vehicular',
+      path: '/admin/mantencion-vehicular',
       subItems: [
-        { label: 'Diario', path: '/admin/mantencion-vehicular/diario', icon: dailyMaintenanceIcon, alt: 'Mantenimiento diario' },
-        { label: 'Semanal', path: '/admin/mantencion-vehicular/historial-semanal', icon: weeklyMaintenanceIcon, alt: 'Mantenimiento semanal' },
+        { label: 'Diario',        path: '/admin/mantencion-vehicular/diario',           icon: dailyMaintenanceIcon,   alt: 'Mantenimiento diario'   },
+        { label: 'Mensual',       path: '/admin/mantencion-vehicular/historial-mensual', icon: monthlyMaintenanceIcon, alt: 'Mantenimiento mensual'  },
+        { label: 'Estadísticas',  path: '/admin/mantencion-vehicular/estadisticas',      icon: estadisticasIcon,       alt: 'Estadísticas'           },
       ],
     },
     { label: 'Historial de\nviajes', path: '/historial-viajes-admin', icon: historialIcon, alt: 'Historial de viajes' },
@@ -64,7 +66,7 @@ const isNestedSubItemActive = (subItem) =>
   Array.isArray(subItem.children) && subItem.children.some((child) => route.path === child.path)
 
 const openDropdowns = ref({
-  Registro: true,
+  Registro: false,
   'Mantenimiento\nvehicular': false,
 })
 
@@ -83,6 +85,11 @@ const toggleNestedDropdown = (key) => {
 const navigate = (path) => {
   router.push(path)
   open.value = false
+}
+
+const navigateParent = (path, label) => {
+  toggleDropdown(label)
+  if (path) router.push(path)
 }
 
 const isReportModalOpen = ref(false)
@@ -135,8 +142,8 @@ const reportProblem = () => {
               class="bg-gray-50 border-b border-gray-200"
             >
               <button
-                @click="toggleDropdown(item.label)"
-                class="flex items-center gap-2 px-3 py-3 w-full text-left"
+                @click="navigateParent(item.path, item.label)"
+                class="flex items-center gap-2 px-3 py-3 w-full text-left group hover:bg-gray-100 transition-colors"
               >
                 <img
                   v-if="item.icon"
@@ -144,7 +151,8 @@ const reportProblem = () => {
                   :alt="item.alt"
                   class="w-8 h-8 shrink-0 object-contain"
                 />
-                <span class="text-base font-titles font-bold text-slate-800 leading-tight whitespace-pre-line flex-1">
+                <span class="text-base font-titles font-bold leading-tight whitespace-pre-line flex-1 transition-colors"
+                      :class="item.path && isActive(item.path) ? 'text-primary' : 'text-slate-800 group-hover:text-primary'">
                   {{ item.label }}
                 </span>
               </button>

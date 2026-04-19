@@ -179,19 +179,19 @@ onMounted(() => { loadUsers() })
     <div class="flex flex-1 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 py-10 px-4 md:px-8 overflow-y-auto flex items-start justify-center">
+      <main class="flex-1 py-6 px-4 md:px-8 overflow-y-auto flex items-start justify-center">
         <div class="w-full max-w-6xl">
+          <div class="mb-4 pl-10 sm:pl-12">
+            <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              Volver
+            </button>
+          </div>
           <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col overflow-hidden min-h-[78vh]">
 
             <!-- ── Barra superior ── -->
-            <div class="px-10 pt-8 pb-4 flex items-center justify-between gap-4">
-              <button
-                @click="goBack"
-                class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-blue-900 transition-colors"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-                Volver
-              </button>
+            <div class="px-10 pt-8 pb-4 flex items-center justify-end gap-4">
+
 
               <!-- Buscador -->
               <div class="relative w-[260px]">

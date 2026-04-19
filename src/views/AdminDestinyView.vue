@@ -183,18 +183,22 @@ onMounted(loadDestinations)
 
 <template>
   <div class="min-h-screen bg-background font-sans flex flex-col">
-    <!-- Navbar -->
-    <nav class="bg-header py-4 px-6 md:px-12 shadow-sm">
-      <div class="container mx-auto flex justify-between items-center">
-        <img :src="logoCompleto" alt="Logo" class="h-16 md:h-20 w-auto object-contain" />
-        <UserMenu />
-      </div>
-    </nav>
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-gray-200 px-4 py-4 flex items-center justify-between sticky top-0 z-40">
+      <router-link to="/"><img :src="logoCompleto" alt="Logo" class="h-16 w-auto object-contain" /></router-link>
+      <UserMenu />
+    </header>
 
     <div class="flex flex-1 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 px-4 py-8 overflow-hidden flex items-start justify-center min-w-0">
+      <main class="flex-1 px-4 pt-4 pb-8 overflow-hidden flex flex-col items-center min-w-0">
+        <div v-if="!selectedLocationForMap" class="w-full max-w-full mb-3 pl-10 sm:pl-12 shrink-0">
+          <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Volver
+          </button>
+        </div>
         <div class="flex gap-6 w-full h-full min-h-0 min-w-0 max-w-full">
           
           <!-- MAIN TABLE VIEW -->
@@ -204,17 +208,7 @@ onMounted(loadDestinations)
           ]">
             <!-- Header -->
             <div class="flex items-center justify-between p-8 pb-6 relative min-h-[6rem] shrink-0">
-               <!-- Botón Volver -->
-               <button
-                 @click="goBack"
-                 class="flex items-center gap-1.5 text-sm font-semibold text-gray-600 hover:text-primary transition-colors z-10 absolute left-8"
-                 title="Volver"
-               >
-                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                   <polyline points="15 18 9 12 15 6"></polyline>
-                 </svg>
-                 Volver
-               </button>
+
 
                <h1 class="text-3xl font-titles font-bold text-text-title text-center m-0 absolute left-1/2 -translate-x-1/2">Administración de Destinos</h1>
                
@@ -376,18 +370,17 @@ onMounted(loadDestinations)
         </div>
 
         <!-- MAP VIEW CARD -->
-        <div v-else class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative w-full p-8 hidden-scroll">
-          <div class="flex flex-col h-full min-h-0">
+        <div v-else class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-visible transition-all duration-300 relative w-full p-8 hidden-scroll">
+          <!-- Botón Volver (Posicionado en esquina) -->
+          <button @click="selectedLocationForMap = null" style="top: 92px;" class="absolute left-6 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold text-primary hover:text-blue-900 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 z-20 bg-white">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            Volver
+          </button>
+
+          <div class="flex flex-col h-full min-h-0 pt-12">
             <!-- Map Header -->
             <div class="flex flex-col relative w-full mb-6 shrink-0">
-              <div class="flex items-center justify-between w-full">
-                <!-- Botón Volver -->
-                <button @click="selectedLocationForMap = null" class="inline-flex items-center gap-2 px-3 py-2 -ml-3 rounded-xl text-sm font-semibold text-primary hover:text-blue-900 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 relative z-10">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                  Volver
-                </button>
-              </div>
-              <h2 class="text-2xl font-bold font-titles text-center text-text-title -mt-4">Ubicación de Destino: <span class="text-[#215179]">{{ selectedLocationForMap.name }}</span></h2>
+              <h2 class="text-2xl font-bold font-titles text-center text-text-title">Ubicación de Destino: <span class="text-[#215179]">{{ selectedLocationForMap.name }}</span></h2>
             </div>
 
             <!-- Map Container -->
@@ -400,9 +393,12 @@ onMounted(loadDestinations)
           </div>
         </div>
 
+          <!-- Backdrop móvil -->
+          <div v-if="isFilterOpen" class="fixed inset-0 bg-black/30 z-40 sm:hidden" @click="isFilterOpen = false" />
+
           <!-- Filter Panel -->
           <Transition name="slide">
-            <div v-show="isFilterOpen" class="w-[20rem] bg-[#EBEBEB] rounded-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 shrink-0 z-20 h-full overflow-y-auto relative">
+            <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[140px] z-50 sm:static sm:z-20 sm:w-[20rem] sm:h-full bg-[#EBEBEB] sm:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 sm:shrink-0 overflow-y-auto relative">
               <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent">
                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                    <line x1="8" y1="5" x2="8" y2="19"></line>

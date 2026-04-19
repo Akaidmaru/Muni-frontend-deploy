@@ -42,3 +42,6 @@ __screenshots__/
 # Environment variables
 .env
 .env.local
+
+# Claude Context
+.claude/

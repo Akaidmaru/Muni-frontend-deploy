@@ -95,6 +95,12 @@ onMounted(loadReport)
     <div class="flex flex-1 min-h-0 overflow-hidden relative justify-center">
       <!-- Main Content Area -->
       <main class="flex-1 p-6 overflow-y-auto">
+        <div class="mb-4 pl-10 sm:pl-12">
+          <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Volver
+          </button>
+        </div>
         <div v-if="isLoading" class="flex flex-col items-center justify-center h-64">
            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
            <p class="mt-4 text-gray-500">Cargando detalles...</p>
@@ -106,11 +112,7 @@ onMounted(loadReport)
         </div>
 
         <div v-else class="max-w-[1100px] mx-auto">
-          <!-- Back button -->
-          <button @click="goBack" class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-blue-900 transition-colors mb-4">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            Volver
-          </button>
+
 
           <!-- Main Card Container -->
           <div class="detail-card border border-[#D9E3ED] rounded-[30px] p-8 relative">

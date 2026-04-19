@@ -128,11 +128,11 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen bg-background flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-     <div class="bg-white py-12 px-10 shadow-xl rounded-2xl w-full max-w-4xl border-t-4 border-primary">
-         <router-link to="/" class="flex justify-center mb-8">
-            <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-20 w-auto object-contain hover:opacity-80 transition-opacity" />
+     <div class="bg-white py-8 sm:py-12 px-5 sm:px-10 shadow-xl rounded-2xl w-full max-w-4xl border-t-4 border-primary">
+         <router-link to="/" class="flex justify-center mb-6 sm:mb-8">
+            <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 sm:h-20 w-auto object-contain hover:opacity-80 transition-opacity" />
          </router-link>
-         <h2 class="text-3xl font-bold text-center text-text-title font-titles mb-10">Crear cuenta</h2>
+         <h2 class="text-2xl sm:text-3xl font-bold text-center text-text-title font-titles mb-6 sm:mb-10">Crear cuenta</h2>
 
          <div v-if="error" class="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {{ error }}
@@ -166,7 +166,7 @@ onMounted(() => {
                        <!-- Mock FLag -->
                        <span class="text-lg">🇨🇱 +56</span>
                    </div>
-                   <input type="tel" v-model="phone" placeholder="Ingresa tu teléfono" class="w-full pl-24 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary font-body text-body placeholder-gray-400" />
+                   <input type="tel" v-model="phone" placeholder="Ingresa tu teléfono" class="w-full pl-20 sm:pl-24 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-primary focus:border-primary font-body text-body placeholder-gray-400" />
                 </div>
                 <div>
                    <select

@@ -462,61 +462,119 @@ const downloadBlobFile = (blob, filename) => {
 const buildPdfDocument = (signatureImages = new Map()) => {
   const pdfTravels = [...filteredTravels.value]
   const doc = new jsPDF('landscape')
+  const pageWidth = doc.internal.pageSize.getWidth()
+
+  // ── Logo ──────────────────────────────────────────────────────────────────
+  try {
+    doc.addImage(logoCompleto, 'PNG', 14, 8, 38, 18)
+  } catch (_) {}
+
+  // ── Título ────────────────────────────────────────────────────────────────
   doc.setFontSize(16)
-  doc.text('Historial de Viajes', 14, 20)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(33, 33, 33)
+  doc.text('Historial de Viajes', pageWidth / 2, 18, { align: 'center' })
 
-  const headers = [['Fecha', 'Patente', 'Salida', 'Llegada', 'Destino', 'Estado', 'Km Inicial', 'Km Final', 'Conductor', 'Funcionario', 'Firma']]
+  // ── Fecha de generación ───────────────────────────────────────────────────
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(120, 120, 120)
+  const now = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  doc.text(`Generado: ${now}`, pageWidth - 14, 14, { align: 'right' })
 
-  const body = pdfTravels.map((travel) => [
-    travel.date,
-    travel.licensePlate,
-    travel.startTime,
-    travel.endTime,
-    travel.destination,
-    travel.status === 'COMPLETED' ? 'Completado' : 'En transcurso',
-    travel.startKm ?? '-',
-    travel.endKm ?? '-',
-    travel.driver,
-    travel.official,
-    '',
-  ])
+  // ── Línea separadora ──────────────────────────────────────────────────────
+  doc.setDrawColor(85, 85, 85)
+  doc.setLineWidth(0.4)
+  doc.line(14, 28, pageWidth - 14, 28)
 
+  // ── Tabla ─────────────────────────────────────────────────────────────────
   autoTable(doc, {
-    startY: 25,
-    head: headers,
-    body,
+    startY: 32,
+    head: [
+      [
+        { content: 'Fecha',       rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
+        { content: 'Patente',     rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
+        { content: 'Hora',        colSpan: 2, styles: { halign: 'center' } },
+        { content: 'Destino',     rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
+        { content: 'Estado',      rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
+        { content: 'Kilometraje', colSpan: 2, styles: { halign: 'center' } },
+        { content: 'Conductor',   rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
+        { content: 'Funcionario', rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
+        { content: 'Firma',       rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
+      ],
+      [
+        { content: 'Inicio', styles: { halign: 'center' } },
+        { content: 'Final',  styles: { halign: 'center' } },
+        { content: 'Inicio', styles: { halign: 'center' } },
+        { content: 'Final',  styles: { halign: 'center' } },
+      ],
+    ],
+    body: pdfTravels.map((travel) => [
+      travel.date,
+      travel.licensePlate,
+      travel.startTime  ?? '-',
+      travel.endTime    ?? '-',
+      travel.destination,
+      travel.status === 'COMPLETED' ? 'Completado' : 'En transcurso',
+      travel.startKm?.toLocaleString() ?? '-',
+      travel.endKm?.toLocaleString()   ?? '-',
+      travel.driver,
+      travel.official,
+      '',
+    ]),
     styles: {
       fontSize: 8,
       cellPadding: 2,
-      minCellHeight: 20,
+      minCellHeight: 22,
       valign: 'middle',
+      halign: 'center',
+      lineColor: [209, 209, 209],
+      lineWidth: 0.3,
+      textColor: [33, 33, 33],
+      font: 'helvetica',
     },
-    theme: 'grid',
-    headStyles: { fillColor: [162, 32, 38] },
+    headStyles: {
+      fillColor: [33, 37, 60],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 8,
+      lineColor: [85, 85, 85],
+      lineWidth: 0.4,
+      minCellHeight: 6,
+      cellPadding: 2,
+    },
+    alternateRowStyles: {
+      fillColor: [247, 248, 250],
+    },
     columnStyles: {
+      0:  { cellWidth: 22 },
+      1:  { cellWidth: 22 },
+      2:  { cellWidth: 18 },
+      3:  { cellWidth: 18 },
+      4:  { cellWidth: 32 },
+      5:  { cellWidth: 26 },
+      6:  { cellWidth: 18 },
+      7:  { cellWidth: 18 },
+      8:  { cellWidth: 30 },
+      9:  { cellWidth: 30 },
       10: { cellWidth: 28 },
     },
     didDrawCell: (data) => {
       if (data.section !== 'body' || data.column.index !== 10) return
 
       const travel = pdfTravels[data.row.index]
-
-      if (!travel) {
-        doc.setFontSize(7)
-        doc.text('Sin firma', data.cell.x + 4, data.cell.y + data.cell.height / 2 + 1)
-        return
-      }
+      if (!travel) return
 
       const signatureDataUrl = signatureImages.get(travel.id)
-
       if (!signatureDataUrl) {
         doc.setFontSize(7)
-        doc.text('Sin firma', data.cell.x + 4, data.cell.y + data.cell.height / 2 + 1)
+        doc.setTextColor(150, 150, 150)
+        doc.text('Sin firma', data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, { align: 'center', baseline: 'middle' })
         return
       }
 
       try {
-        const padding = 1.5
+        const padding = 2
         doc.addImage(
           signatureDataUrl,
           getImageExtensionFromDataUrl(signatureDataUrl).toUpperCase(),
@@ -526,10 +584,24 @@ const buildPdfDocument = (signatureImages = new Map()) => {
           Math.max(data.cell.height - padding * 2, 8),
         )
       } catch (imageError) {
-        console.error('No se pudo dibujar la firma en el PDF', imageError)
         doc.setFontSize(7)
-        doc.text('Sin firma', data.cell.x + 4, data.cell.y + data.cell.height / 2 + 1)
+        doc.setTextColor(150, 150, 150)
+        doc.text('Sin firma', data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, { align: 'center', baseline: 'middle' })
       }
+    },
+
+    // ── Footer por página ──────────────────────────────────────────────────
+    didDrawPage: (data) => {
+      const pageCount = doc.internal.getNumberOfPages()
+      const currentPageNum = doc.internal.getCurrentPageInfo().pageNumber
+      doc.setFontSize(7)
+      doc.setTextColor(150, 150, 150)
+      doc.text(
+        `Página ${currentPageNum} de ${pageCount}`,
+        pageWidth / 2,
+        doc.internal.pageSize.getHeight() - 6,
+        { align: 'center' }
+      )
     },
   })
 
@@ -718,25 +790,23 @@ watch(currentPage, () => {
     <div class="flex flex-1 overflow-hidden min-w-0">
       <DashboardSidebar />
 
-      <main class="flex-1 pt-16 pb-10 px-2 md:px-3 overflow-hidden flex items-start justify-center min-w-0">
+      <main class="flex-1 pt-4 pb-10 px-2 sm:px-3 overflow-hidden flex flex-col items-center min-w-0">
+        <div v-if="!selectedTripForMap" class="w-full mb-3 pl-10 sm:pl-12 shrink-0">
+          <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Volver
+          </button>
+        </div>
         <div class="flex gap-6 w-full h-full min-h-0 min-w-0">
-        
+
         <!-- MAIN TABLE VIEW -->
         <div v-if="!selectedTripForMap" :class="[
           'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative min-w-0',
-          isFilterOpen ? 'max-w-[calc(100%-24rem)]' : 'w-full'
+          isFilterOpen ? 'sm:max-w-[calc(100%-24rem)]' : 'w-full'
         ]">
-          <div class="px-8 pt-6">
-            <button
-              @click="goBack"
-              class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-blue-900 transition-colors"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-              Volver
-            </button>
-          </div>
-          <div class="flex flex-col md:flex-row items-center justify-center p-8 pb-6 relative min-h-[5rem] gap-6 md:gap-0">
-             <h1 class="text-3xl font-titles font-bold text-text-title text-center m-0 md:absolute md:left-1/2 md:-translate-x-1/2 md:top-6 order-1 md:order-none">Historial de viajes</h1>
+
+          <div class="flex flex-col md:flex-row items-center justify-center p-4 sm:p-8 pb-4 sm:pb-6 relative min-h-[4rem] sm:min-h-[5rem] gap-4 md:gap-0">
+             <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-bold text-text-title text-center m-0 md:absolute md:left-1/2 md:-translate-x-1/2 md:top-6 order-1 md:order-none">Historial de viajes</h1>
 
              <div class="flex justify-center items-center gap-3 z-10 w-full md:w-auto md:absolute md:right-6 md:top-6 order-2 md:order-none">
                <button @click="exportToPDF" class="bg-[#A22026] hover:bg-red-800 text-white font-semibold py-2 px-5 rounded-xl shadow transition-colors outline-none focus:ring-2 focus:ring-red-500 text-sm">
@@ -763,7 +833,7 @@ watch(currentPage, () => {
 
           <div
             ref="tableScrollRef"
-            class="table-scroll flex-1 min-h-0 w-full overflow-x-auto overflow-y-auto px-12 md:px-16 relative mt-6 pb-6 min-w-0 cursor-grab active:cursor-grabbing"
+            class="table-scroll flex-1 min-h-0 w-full overflow-x-auto overflow-y-auto px-3 sm:px-8 md:px-12 lg:px-16 relative mt-4 sm:mt-6 pb-6 min-w-0 cursor-grab active:cursor-grabbing"
             @mousedown="onTableMouseDown"
           >
               <TripHistoryTable 
@@ -782,7 +852,7 @@ watch(currentPage, () => {
               />
           </div>
 
-          <div class="px-12 md:px-16 py-4 bg-white flex justify-between items-center text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
+          <div class="px-3 sm:px-8 md:px-12 lg:px-16 py-4 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
             <div class="flex items-center gap-2">
               <span>Filas por paginas</span>
               <div class="relative">
@@ -873,8 +943,11 @@ watch(currentPage, () => {
           </div>
         </div>
 
+        <!-- Backdrop móvil -->
+        <div v-if="isFilterOpen" class="fixed inset-0 bg-black/30 z-40 sm:hidden" @click="isFilterOpen = false" />
+
         <Transition name="slide">
-          <div v-show="isFilterOpen" class="w-[22rem] bg-[#EBEBEB] rounded-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 shrink-0 z-20 h-full overflow-y-auto relative">
+          <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[88px] z-50 sm:static sm:z-20 sm:w-[22rem] sm:h-full bg-[#EBEBEB] sm:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 sm:shrink-0 overflow-y-auto relative">
             <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent">
                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                  <line x1="8" y1="5" x2="8" y2="19"></line>
