@@ -34,9 +34,9 @@ watch(
     >
       <!-- Icono -->
       <div class="mt-0.5 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-        :class="current.type === 'resolved' ? 'bg-green-100' : 'bg-blue-100'"
+        :class="current.type === 'report-updated' ? 'bg-green-100' : 'bg-blue-100'"
       >
-        <svg v-if="current.type === 'resolved'" class="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg v-if="current.type === 'report-updated'" class="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
         </svg>
         <svg v-else class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -47,7 +47,7 @@ watch(
       <!-- Texto -->
       <div class="flex-1 min-w-0">
         <p class="text-sm font-semibold text-gray-700">
-          {{ current.type === 'resolved' ? 'Caso resuelto' : 'Nuevo reporte' }}
+          {{ current.type === 'report-updated' ? 'Reporte actualizado' : 'Nuevo reporte' }}
         </p>
         <p class="text-xs text-gray-500 mt-0.5 truncate">{{ current.message }}</p>
       </div>

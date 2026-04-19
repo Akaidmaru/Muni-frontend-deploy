@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import api from '@/services/axios'
 
-const props = defineProps({
+defineProps({
   isOpen: Boolean
 })
 
@@ -16,18 +16,14 @@ const selectedFile = ref(null)
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+const MIN_LOADING_DISPLAY_MS = 400
 
 const handleClose = () => {
+  isSubmitting.value = false
   emit('close')
   // Pequeño delay para que la animación termine antes de resetear
   setTimeout(() => {
-    title.value = ''
-    description.value = ''
-    selectedFileName.value = ''
-    selectedFile.value = null
-    errorMessage.value = ''
-    successMessage.value = ''
-    if(fileInput.value) fileInput.value.value = ''
+    resetForm()
   }, 300)
 }
 
@@ -46,12 +42,29 @@ const handleFileChange = (event) => {
   }
 }
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const resetForm = () => {
+  title.value = ''
+  description.value = ''
+  selectedFileName.value = ''
+  selectedFile.value = null
+  errorMessage.value = ''
+  successMessage.value = ''
+
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+}
+
 const submitReport = async () => {
-  if (!title.value || !description.value) return;
-  
+  if (!title.value || !description.value || isSubmitting.value) return
+
   isSubmitting.value = true
   errorMessage.value = ''
   successMessage.value = ''
+
+  await delay(MIN_LOADING_DISPLAY_MS)
 
   try {
     const formData = new FormData()
@@ -61,8 +74,6 @@ const submitReport = async () => {
       formData.append('file', selectedFile.value)
     }
 
-    // Usamos la instancia de axios pre-configurada. 
-    // El backend-dev deberá habilitar esta ruta POST /reports.
     await api.post('/reports', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
@@ -77,7 +88,6 @@ const submitReport = async () => {
   } catch (error) {
     console.error('Error al enviar el reporte:', error)
     errorMessage.value = 'Lo sentimos, ha ocurrido un error al enviar el reporte. Por favor intenta más tarde.'
-  } finally {
     isSubmitting.value = false
   }
 }
@@ -123,7 +133,7 @@ const submitReport = async () => {
             </div>
 
             <!-- Form -->
-            <form @submit.prevent="submitReport" class="space-y-5">
+            <form @submit.prevent="submitReport" class="space-y-5" :class="isSubmitting ? 'pointer-events-none select-none opacity-70' : ''">
               
               <!-- Título -->
               <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
@@ -176,6 +186,9 @@ const submitReport = async () => {
               </div>
 
               <!-- Mensajes de Error y Exito -->
+              <div v-if="isSubmitting" class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-center text-xs font-semibold text-blue-700">
+                Enviando reporte, por favor espera...
+              </div>
               <div v-if="errorMessage" class="text-xs text-red-600 font-medium text-center w-full">
                 {{ errorMessage }}
               </div>
@@ -187,11 +200,12 @@ const submitReport = async () => {
               <div class="pt-4 sm:pt-6 flex flex-col items-center gap-4">
                 <button 
                   type="submit" 
-                  :disabled="isSubmitting"
-                  class="bg-[#B71C1C] hover:bg-red-800 disabled:opacity-75 disabled:cursor-not-allowed text-white text-xs font-bold px-8 py-3 rounded-xl transition-all w-full sm:w-[240px] tracking-wide flex items-center justify-center font-body min-h-[44px]"
+                  :disabled="isSubmitting || !title || !description"
+                  :aria-busy="isSubmitting"
+                  class="bg-[#B71C1C] hover:bg-red-800 disabled:bg-slate-400 disabled:hover:bg-slate-400 disabled:opacity-100 disabled:cursor-not-allowed text-white text-xs font-bold px-8 py-3 rounded-xl transition-all w-full sm:w-[240px] tracking-wide flex items-center justify-center font-body min-h-[44px]"
                 >
-                  <span v-if="!isSubmitting">ENVIAR REPORTE</span>
-                  <svg v-else class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <span>{{ isSubmitting ? 'ENVIANDO...' : 'ENVIAR REPORTE' }}</span>
+                  <svg v-if="isSubmitting" class="ml-2 animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>

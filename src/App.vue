@@ -1,7 +1,8 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useNotificationStore } from '@/stores/notifications'
 import Navbar from './components/Navbar.vue'
 import Footer from './components/Footer.vue'
 import WhatsAppFAB from './components/WhatsAppFAB.vue'
@@ -10,6 +11,7 @@ import ToastNotification from '@/components/ToastNotification.vue'
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const notifications = useNotificationStore()
 
 // Páginas donde NO se muestra Navbar/Footer/FAB
 const hiddenPaths = ['/clientes', '/registro', '/verificar-correo']
@@ -42,6 +44,24 @@ const goBack = () => {
 
   router.push('/')
 }
+
+onMounted(() => {
+  if (auth.token) {
+    notifications.connect(auth.token)
+  }
+})
+
+watch(
+  () => auth.token,
+  (token) => {
+    if (token) {
+      notifications.connect(token)
+      return
+    }
+
+    notifications.disconnect()
+  },
+)
 </script>
 
 <template>
@@ -56,4 +76,3 @@ const goBack = () => {
     <ToastNotification />
   </div>
 </template>
-
