@@ -527,7 +527,7 @@ const viewRecord = async (record) => {
         kilometraje:
           normalized.currentMileage !== undefined &&
           normalized.currentMileage !== null
-            ? `${Number(normalized.currentMileage).toLocaleString('es-CL')} km`
+            ? `${Number(normalized.currentMileage)} km`
             : '—',
         items: groupItemsByCategory(normalized.dailyMaintenanceItems),
         annex: {

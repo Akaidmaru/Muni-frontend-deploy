@@ -348,8 +348,8 @@ const isAdminEditComplete = computed(() => {
               {{ trip.status === 'COMPLETED' ? 'Completado' : 'En transcurso' }}
             </td>
 
-            <td class="px-2 py-5 font-medium">{{ trip.startKm?.toLocaleString() ?? '-' }}</td>
-            <td class="px-2 py-5 font-medium">{{ trip.endKm?.toLocaleString() ?? '-' }}</td>
+            <td class="px-2 py-5 font-medium">{{ trip.startKm ?? '-' }}</td>
+            <td class="px-2 py-5 font-medium">{{ trip.endKm ?? '-' }}</td>
             <td class="px-4 py-5 text-gray-700 text-xs">{{ trip.driver }}</td>
             <td class="px-4 py-5 text-gray-700 text-xs">{{ trip.official }}</td>
           </template>
@@ -423,27 +423,52 @@ const isAdminEditComplete = computed(() => {
                 Otro
               </option>
             </select>
-            <input
-              v-if="trip.destination === OTHER_DESTINATION_VALUE"
-              v-model="trip.customDestination"
-              type="text"
-              placeholder="Ingrese nombre o dirección"
-              :disabled="trip.status === 'done'"
-              class="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-text-title outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:bg-gray-100 disabled:text-gray-400"
-            />
+            <div v-if="trip.destination === OTHER_DESTINATION_VALUE" class="mt-2 flex items-center gap-1">
+              <input
+                v-model="trip.customDestination"
+                type="text"
+                placeholder="Ingrese nombre o dirección"
+                :disabled="trip.status === 'done'"
+                class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-text-title outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:bg-gray-100 disabled:text-gray-400"
+              />
+              <button
+                v-if="trip.status !== 'done'"
+                type="button"
+                @click="trip.destination = null; trip.customDestination = ''"
+                title="Quitar selección"
+                class="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
             <p v-if="destinationsError" class="mt-2 text-xs text-red-600">{{ destinationsError }}</p>
           </td>
 
           <!-- Funcionario: abre modal de búsqueda -->
           <td class="px-6 py-4 border-l border-gray-200">
-            <button v-if="trip.status !== 'done'" type="button" @click="$emit('open-employee', trip)"
-              class="flex items-center justify-between w-full text-sm outline-none group"
-              :class="trip.employee ? 'text-text-title' : 'text-gray-300'">
-              <span>{{ trip.employee ? trip.employee.name : "Nombre Apellido" }}</span>
-              <svg class="w-3 h-3 text-gray-400 ml-2 shrink-0 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
-              </svg>
-            </button>
+            <div v-if="trip.status !== 'done'" class="flex items-center gap-1">
+              <button type="button" @click="$emit('open-employee', trip)"
+                class="flex items-center justify-between flex-1 text-sm outline-none group"
+                :class="trip.employee ? 'text-text-title' : 'text-gray-300'">
+                <span>{{ trip.employee ? trip.employee.name : "Nombre Apellido" }}</span>
+                <svg class="w-3 h-3 text-gray-400 ml-2 shrink-0 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+                </svg>
+              </button>
+              <button
+                v-if="trip.employee?.id === '__other__'"
+                type="button"
+                @click="trip.employee = null"
+                title="Quitar selección"
+                class="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
             <span v-else class="text-sm text-gray-400">{{ trip.employee ? trip.employee.name : "—" }}</span>
           </td>
 

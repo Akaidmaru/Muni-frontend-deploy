@@ -24,11 +24,30 @@ const loadError = ref('')
 
 const isEditModalOpen = ref(false)
 const vehicleToEdit = ref(null)
+const isDeleteConfirmOpen = ref(false)
 
 const isViewModalOpen = ref(false)
 const vehicleToView = ref(null)
 
+const isAddModalOpen = ref(false)
+const formAdd = ref({
+  plate: '',
+  model: '',
+  mileage: 0,
+  circulationPermitStatus: 'No tiene',
+  circulationPermitExpiresAt: '',
+  technicalReviewStatus: 'No tiene',
+  technicalReviewExpiresAt: '',
+  emissionsStatus: 'No tiene',
+  emissionsExpiresAt: '',
+  insuranceStatus: 'No tiene',
+  insuranceExpiresAt: '',
+})
+
 const formEdit = ref({
+  plate: '',
+  model: '',
+  mileage: 0,
   circulationPermitStatus: 'No tiene',
   circulationPermitExpiresAt: '',
   technicalReviewStatus: 'No tiene',
@@ -170,6 +189,9 @@ const editVehicle = (vehicle) => {
 
   vehicleToEdit.value = vehicle
   formEdit.value = {
+    plate: vehicle.plate || '',
+    model: vehicle.model || '',
+    mileage: vehicle.mileage || 0,
     circulationPermitStatus: inferStatusFromDate(vehicle.circulationPermitExpiresAt),
     circulationPermitExpiresAt: formatForInput(vehicle.circulationPermitExpiresAt),
     technicalReviewStatus: inferStatusFromDate(vehicle.technicalReviewExpiresAt),
@@ -191,40 +213,88 @@ const saveEdit = async () => {
   if (!vehicleToEdit.value) return
   isLoading.value = true
   try {
-    const payload = {}
-
     const mapDocDate = (statusStr, dateStr) => {
       if (statusStr === 'No tiene' || !dateStr) return null
       return new Date(`${dateStr}T00:00:00`).toISOString()
     }
 
-    payload.circulationPermitExpiresAt = mapDocDate(
-      formEdit.value.circulationPermitStatus,
-      formEdit.value.circulationPermitExpiresAt,
-    )
-
-    payload.technicalReviewExpiresAt = mapDocDate(
-      formEdit.value.technicalReviewStatus,
-      formEdit.value.technicalReviewExpiresAt,
-    )
-
-    payload.emissionsExpiresAt = mapDocDate(
-      formEdit.value.emissionsStatus,
-      formEdit.value.emissionsExpiresAt,
-    )
-
-    payload.insuranceExpiresAt = mapDocDate(
-      formEdit.value.insuranceStatus,
-      formEdit.value.insuranceExpiresAt,
-    )
+    const payload = {
+      plate: formEdit.value.plate,
+      model: formEdit.value.model,
+      mileage: Number(formEdit.value.mileage) || 0,
+      circulationPermitExpiresAt: mapDocDate(formEdit.value.circulationPermitStatus, formEdit.value.circulationPermitExpiresAt),
+      technicalReviewExpiresAt: mapDocDate(formEdit.value.technicalReviewStatus, formEdit.value.technicalReviewExpiresAt),
+      emissionsExpiresAt: mapDocDate(formEdit.value.emissionsStatus, formEdit.value.emissionsExpiresAt),
+      insuranceExpiresAt: mapDocDate(formEdit.value.insuranceStatus, formEdit.value.insuranceExpiresAt),
+    }
 
     await api.patch(`/trucks/${vehicleToEdit.value.id}`, payload)
     await loadVehicles()
-    
     closeEditModal()
   } catch (error) {
-    console.error('Error updating vehicle documents:', error)
+    console.error('Error updating vehicle:', error)
     alert('Error al actualizar el vehículo')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const deleteVehicle = async () => {
+  if (!vehicleToEdit.value) return
+  isLoading.value = true
+  try {
+    await api.delete(`/trucks/${vehicleToEdit.value.id}`)
+    await loadVehicles()
+    isDeleteConfirmOpen.value = false
+    closeEditModal()
+  } catch (error) {
+    console.error('Error deleting vehicle:', error)
+    alert('Error al eliminar el vehículo')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const openAddModal = () => {
+  formAdd.value = {
+    plate: '',
+    model: '',
+    mileage: 0,
+    circulationPermitStatus: 'No tiene',
+    circulationPermitExpiresAt: '',
+    technicalReviewStatus: 'No tiene',
+    technicalReviewExpiresAt: '',
+    emissionsStatus: 'No tiene',
+    emissionsExpiresAt: '',
+    insuranceStatus: 'No tiene',
+    insuranceExpiresAt: '',
+  }
+  isAddModalOpen.value = true
+}
+const closeAddModal = () => { isAddModalOpen.value = false }
+
+const saveAdd = async () => {
+  if (!formAdd.value.plate || !formAdd.value.model) return
+  isLoading.value = true
+  try {
+    const mapDocDate = (statusStr, dateStr) => {
+      if (statusStr === 'No tiene' || !dateStr) return null
+      return new Date(`${dateStr}T00:00:00`).toISOString()
+    }
+    await api.post('/trucks', {
+      plate: formAdd.value.plate.toUpperCase(),
+      model: formAdd.value.model,
+      mileage: Number(formAdd.value.mileage) || 0,
+      circulationPermitExpiresAt: mapDocDate(formAdd.value.circulationPermitStatus, formAdd.value.circulationPermitExpiresAt),
+      technicalReviewExpiresAt: mapDocDate(formAdd.value.technicalReviewStatus, formAdd.value.technicalReviewExpiresAt),
+      emissionsExpiresAt: mapDocDate(formAdd.value.emissionsStatus, formAdd.value.emissionsExpiresAt),
+      insuranceExpiresAt: mapDocDate(formAdd.value.insuranceStatus, formAdd.value.insuranceExpiresAt),
+    })
+    await loadVehicles()
+    closeAddModal()
+  } catch (error) {
+    console.error('Error creating vehicle:', error)
+    alert('Error al crear el vehículo')
   } finally {
     isLoading.value = false
   }
@@ -266,7 +336,11 @@ onMounted(() => {
             <div class="flex items-center justify-center p-4 sm:p-8 relative min-h-[4rem] sm:min-h-[5rem]">
                <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center">Administración de Vehículos</h1>
                
-               <div class="absolute right-4 sm:right-6 lg:right-8 top-4 sm:top-6 lg:top-8">
+               <div class="absolute right-4 sm:right-6 lg:right-8 top-4 sm:top-6 lg:top-8 flex items-center gap-2">
+                 <button @click="openAddModal" class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow transition-colors">
+                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                   Añadir patente
+                 </button>
                  <button v-if="!isFilterOpen"
                          @click="isFilterOpen = true"
                          class="p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors outline-none focus:ring-2 focus:ring-primary border border-gray-300"
@@ -310,7 +384,7 @@ onMounted(() => {
                   <tr v-else v-for="vehicle in paginatedVehicles" :key="vehicle.id" class="hover:bg-slate-50 transition-colors">
                     <td class="py-4 px-3 text-center text-slate-500 font-medium text-xs border border-gray-300">{{ vehicle.plate }}</td>
                     <td class="py-4 px-3 text-center text-slate-500 font-medium text-xs border border-gray-300">{{ vehicle.model }}</td>
-                    <td class="py-4 px-3 text-center text-slate-500 font-medium text-xs border border-gray-300">{{ vehicle.mileage?.toLocaleString() || 0 }}</td>
+                    <td class="py-4 px-3 text-center text-slate-500 font-medium text-xs border border-gray-300">{{ vehicle.mileage || 0 }}</td>
                     <td class="py-4 px-3 text-center border border-gray-300">
                       <div class="flex flex-col items-center justify-center gap-1">
                         <div class="flex -space-x-2">
@@ -525,7 +599,7 @@ onMounted(() => {
 
     <Teleport to="body">
       <div v-if="isEditModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-opacity">
-        <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-hidden border border-gray-200" @click.stop>
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-hidden border border-gray-200 relative" @click.stop>
           <div class="px-8 pt-8 pb-4 flex justify-between items-start border-b border-gray-100">
             <div>
               <h3 class="text-2xl font-titles font-extrabold text-slate-800">Actualizar Documentos</h3>
@@ -540,8 +614,22 @@ onMounted(() => {
           </div>
 
           <div class="px-8 py-6 max-h-[60vh] overflow-y-auto">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Patente</label>
+                <input v-model="formEdit.plate" type="text" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400 uppercase" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Modelo</label>
+                <input v-model="formEdit.model" type="text" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Kilometraje</label>
+                <input v-model.number="formEdit.mileage" type="number" min="0" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400" />
+              </div>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
+
               <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3">
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Permiso de circulación</label>
                 <select v-model="formEdit.circulationPermitStatus" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary cursor-pointer hover:border-gray-400">
@@ -593,11 +681,126 @@ onMounted(() => {
             </div>
           </div>
 
+          <div class="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-between items-center gap-3">
+            <button @click="isDeleteConfirmOpen = true" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white shadow transition-colors">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              Borrar patente
+            </button>
+            <div class="flex gap-3">
+              <button @click="closeEditModal" class="px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 shadow-sm border border-slate-300 hover:bg-slate-100 transition-colors">Cancelar</button>
+              <button @click="saveEdit" :disabled="isLoading" class="px-6 py-2.5 rounded-xl font-bold bg-[#A61919] text-white shadow hover:bg-red-800 transition-colors flex items-center gap-2">
+                <svg v-if="isLoading" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <span>Actualizar</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Confirmación borrar -->
+          <div v-if="isDeleteConfirmOpen" class="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center gap-5 p-8 z-10">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <div class="text-center">
+              <p class="text-lg font-extrabold text-slate-800">¿Eliminar vehículo?</p>
+              <p class="text-sm text-slate-500 mt-1">Esta acción no se puede deshacer. Se eliminará <span class="font-bold text-slate-700">{{ vehicleToEdit?.plate }}</span> permanentemente.</p>
+            </div>
+            <div class="flex gap-3">
+              <button @click="isDeleteConfirmOpen = false" class="px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 border border-slate-300 hover:bg-slate-100 transition-colors">Cancelar</button>
+              <button @click="deleteVehicle" :disabled="isLoading" class="px-6 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center gap-2">
+                <svg v-if="isLoading" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                Sí, eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div v-if="isAddModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-hidden border border-gray-200" @click.stop>
+          <div class="px-8 pt-8 pb-4 flex justify-between items-start border-b border-gray-100">
+            <div>
+              <h3 class="text-2xl font-titles font-extrabold text-slate-800">Añadir patente</h3>
+              <p class="text-sm font-medium text-slate-500 mt-1">Registrar nuevo vehículo</p>
+            </div>
+            <button @click="closeAddModal" class="text-gray-400 hover:text-gray-700 hover:bg-gray-100 p-1.5 rounded-xl transition-colors outline-none cursor-pointer">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+          <div class="px-8 py-6 max-h-[65vh] overflow-y-auto custom-scrollbar">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Patente <span class="text-red-500">*</span></label>
+                <input v-model="formAdd.plate" type="text" placeholder="Ej: KZTR-41" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400 uppercase" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Modelo <span class="text-red-500">*</span></label>
+                <input v-model="formAdd.model" type="text" placeholder="Ej: Mercedes Sprinter" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Kilometraje</label>
+                <input v-model.number="formAdd.mileage" type="number" min="0" placeholder="0" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400" />
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Permiso de circulación</label>
+                <select v-model="formAdd.circulationPermitStatus" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 cursor-pointer hover:border-gray-400">
+                  <option value="No tiene">No tiene</option>
+                  <option value="Vigente">Vigente</option>
+                  <option value="Vencido">Vencido</option>
+                </select>
+                <div class="relative w-full overflow-hidden transition-all duration-300" :class="formAdd.circulationPermitStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
+                  <input type="date" v-model="formAdd.circulationPermitExpiresAt" class="w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400 uppercase" />
+                </div>
+              </div>
+              <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Revisión técnica</label>
+                <select v-model="formAdd.technicalReviewStatus" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 cursor-pointer hover:border-gray-400">
+                  <option value="No tiene">No tiene</option>
+                  <option value="Vigente">Vigente</option>
+                  <option value="Vencido">Vencido</option>
+                </select>
+                <div class="relative w-full overflow-hidden transition-all duration-300" :class="formAdd.technicalReviewStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
+                  <input type="date" v-model="formAdd.technicalReviewExpiresAt" class="w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400 uppercase" />
+                </div>
+              </div>
+              <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Emisión contaminante</label>
+                <select v-model="formAdd.emissionsStatus" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 cursor-pointer hover:border-gray-400">
+                  <option value="No tiene">No tiene</option>
+                  <option value="Vigente">Vigente</option>
+                  <option value="Vencido">Vencido</option>
+                </select>
+                <div class="relative w-full overflow-hidden transition-all duration-300" :class="formAdd.emissionsStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
+                  <input type="date" v-model="formAdd.emissionsExpiresAt" class="w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400 uppercase" />
+                </div>
+              </div>
+              <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Seguro obligatorio</label>
+                <select v-model="formAdd.insuranceStatus" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 cursor-pointer hover:border-gray-400">
+                  <option value="No tiene">No tiene</option>
+                  <option value="Vigente">Vigente</option>
+                  <option value="Vencido">Vencido</option>
+                </select>
+                <div class="relative w-full overflow-hidden transition-all duration-300" :class="formAdd.insuranceStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
+                  <input type="date" v-model="formAdd.insuranceExpiresAt" class="w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400 uppercase" />
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-            <button @click="closeEditModal" class="px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 shadow-sm border border-slate-300 hover:bg-slate-100 transition-colors">Cancelar</button>
-            <button @click="saveEdit" :disabled="isLoading" class="px-6 py-2.5 rounded-xl font-bold bg-[#A61919] text-white shadow hover:bg-red-800 transition-colors flex items-center gap-2">
+            <button @click="closeAddModal" class="px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 shadow-sm border border-slate-300 hover:bg-slate-100 transition-colors">Cancelar</button>
+            <button @click="saveAdd" :disabled="isLoading || !formAdd.plate || !formAdd.model" class="px-6 py-2.5 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white shadow transition-colors flex items-center gap-2">
               <svg v-if="isLoading" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-              <span>Actualizar</span>
+              Guardar
             </button>
           </div>
         </div>

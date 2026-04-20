@@ -92,17 +92,31 @@ const loadAssignedTrucks = async () => {
   platesError.value = "";
 
   try {
-    const { data } = await api.get("/users/me/trucks");
-    licensePlates.value = Array.isArray(data)
-      ? data
+    // Intentar cargar camiones asignados al conductor
+    const { data: assignedTrucks } = await api.get("/users/me/trucks");
+    const trucks = Array.isArray(assignedTrucks)
+      ? assignedTrucks
           .filter((truck) => truck?.id && truck?.plate)
           .map((truck) => ({ id: truck.id, plate: truck.plate }))
       : [];
+
+    // Si el conductor tiene camiones asignados, usar esos
+    if (trucks.length > 0) {
+      licensePlates.value = trucks;
+    } else {
+      // Si no tiene, cargar camiones sin asignar
+      const { data: unassignedTrucks } = await api.get("/trucks/unassigned");
+      licensePlates.value = Array.isArray(unassignedTrucks)
+        ? unassignedTrucks
+            .filter((truck) => truck?.id && truck?.plate)
+            .map((truck) => ({ id: truck.id, plate: truck.plate }))
+        : [];
+    }
   } catch (error) {
     const backendMessage = error.response?.data?.message;
     platesError.value = Array.isArray(backendMessage)
       ? backendMessage.join(", ")
-      : backendMessage || "No se pudieron cargar las patentes asignadas.";
+      : backendMessage || "No se pudieron cargar las patentes.";
     licensePlates.value = [];
   } finally {
     isLoadingPlates.value = false;
@@ -720,9 +734,12 @@ const startTrip = async (trip) => {
 
   try {
     const trimmedCustomDestination = trip.customDestination?.trim() || "";
+    const isCustomEmployee = trip.employee?.id === "__other__";
     const payload = {
       plate: selectedPlate.value,
-      employeeId: Number(trip.employee.id),
+      ...(isCustomEmployee
+        ? { customEmployee: trip.employee.name }
+        : { employeeId: Number(trip.employee.id) }),
       startTime,
       ...(trimmedCustomDestination
         ? { customDestination: trimmedCustomDestination }
@@ -758,10 +775,10 @@ const startTrip = async (trip) => {
 };
 
 // ── Funcionario modal ─────────────────────────────────────────────────
-const empModal = ref({ open: false, trip: null, search: "" });
+const empModal = ref({ open: false, trip: null, search: "", isOther: false, customName: "" });
 
 const openEmpModal = (trip) => {
-  empModal.value = { open: true, trip, search: "" };
+  empModal.value = { open: true, trip, search: "", isOther: false, customName: "" };
 };
 
 const closeEmpModal = () => {
@@ -786,6 +803,20 @@ const getEmployeeAvatarLabel = (name) => {
 
 const selectEmployee = (emp) => {
   if (empModal.value.trip) empModal.value.trip.employee = emp;
+  closeEmpModal();
+};
+
+const selectOtherEmployee = () => {
+  empModal.value.isOther = true;
+  empModal.value.search = "";
+};
+
+const confirmOtherEmployee = () => {
+  const name = empModal.value.customName.trim();
+  if (!name) return;
+  if (empModal.value.trip) {
+    empModal.value.trip.employee = { id: "__other__", name };
+  }
   closeEmpModal();
 };
 
@@ -1594,8 +1625,8 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
-          <!-- Barra de búsqueda -->
-          <div class="px-4 py-3 border-b border-gray-100">
+          <!-- Barra de búsqueda (modo lista) -->
+          <div v-if="!empModal.isOther" class="px-4 py-3 border-b border-gray-100">
             <div class="relative">
               <svg
                 class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
@@ -1619,8 +1650,8 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <!-- Lista de resultados -->
-          <ul class="max-h-60 overflow-y-auto divide-y divide-gray-50">
+          <!-- Lista de resultados (modo lista) -->
+          <ul v-if="!empModal.isOther" class="max-h-60 overflow-y-auto divide-y divide-gray-50">
             <li
               v-if="isLoadingEmployees"
               class="px-5 py-6 text-center text-sm text-gray-400"
@@ -1671,7 +1702,63 @@ onBeforeUnmount(() => {
             >
               Sin resultados para "{{ empModal.search }}"
             </li>
+            <!-- Opción Otro -->
+            <li
+              v-if="!isLoadingEmployees && !employeesError"
+              @click="selectOtherEmployee"
+              class="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-blue-50 transition-colors group border-t border-gray-100"
+              :class="{ 'bg-blue-50': empModal.trip?.employee?.id === '__other__' }"
+            >
+              <div
+                class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-colors"
+                :class="
+                  empModal.trip?.employee?.id === '__other__'
+                    ? 'bg-primary text-white'
+                    : 'bg-gray-100 text-gray-500 group-hover:bg-primary group-hover:text-white'
+                "
+              >
+                +
+              </div>
+              <span
+                class="text-sm font-body transition-colors"
+                :class="
+                  empModal.trip?.employee?.id === '__other__'
+                    ? 'text-primary font-semibold'
+                    : 'text-text-title'
+                "
+              >Otro</span>
+            </li>
           </ul>
+
+          <!-- Input nombre personalizado (modo Otro) -->
+          <div v-if="empModal.isOther" class="px-4 py-4 flex flex-col gap-3">
+            <p class="text-sm text-text-secondary">Ingrese el nombre del conductor:</p>
+            <input
+              v-model="empModal.customName"
+              type="text"
+              placeholder="Nombre del conductor"
+              class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary transition-colors"
+              autofocus
+              @keyup.enter="confirmOtherEmployee"
+            />
+            <div class="flex gap-2">
+              <button
+                type="button"
+                @click="empModal.isOther = false; empModal.customName = ''"
+                class="flex-1 px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Volver
+              </button>
+              <button
+                type="button"
+                @click="confirmOtherEmployee"
+                :disabled="!empModal.customName.trim()"
+                class="flex-1 px-3 py-2 text-sm font-semibold bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-40"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </transition>

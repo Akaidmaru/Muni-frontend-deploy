@@ -22,7 +22,7 @@ const showFAB = computed(() =>
   !route.meta.requiresAuth && !hiddenPaths.includes(route.path)
 )
 
-const showGlobalBackButton = computed(() => route.path !== '/')
+const showGlobalBackButton = computed(() => !hiddenPaths.includes(route.path) && route.path !== '/')
 
 const fallbackRouteByRole = {
   ADMIN: '/dashboard-admin',
