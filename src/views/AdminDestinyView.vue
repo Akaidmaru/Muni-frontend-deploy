@@ -71,8 +71,8 @@ const filteredDestinations = computed(() => {
         statusFilter.value === 'ALL' ||
         (statusFilter.value === 'ACTIVE' && d.status === 'En transcurso') ||
         (statusFilter.value === 'INACTIVE' && d.status === 'Completado')
-      // Solo mostrar destinos con viajes asociados
-      return matchSearch && matchStatus && d.tripsCount
+      // Mostrar todos los destinos sin importar si tienen viajes
+      return matchSearch && matchStatus
     })
     .sort((a, b) => a.name.localeCompare(b.name))
 })

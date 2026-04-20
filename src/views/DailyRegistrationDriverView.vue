@@ -92,17 +92,31 @@ const loadAssignedTrucks = async () => {
   platesError.value = "";
 
   try {
-    const { data } = await api.get("/users/me/trucks");
-    licensePlates.value = Array.isArray(data)
-      ? data
+    // Intentar cargar camiones asignados al conductor
+    const { data: assignedTrucks } = await api.get("/users/me/trucks");
+    const trucks = Array.isArray(assignedTrucks)
+      ? assignedTrucks
           .filter((truck) => truck?.id && truck?.plate)
           .map((truck) => ({ id: truck.id, plate: truck.plate }))
       : [];
+
+    // Si el conductor tiene camiones asignados, usar esos
+    if (trucks.length > 0) {
+      licensePlates.value = trucks;
+    } else {
+      // Si no tiene, cargar camiones sin asignar
+      const { data: unassignedTrucks } = await api.get("/trucks/unassigned");
+      licensePlates.value = Array.isArray(unassignedTrucks)
+        ? unassignedTrucks
+            .filter((truck) => truck?.id && truck?.plate)
+            .map((truck) => ({ id: truck.id, plate: truck.plate }))
+        : [];
+    }
   } catch (error) {
     const backendMessage = error.response?.data?.message;
     platesError.value = Array.isArray(backendMessage)
       ? backendMessage.join(", ")
-      : backendMessage || "No se pudieron cargar las patentes asignadas.";
+      : backendMessage || "No se pudieron cargar las patentes.";
     licensePlates.value = [];
   } finally {
     isLoadingPlates.value = false;
