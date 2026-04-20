@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import api from '@/services/axios'
+import api, { getApiBaseUrl } from '@/services/axios'
 
 export const useAuthStore = defineStore('auth', () => {
     // ── State ──────────────────────────────────────────────────────────────
@@ -62,6 +62,28 @@ export const useAuthStore = defineStore('auth', () => {
         }
 
         lastSessionSyncAt.value = Date.now()
+    }
+
+    function buildErrorDetails(error) {
+        const config = error?.config || {}
+        const baseURL = config.baseURL || getApiBaseUrl() || ''
+        const endpoint = config.url || ''
+        const method = (config.method || 'get').toUpperCase()
+        const fullUrl = endpoint.startsWith('http')
+            ? endpoint
+            : `${baseURL}${endpoint}`
+
+        return {
+            method,
+            fullUrl,
+            baseURL,
+            endpoint,
+            code: error?.code,
+            status: error?.response?.status,
+            backendMessage: error?.response?.data?.message,
+            responseData: error?.response?.data,
+            rawMessage: error?.message,
+        }
     }
 
     // ── Actions ────────────────────────────────────────────────────────────
@@ -159,15 +181,19 @@ export const useAuthStore = defineStore('auth', () => {
             setSession(jwt, backendUser, normalizedRole)
             return { success: true }
         } catch (error) {
+            const details = buildErrorDetails(error)
+            console.error('[Auth] Login request failed', details)
+
             const backendMessage = error.response?.data?.message
             const isNetworkError =
                 error.code === 'ERR_NETWORK' || !error.response
-            const apiBase =
-                import.meta.env.VITE_API_BASE_URL || '(VITE_API_BASE_URL no definida)'
-            const networkHint =
-                typeof apiBase === 'string' && apiBase.includes('localhost')
-                    ? `No se pudo conectar con el API (${apiBase}). En local: arranca el backend y el front (Vite).`
-                    : `No se pudo conectar con el API (${apiBase}). Comprueba que el backend esté accesible desde tu red y que la imagen del front se haya construido con esa URL (build-time).`
+            const apiBaseUrl = getApiBaseUrl() || 'http://localhost:3000'
+            const isLocal =
+                typeof apiBaseUrl === 'string' &&
+                (apiBaseUrl.includes('localhost') || apiBaseUrl.includes('127.0.0.1'))
+            const networkHint = isLocal
+                ? `No se pudo conectar con el API (${apiBaseUrl}). En local: arranca el backend y el front (Vite).`
+                : `No se pudo conectar con el servidor. URL usada: ${details.fullUrl || apiBaseUrl}. Verifica que el backend este corriendo y accesible.`
             const message = Array.isArray(backendMessage)
                 ? backendMessage.join(', ')
                 : backendMessage ||

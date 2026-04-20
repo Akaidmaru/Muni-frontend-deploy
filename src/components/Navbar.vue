@@ -2,6 +2,7 @@
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import UserMenu from '@/components/UserMenu.vue'
+import logoCompleto from '@/assets/images/Logo-completo.png'
 
 const auth = useAuthStore()
 </script>
@@ -11,7 +12,7 @@ const auth = useAuthStore()
     <div class="container mx-auto flex flex-col md:flex-row justify-between items-center gap-2 sm:gap-4">
       <!-- Logo -->
       <router-link to="/" class="flex items-center gap-4 group">
-         <img src="@/assets/images/Logo-completo.png" alt="Transportes Flores Vargas" class="h-12 sm:h-16 md:h-20 w-auto object-contain" />
+        <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-10 sm:h-14 md:h-16 w-auto max-w-[170px] sm:max-w-[220px] md:max-w-[280px] object-contain" />
       </router-link>
 
       <!-- Menu -->

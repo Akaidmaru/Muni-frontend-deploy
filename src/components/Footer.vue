@@ -1,5 +1,9 @@
 <script setup>
 import { MapPin, Phone, Mail } from 'lucide-vue-next'
+import logoRecortado from '@/assets/images/Logo-recortado.png'
+import iconLocation from '@/assets/images/icon-location.png'
+import iconWhatsapp from '@/assets/images/whatsapp-bn.png'
+import iconEmail from '@/assets/images/icon-email.png'
 </script>
 
 <template>
@@ -10,7 +14,7 @@ import { MapPin, Phone, Mail } from 'lucide-vue-next'
         <!-- Column 1: Logo -->
         <div class="flex flex-col items-center md:items-start">
              <div class="mb-4">
-                <img src="@/assets/images/Logo-recortado.png" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain" />
+               <img :src="logoRecortado" alt="Transportes Flores Vargas" class="h-14 sm:h-16 w-auto object-contain" />
              </div>
         </div>
 
@@ -43,15 +47,15 @@ import { MapPin, Phone, Mail } from 'lucide-vue-next'
             <h3 class="text-h1 font-titles font-semibold text-text-title text-xl mb-6">Contáctanos</h3>
             <ul class="space-y-4">
                 <li class="flex items-start gap-3 text-text-secondary font-body">
-                    <img src="@/assets/images/icon-location.png" class="w-5 h-5 mt-1 shrink-0 object-contain" alt="Ubicación" />
+                  <img :src="iconLocation" class="w-5 h-5 mt-1 shrink-0 object-contain" alt="Ubicación" />
                     <span>Baquedano 958, Iquique</span>
                 </li>
                  <li class="flex items-start gap-3 text-text-secondary font-body">
-                    <img src="@/assets/images/whatsapp-bn.png" class="w-5 h-5 mt-1 shrink-0 object-contain" alt="WhatsApp" />
+                  <img :src="iconWhatsapp" class="w-5 h-5 mt-1 shrink-0 object-contain" alt="WhatsApp" />
                     <span>+569 59706398</span>
                  </li>
                  <li class="flex items-start gap-3 text-text-secondary font-body">
-                    <img src="@/assets/images/icon-email.png" class="w-5 h-5 mt-1 shrink-0 object-contain" alt="Email" />
+                  <img :src="iconEmail" class="w-5 h-5 mt-1 shrink-0 object-contain" alt="Email" />
                     <span>trans.floresvargas@gmail.com</span>
                  </li>
             </ul>

@@ -1,6 +1,6 @@
 <script setup>
-import { computed, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notifications'
 import Navbar from './components/Navbar.vue'
@@ -9,7 +9,6 @@ import WhatsAppFAB from './components/WhatsAppFAB.vue'
 import ToastNotification from '@/components/ToastNotification.vue'
 
 const route = useRoute()
-const router = useRouter()
 const auth = useAuthStore()
 const notifications = useNotificationStore()
 
@@ -21,29 +20,6 @@ const isPublicPage = computed(() =>
 const showFAB = computed(() =>
   !route.meta.requiresAuth && !hiddenPaths.includes(route.path)
 )
-
-const showGlobalBackButton = computed(() => !hiddenPaths.includes(route.path) && route.path !== '/')
-
-const fallbackRouteByRole = {
-  ADMIN: '/dashboard-admin',
-  DRIVER: '/dashboard',
-  EMPLOYEE: '/dashboard',
-}
-
-const goBack = () => {
-  if (window.history.length > 1) {
-    router.back()
-    return
-  }
-
-  if (route.meta?.requiresAuth) {
-    const fallback = fallbackRouteByRole[auth.userRole] || '/dashboard'
-    router.push(fallback)
-    return
-  }
-
-  router.push('/')
-}
 
 onMounted(() => {
   if (auth.token) {

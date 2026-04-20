@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { io } from 'socket.io-client'
 import { ref } from 'vue'
-import api from '@/services/axios'
+import api, { getApiBaseUrl } from '@/services/axios'
 import { useAuthStore } from '@/stores/auth'
 
 export const useNotificationStore = defineStore('notifications', () => {
@@ -40,7 +40,9 @@ export const useNotificationStore = defineStore('notifications', () => {
     const getReadNotificationsStorageKey = () => `notifications-read-ids-v1:${getStorageScope()}`
 
     const resolveApiUrl = () =>
-        import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:3000'
+        getApiBaseUrl() ||
+        import.meta.env.VITE_API_URL ||
+        'http://localhost:3000'
 
     const buildCreatedMessage = (data) => {
         const title = data?.title || 'Sin titulo'

@@ -157,6 +157,7 @@ const saveCreate = async () => {
   try {
     const { data } = await api.post('/destinations', {
       name: createForm.value.name.trim(),
+      active: true,
     })
     destinations.value.push(data)
     closeCreateModal()

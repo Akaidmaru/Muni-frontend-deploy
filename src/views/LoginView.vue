@@ -73,8 +73,8 @@ const submitForgot = async () => {
            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
            Volver
          </router-link>
-         <router-link to="/" class="flex justify-center mb-6 mt-4">
-            <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 sm:h-20 w-auto object-contain hover:opacity-80 transition-opacity" />
+        <router-link to="/" class="flex justify-center mb-6 mt-4 px-4">
+          <img :src="logoCompleto" alt="Transportes Flores Vargas" class="w-full max-w-[220px] sm:max-w-[260px] h-auto object-contain hover:opacity-80 transition-opacity" />
          </router-link>
          <h2 class="text-2xl sm:text-3xl font-bold text-center text-text-title font-titles mb-8">Iniciar sesión</h2>
          

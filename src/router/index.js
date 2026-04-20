@@ -205,7 +205,6 @@ const router = createRouter({
             component: AdminDestinyView,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
-
         // ── Rutas del paciente ────────────────────────────────
         {
             path: '/dashboard-paciente',

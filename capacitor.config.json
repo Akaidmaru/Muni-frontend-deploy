@@ -1,0 +1,13 @@
+{
+  "appName": "Transportes Flores Vargas",
+  "appId": "com.transportesfloresvargas.app",
+  "android": {
+    "useLegacyBridge": true
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  },
+  "webDir": "dist"
+}
