@@ -57,16 +57,14 @@ const loadEmployees = async () => {
   employeesError.value = "";
 
   try {
-    const { data } = await api.get("/users/by-roles", {
-      params: { roles: "EMPLOYEE" },
-    });
+    const { data } = await api.get("/employees");
 
     employees.value = Array.isArray(data)
       ? data
-          .filter((user) => user?.id)
-          .map((user) => ({
-            id: user.id,
-            name: user.name || user.email || `Funcionario ${user.id}`,
+          .filter((employee) => employee?.id)
+          .map((employee) => ({
+            id: employee.id,
+            name: employee.name || `Funcionario ${employee.id}`,
           }))
       : [];
   } catch (error) {
@@ -735,10 +733,13 @@ const startTrip = async (trip) => {
   try {
     const trimmedCustomDestination = trip.customDestination?.trim() || "";
     const isCustomEmployee = trip.employee?.id === "__other__";
+    const customEmployeeName = isCustomEmployee
+      ? trip.employee?.name?.trim() || ""
+      : "";
     const payload = {
       plate: selectedPlate.value,
       ...(isCustomEmployee
-        ? { customEmployee: trip.employee.name }
+        ? { customEmployee: customEmployeeName }
         : { employeeId: Number(trip.employee.id) }),
       startTime,
       ...(trimmedCustomDestination
@@ -758,6 +759,13 @@ const startTrip = async (trip) => {
     trip.historyId = createdHistoryId;
     trip.startTime = data.startTime || startTime;
     trip.status = "running";
+    if (isCustomEmployee && customEmployeeName && Number(data?.employeeId) > 0) {
+      trip.employee = {
+        id: Number(data.employeeId),
+        name: customEmployeeName,
+      };
+      await loadEmployees();
+    }
     gpsStatusError.value = "";
     startGpsTracking(trip);
 

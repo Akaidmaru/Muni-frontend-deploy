@@ -56,16 +56,14 @@ const loadEmployees = async () => {
   employeesError.value = "";
 
   try {
-    const { data } = await api.get("/users/by-roles", {
-      params: { roles: "EMPLOYEE" },
-    });
+    const { data } = await api.get("/employees");
 
     employees.value = Array.isArray(data)
       ? data
-          .filter((user) => user?.id)
-          .map((user) => ({
-            id: user.id,
-            name: user.name || user.email || `Funcionario ${user.id}`,
+          .filter((employee) => employee?.id)
+          .map((employee) => ({
+            id: employee.id,
+            name: employee.name || `Funcionario ${employee.id}`,
           }))
       : [];
   } catch (error) {
