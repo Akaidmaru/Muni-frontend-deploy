@@ -174,10 +174,10 @@ watch(currentPage, () => {
             <div class="flex items-center justify-between p-8 pb-6 relative min-h-[5rem]">
                <h1 class="text-3xl font-titles font-bold text-text-title text-center m-0 absolute left-1/2 -translate-x-1/2">Historial de viajes</h1>
                
-               <button v-if="!isFilterOpen" 
-                       @click="isFilterOpen = true" 
+               <button
+                       @click="isFilterOpen = !isFilterOpen"
                        class="absolute right-6 top-6 p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors outline-none focus:ring-2 focus:ring-primary z-10 border border-gray-300"
-                       title="Abrir filtros">
+                       :title="isFilterOpen ? 'Cerrar filtros' : 'Abrir filtros'">
                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                    <line x1="8" y1="5" x2="8" y2="19"></line>
                    <line x1="16" y1="5" x2="16" y2="19"></line>

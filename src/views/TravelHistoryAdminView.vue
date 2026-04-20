@@ -817,10 +817,10 @@ watch(currentPage, () => {
                  Excel
                </button>
 
-               <button v-if="!isFilterOpen"
-                       @click="isFilterOpen = true"
+               <button
+                       @click="isFilterOpen = !isFilterOpen"
                        class="p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors outline-none focus:ring-2 focus:ring-primary border border-gray-300"
-                       title="Abrir filtros">
+                       :title="isFilterOpen ? 'Cerrar filtros' : 'Abrir filtros'">
                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                    <line x1="8" y1="5" x2="8" y2="19"></line>
                    <line x1="16" y1="5" x2="16" y2="19"></line>
