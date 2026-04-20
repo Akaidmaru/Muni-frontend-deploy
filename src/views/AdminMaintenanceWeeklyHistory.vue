@@ -122,9 +122,21 @@ const deriveStatus = (record) => {
 const statusClass = (status) =>
   status === 'Revisado' ? 'bg-[#1b2e4b] text-white' : 'bg-[#E85D26] text-white'
 
+const mapStatusFromApi = (status) => {
+  if (status === 'REVIEWED') return 'Revisado'
+  if (status === 'PENDING') return 'Pendiente'
+  return null
+}
+
+const mapStatusToApi = (status) =>
+  status === 'Revisado' ? 'REVIEWED' : 'PENDING'
+
+const SANITIZATION_CATEGORY = 'systemSanitization'
+
 const categoryLabelMap = {
   systemLights: 'Luces',
   systemBrakes: 'Frenos',
+  systemMechanical: 'Mecanica',
   systemTires: 'NeumÃ¡ticos',
   systemEngine: 'Motor',
   systemAccessories: 'Accesorios',
@@ -133,19 +145,88 @@ const categoryLabelMap = {
 const mapCategoryLabel = (category) =>
   categoryLabelMap[category] || category || 'Sin categorÃ­a'
 
-const mapRecordFromApi = (record) => ({
-  id: record.id,
-  date: `01-${record.monthKey?.split('-')?.[1] || '00'}-${record.monthKey?.split('-')?.[0] || '0000'}`,
-  monthKey: record.monthKey || formatMonthKey(record.inspectionDate),
-  plate: record.truck?.plate || 'Sin patente',
-  driver: record.truck?.brand || record.truck?.model || 'CamiÃ³n mensual',
-  faultSummary: buildFaultSummary(record.monthlyMaintenanceItems || record.dailyMaintenanceItems || record.maintenanceItems || []),
-  status: deriveStatus(record),
-  maintenanceItems: record.monthlyMaintenanceItems || record.dailyMaintenanceItems || record.maintenanceItems || [],
-  truck: record.truck || null,
-  truckId: record.truck?.id ?? record.truckId ?? null,
-  hasActions: true,
-})
+const monthlySectionCatalog = {
+  systemLights: [
+    'Luces Bajas',
+    'Luces Altas',
+    'Luz retroceso',
+    'Luz freno',
+    '3ra Luz freno',
+    'Intermitentes',
+    'Luz interior',
+  ],
+  systemMechanical: [
+    'Cambio aceite caja',
+    'Revisión de frenos',
+    'Aire acondicionado',
+    'Cambio agua verde',
+    'Revisión filtros',
+    'Revisión batería',
+    'Revisión cables eléctricos',
+    'Revisión motor',
+    'Revisión embrague',
+    'Niveles hidráulicos',
+    'Niveles de aceite',
+    'Cambio aceite motor',
+    'Frenos',
+    'Freno de mano',
+    'Limpia parabrisas',
+    'Vidrios laterales',
+    'Tuercas',
+    'Puertas',
+    'Manillas de puertas',
+    'Parachoques',
+    'Nivel de agua',
+    'Nivel de aceite',
+    'Espejos',
+    'Cierre centralizado',
+    'Cinturón de seguridad',
+    'Aseo interior/exterior',
+    'Neumático delantero derecho',
+    'Neumático delantero izquierdo',
+    'Neumático trasero derecho',
+    'Neumático trasero izquierdo',
+  ],
+  systemAccessories: [
+    'Botiquín',
+    'Triangulo',
+    'Gata',
+    'Extintor',
+    'Llave de rueda',
+    'Neumático repuesto',
+  ],
+}
+
+const normalizeCategoryCode = (category) => {
+  const raw = String(category || '').trim()
+  if (!raw) return 'systemGeneral'
+  if (raw in monthlySectionCatalog) return raw
+  if (raw === 'systemBrakes' || raw === 'systemEngine' || raw === 'systemTires') {
+    return 'systemMechanical'
+  }
+  return raw
+}
+
+const mapRecordFromApi = (record) => {
+  const normalizedItems =
+    (record.monthlyMaintenanceItems || record.dailyMaintenanceItems || record.maintenanceItems || []).filter(
+      (item) => String(item?.category || '') !== SANITIZATION_CATEGORY,
+    )
+
+  return {
+    id: record.id,
+    date: `01-${record.monthKey?.split('-')?.[1] || '00'}-${record.monthKey?.split('-')?.[0] || '0000'}`,
+    monthKey: record.monthKey || formatMonthKey(record.inspectionDate),
+    plate: record.truck?.plate || 'Sin patente',
+    driver: record.truck?.brand || record.truck?.model || 'CamiÃ³n mensual',
+    faultSummary: buildFaultSummary(normalizedItems),
+    status: mapStatusFromApi(record.status) || deriveStatus(record),
+    maintenanceItems: normalizedItems,
+    truck: record.truck || null,
+    truckId: record.truck?.id ?? record.truckId ?? null,
+    hasActions: true,
+  }
+}
 
 const filteredRecords = computed(() => {
   const normalizedSearch = normalizeValue(searchQuery.value)
@@ -298,20 +379,25 @@ const closeEditModal = () => {
   editError.value = ''
 }
 
-const saveEditModal = () => {
+const saveEditModal = async () => {
   if (!editModal.value.record) return
   isSavingEdit.value = true
 
   try {
     const id = editModal.value.record.id
-    const idx = allRecords.value.findIndex(r => r.id === id)
+    await api.patch(`/monthly-maintenance-records/admin/${id}/status`, {
+      status: mapStatusToApi(editForm.value.status),
+    })
+
+    const idx = allRecords.value.findIndex((r) => r.id === id)
     if (idx !== -1) {
       allRecords.value[idx] = { ...allRecords.value[idx], status: editForm.value.status }
     }
     updateStats()
     closeEditModal()
   } catch (err) {
-    editError.value = 'No se pudo guardar el cambio.'
+    const msg = err?.response?.data?.message
+    editError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo guardar el cambio.'
   } finally {
     isSavingEdit.value = false
   }
@@ -336,41 +422,52 @@ const closeViewModal = () => { viewModal.value = { open: false, record: null } }
 const viewRecord = (record) => {
   if (!record || !record.maintenanceItems) return
 
-  const groupedItems = [...groupItemsByCategory(record.maintenanceItems)].map(
-    ([section, items]) => {
-      // Collect unique item names preserving insertion order
-      const itemNames = [...new Set(items.map((i) => i.itemName || i.itemCode || 'Ítem'))]
-      // Collect unique week indices (1-5), sorted numerically
-      const weekIndices = [...new Set(
-        items.map((i) => i.weekIndex ?? i.week ?? null).filter((w) => w !== null)
-      )].sort((a, b) => Number(a) - Number(b))
-      const hasWeeks = weekIndices.length > 0
+  const groupedByCode = new Map()
+  ;(record.maintenanceItems || []).forEach((item) => {
+    const code = normalizeCategoryCode(item?.category)
+    if (!groupedByCode.has(code)) groupedByCode.set(code, [])
+    groupedByCode.get(code).push(item)
+  })
 
-      // Build a pivot: pivot[itemName][weekIndex] = status string
-      // The backend stores checkbox answers as status: 'Si' | '' and state as 'Bueno' | 'Regular' | 'Malo'
-      const pivot = {}
-      items.forEach((item) => {
-        const name = item.itemName || item.itemCode || 'Ítem'
-        const week = Number(item.weekIndex ?? item.week ?? 1)
-        if (!pivot[name]) pivot[name] = {}
-        pivot[name][week] = item.status || ''
-      })
-
-      return {
-        section,
-        itemNames,
-        weekIndices: hasWeeks ? weekIndices : [1],
-        pivot,
-        hasWeeks,
-        // legacy flat rows kept for fallback
-        rows: items.map((item) => ({
-          label: item.itemName || item.itemCode || 'Ítem',
-          status: item.status || '—',
-          note: item.notes || '—',
-        })),
-      }
-    },
+  const preferredSectionOrder = ['systemLights', 'systemMechanical', 'systemAccessories']
+  const dynamicSectionCodes = [...groupedByCode.keys()].filter(
+    (code) => !preferredSectionOrder.includes(code),
   )
+  const orderedSectionCodes = [...preferredSectionOrder, ...dynamicSectionCodes]
+
+  const groupedItems = orderedSectionCodes.map((sectionCode) => {
+    const items = groupedByCode.get(sectionCode) || []
+
+    const dbItemNames = [...new Set(items.map((i) => i.itemName || i.itemCode || 'Ítem'))]
+    const catalogNames = monthlySectionCatalog[sectionCode] || []
+    const itemNames = [...catalogNames, ...dbItemNames.filter((name) => !catalogNames.includes(name))]
+
+    const weekIndices = [...new Set(
+      items.map((i) => i.weekIndex ?? i.week ?? null).filter((w) => w !== null),
+    )].sort((a, b) => Number(a) - Number(b))
+
+    const pivot = {}
+    items.forEach((item) => {
+      const name = item.itemName || item.itemCode || 'Ítem'
+      const week = Number(item.weekIndex ?? item.week ?? 1)
+      if (!pivot[name]) pivot[name] = {}
+      pivot[name][week] = item.status || ''
+    })
+
+    // Ensure every catalog item renders even when no status was recorded yet.
+    itemNames.forEach((name) => {
+      if (!pivot[name]) pivot[name] = {}
+    })
+
+    return {
+      section: mapCategoryLabel(sectionCode),
+      itemNames,
+      weekIndices: weekIndices.length > 0 ? weekIndices : [1],
+      pivot,
+      hasWeeks: true,
+      rows: [],
+    }
+  }).filter((section) => section.itemNames.length > 0)
 
   viewModal.value = {
     open: true,
@@ -391,6 +488,7 @@ const viewRecord = (record) => {
 const groupItemsByCategory = (items = []) => {
   const groups = new Map()
   items.forEach((item) => {
+    if (String(item?.category || '') === SANITIZATION_CATEGORY) return
     const title = mapCategoryLabel(item.category)
     if (!groups.has(title)) groups.set(title, [])
     groups.get(title).push(item)
@@ -947,7 +1045,9 @@ onMounted(() => {
                             class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700"
                           >Malo</span>
                           <!-- no data -->
-                          <span v-else class="text-slate-300">—</span>
+                          <span v-else class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-red-500 text-white" title="Sin check">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                          </span>
                         </td>
                       </tr>
                     </tbody>
@@ -984,7 +1084,9 @@ onMounted(() => {
                             v-else-if="row.status === 'Malo'"
                             class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700"
                           >Malo</span>
-                          <span v-else class="text-slate-400">—</span>
+                          <span v-else class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-red-500 text-white" title="Sin check">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                          </span>
                         </td>
                         <td class="px-2 py-1.5 border border-slate-200 text-slate-500 italic">{{ row.note || '—' }}</td>
                       </tr>
