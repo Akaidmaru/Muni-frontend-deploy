@@ -157,7 +157,6 @@ const saveCreate = async () => {
   try {
     const { data } = await api.post('/destinations', {
       name: createForm.value.name.trim(),
-      active: true,
     })
     destinations.value.push(data)
     closeCreateModal()
@@ -211,34 +210,35 @@ onMounted(loadDestinations)
             isFilterOpen ? 'max-w-[calc(100%-22rem)]' : 'w-full'
           ]">
             <!-- Header -->
-            <div class="flex items-center justify-between p-8 pb-6 relative min-h-[6rem] shrink-0">
-
-
-               <h1 class="text-3xl font-titles font-bold text-text-title text-center m-0 absolute left-1/2 -translate-x-1/2">Administración de Destinos</h1>
-               
-               <div class="absolute right-8 flex items-center gap-3 z-10" style="top: 28px;">
-                 <button
-                   @click="openCreateModal"
-                   class="flex items-center gap-2 bg-[#0B2545] hover:bg-[#133A6D] text-white text-xs font-bold px-4 py-2.5 rounded-lg transition-all hover:-translate-y-0.5 active:scale-95 shadow-sm"
-                 >
-                   <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                     <line x1="12" y1="5" x2="12" y2="19"></line>
-                     <line x1="5" y1="12" x2="19" y2="12"></line>
-                   </svg>
-                   Nuevo destino
-                 </button>
-                 <button v-if="!isFilterOpen" 
-                         @click="isFilterOpen = true" 
-                         class="p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors outline-none focus:ring-2 focus:ring-primary border border-gray-300"
-                         title="Abrir filtros">
-                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                     <line x1="8" y1="5" x2="8" y2="19"></line>
-                     <line x1="16" y1="5" x2="16" y2="19"></line>
-                     <line x1="5" y1="10" x2="11" y2="10"></line>
-                     <line x1="13" y1="14" x2="19" y2="14"></line>
-                   </svg>
-                 </button>
-               </div>
+            <div class="shrink-0 px-4 sm:px-8 pt-5 pb-4 sm:pb-6">
+              <!-- Mobile: título + botones centrados apilados -->
+              <!-- Desktop: título centrado con botones absolutos a la derecha -->
+              <div class="relative flex flex-col items-center gap-3 sm:block">
+                <h1 class="text-2xl sm:text-3xl font-titles font-bold text-text-title text-center sm:py-2">Administración de Destinos</h1>
+                <div class="flex items-center gap-3 sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2">
+                  <button
+                    @click="openCreateModal"
+                    class="flex items-center gap-2 bg-[#0B2545] hover:bg-[#133A6D] text-white text-xs font-bold px-4 py-2.5 rounded-lg transition-all hover:-translate-y-0.5 active:scale-95 shadow-sm"
+                  >
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Nuevo destino
+                  </button>
+                  <button v-if="!isFilterOpen"
+                          @click="isFilterOpen = true"
+                          class="p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors outline-none focus:ring-2 focus:ring-primary border border-gray-300"
+                          title="Abrir filtros">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="8" y1="5" x2="8" y2="19"></line>
+                      <line x1="16" y1="5" x2="16" y2="19"></line>
+                      <line x1="5" y1="10" x2="11" y2="10"></line>
+                      <line x1="13" y1="14" x2="19" y2="14"></line>
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </div>
 
             <!-- Error de carga -->
@@ -320,16 +320,6 @@ onMounted(loadDestinations)
               </td>
               <td class="border border-[#D3DCE6] py-4 px-4 text-center">
                 <div class="flex items-center justify-center gap-2">
-                  <button
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[1.25rem] text-[11px] font-bold bg-slate-100 text-slate-400 opacity-60 cursor-not-allowed transition-colors tracking-wide"
-                    title="Función en desarrollo"
-                    disabled
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
-                    </svg>
-                    Ver
-                  </button>
                   <button
                     @click="openEditModal(dest)"
                     class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[1.25rem] text-[11px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors tracking-wide"
@@ -446,6 +436,7 @@ onMounted(loadDestinations)
                       <option value="ALL">Todos los estados</option>
                       <option value="ACTIVE">En transcurso</option>
                       <option value="INACTIVE">Completado</option>
+                      <option value="NEW" >Nuevo</option>
                     </select>
                     <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -492,6 +483,7 @@ onMounted(loadDestinations)
                 >
                   <option :value="true">Activo</option>
                   <option :value="false">Inactivo</option>
+                  <option :value="null">Nuevo</option>
                 </select>
               </div>
             </div>

@@ -23,6 +23,7 @@ const currentPage = ref(1)
 const isEditModalOpen = ref(false)
 const isViewModalOpen = ref(false)
 const isPasswordModalOpen = ref(false)
+const isDeleteConfirmOpen = ref(false)
 const isSaving = ref(false)
 const saveError = ref('')
 const saveSuccess = ref('')
@@ -175,10 +176,27 @@ const openEditModal = (user) => {
 }
 const closeEditModal = () => {
   isEditModalOpen.value = false
+  isDeleteConfirmOpen.value = false
   isSaving.value = false
   saveError.value = ''
   saveSuccess.value = ''
   selectedUser.value = null
+}
+
+const deleteUser = async () => {
+  if (!editForm.value.id) return
+  isSaving.value = true
+  try {
+    await api.delete(`/users/${editForm.value.id}`)
+    users.value = users.value.filter((u) => u.id !== editForm.value.id)
+    closeEditModal()
+  } catch (error) {
+    const msg = error.response?.data?.message
+    saveError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo eliminar el usuario.'
+    isDeleteConfirmOpen.value = false
+  } finally {
+    isSaving.value = false
+  }
 }
 
 const saveUser = async () => {
@@ -592,7 +610,7 @@ onMounted(() => { loadUsers() })
         class="fixed inset-0 z-[60] bg-black/35 flex items-center justify-center px-4"
         @click.self="closeEditModal"
       >
-        <div class="w-full max-w-2xl rounded-[1.75rem] bg-white shadow-2xl border border-slate-200 overflow-hidden">
+        <div class="w-full max-w-2xl rounded-[1.75rem] bg-white shadow-2xl border border-slate-200 overflow-hidden relative">
           <div class="px-8 pt-7 pb-5 flex items-start justify-between gap-4">
             <div>
               <h2 class="text-2xl font-titles font-bold text-slate-900">Editar usuario</h2>
@@ -653,11 +671,48 @@ onMounted(() => { loadUsers() })
               </div>
             </div>
 
-            <div class="mt-7 flex justify-end gap-3">
-              <button @click="closeEditModal" type="button" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors">Cancelar</button>
-              <button @click="saveUser" type="button" :disabled="isSaving" class="px-5 py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2">
+            <div class="mt-7 flex justify-between items-center gap-3">
+              <button
+                @click="isDeleteConfirmOpen = true"
+                type="button"
+                class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Eliminar usuario
+              </button>
+              <div class="flex gap-3">
+                <button @click="closeEditModal" type="button" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors">Cancelar</button>
+                <button @click="saveUser" type="button" :disabled="isSaving" class="px-5 py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2">
+                  <svg v-if="isSaving" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                  {{ isSaving ? 'Guardando...' : 'Guardar cambios' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Confirmación eliminación superpuesta -->
+          <div v-if="isDeleteConfirmOpen" class="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-[1.75rem] flex flex-col items-center justify-center gap-6 p-10 z-10">
+            <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <div class="text-center">
+              <p class="text-xl font-extrabold text-slate-800">¿Eliminar usuario?</p>
+              <p class="text-sm text-slate-500 mt-2 max-w-sm">
+                Esta acción es <span class="font-bold text-red-600">irreversible</span>. Se eliminará permanentemente la cuenta de
+                <span class="font-bold text-slate-700">{{ selectedUser?.name }}</span> junto a todos sus datos.
+              </p>
+            </div>
+            <div class="flex gap-3">
+              <button @click="isDeleteConfirmOpen = false" type="button" class="px-6 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors">
+                Cancelar
+              </button>
+              <button @click="deleteUser" type="button" :disabled="isSaving" class="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors disabled:opacity-60 flex items-center gap-2">
                 <svg v-if="isSaving" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                {{ isSaving ? 'Guardando...' : 'Guardar cambios' }}
+                Sí, eliminar
               </button>
             </div>
           </div>
