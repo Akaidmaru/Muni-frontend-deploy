@@ -144,26 +144,77 @@ const modeFromRoute = computed(() => {
 });
 const isReadOnlyMode = computed(() => modeFromRoute.value === "view");
 
-const getSelectedTruck = () =>
-  licensePlates.value.find((truck) => truck.id === selectedTruckId.value) ||
-  selectedTruckFallback.value ||
-  null;
+const normalizePlateToken = (value) =>
+  String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+
+const getSelectedTruck = () => {
+  const byId = licensePlates.value.find(
+    (truck) => truck.id === selectedTruckId.value,
+  );
+  if (byId) return byId;
+
+  const selectedPlateToken = normalizePlateToken(
+    selectedPlateStable.value || selectedPlate.value,
+  );
+  if (selectedPlateToken) {
+    const byPlate = licensePlates.value.find(
+      (truck) => normalizePlateToken(truck?.plate) === selectedPlateToken,
+    );
+    if (byPlate) return byPlate;
+  }
+
+  return selectedTruckFallback.value || null;
+};
+
+const parseExpiryDate = (expiryDate) => {
+  if (!expiryDate) return null;
+
+  if (expiryDate instanceof Date && !Number.isNaN(expiryDate.getTime())) {
+    return new Date(
+      expiryDate.getFullYear(),
+      expiryDate.getMonth(),
+      expiryDate.getDate(),
+    );
+  }
+
+  const rawValue = String(expiryDate).trim();
+  if (!rawValue) return null;
+
+  const dmyMatch = rawValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmyMatch) {
+    const [, day, month, year] = dmyMatch;
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const isoDay = rawValue.slice(0, 10);
+  const isoMatch = isoDay.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const fallback = new Date(rawValue);
+  if (Number.isNaN(fallback.getTime())) return null;
+  return new Date(
+    fallback.getFullYear(),
+    fallback.getMonth(),
+    fallback.getDate(),
+  );
+};
 
 const getDocumentStatusByExpiry = (expiryDate) => {
-  if (!expiryDate) return "No tiene";
-
-  const expiry = new Date(expiryDate);
-  if (Number.isNaN(expiry.getTime())) return "No tiene";
+  const expiry = parseExpiryDate(expiryDate);
+  if (!expiry) return "No tiene";
 
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const normalizedExpiry = new Date(
-    expiry.getFullYear(),
-    expiry.getMonth(),
-    expiry.getDate(),
-  );
 
-  return normalizedExpiry >= today ? "Vigente" : "Vencido";
+  return expiry >= today ? "Vigente" : "Vencido";
 };
 
 const syncAnnexFromSelectedTruck = () => {
@@ -395,6 +446,21 @@ const loadMaintenanceRecordById = async (recordId) => {
   confirmed.value = true;
 };
 
+const resetPlateSelectionState = () => {
+  selectedPlate.value = "";
+  selectedPlateStable.value = "";
+  selectedTruckId.value = null;
+  selectedTruckFallback.value = null;
+  suggestedMileage.value = 0;
+  alreadyRegisteredToday.value = false;
+  existingMaintenanceRecordId.value = null;
+  editingDriverId.value = null;
+  maintenanceForm.value = null;
+  maintenanceFormError.value = "";
+  maintenanceFormSuccess.value = "";
+  tripActionError.value = "";
+};
+
 const goBackFromMaintenance = () => {
   if (sourceFromRoute.value === "admin-maintenance-monthly-history") {
     router.push({ name: "admin-maintenance-monthly-history" });
@@ -405,6 +471,7 @@ const goBackFromMaintenance = () => {
     return;
   }
 
+  resetPlateSelectionState();
   confirmed.value = false;
 };
 
@@ -416,6 +483,7 @@ const loadMileageSuggestionByPlate = async (plate) => {
     const { data } = await api.get(`/daily-maintenance-records/mileage-suggestion/plate/${encodeURIComponent(plate)}`);
     suggestedMileage.value = data.suggestedMileage || 0;
     selectedTruckId.value = data.truckId || fallbackTruckId;
+    selectedTruckFallback.value = data?.truck || foundTruck || null;
     if (maintenanceForm.value) {
       maintenanceForm.value.kilometraje = String(suggestedMileage.value);
       syncAnnexFromSelectedTruck();
@@ -424,6 +492,7 @@ const loadMileageSuggestionByPlate = async (plate) => {
   } catch (error) {
     suggestedMileage.value = 0;
     selectedTruckId.value = fallbackTruckId;
+    selectedTruckFallback.value = foundTruck || null;
     if (maintenanceForm.value) {
       maintenanceForm.value.kilometraje = "";
       syncAnnexFromSelectedTruck();
@@ -469,6 +538,7 @@ const onPlateChange = async (event) => {
   if (!plate) {
     alreadyRegisteredToday.value = false;
     selectedTruckId.value = null;
+    selectedTruckFallback.value = null;
     suggestedMileage.value = 0;
     return;
   }
