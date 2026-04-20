@@ -135,6 +135,37 @@ const saveEdit = async () => {
   }
 }
 
+// ── Eliminar destino ─────────────────────────────────────────────────────────
+const isDeleteConfirmOpen = ref(false)
+const isDeleting = ref(false)
+const deleteError = ref('')
+
+const openDeleteConfirm = () => {
+  deleteError.value = ''
+  isDeleteConfirmOpen.value = true
+}
+
+const closeDeleteConfirm = () => {
+  isDeleteConfirmOpen.value = false
+  deleteError.value = ''
+}
+
+const confirmDelete = async () => {
+  isDeleting.value = true
+  deleteError.value = ''
+  try {
+    await api.delete(`/destinations/${editForm.value.id}`)
+    destinations.value = destinations.value.filter((d) => d.id !== editForm.value.id)
+    closeDeleteConfirm()
+    closeEditModal()
+  } catch (error) {
+    const msg = error.response?.data?.message
+    deleteError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo eliminar el destino.'
+  } finally {
+    isDeleting.value = false
+  }
+}
+
 // ── Modal CREAR ──────────────────────────────────────────────────────────────
 const openCreateModal = () => {
   createForm.value = { name: '' }
@@ -227,10 +258,10 @@ onMounted(loadDestinations)
                     </svg>
                     Nuevo destino
                   </button>
-                  <button v-if="!isFilterOpen"
-                          @click="isFilterOpen = true"
+                  <button
+                          @click="isFilterOpen = !isFilterOpen"
                           class="p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors outline-none focus:ring-2 focus:ring-primary border border-gray-300"
-                          title="Abrir filtros">
+                          :title="isFilterOpen ? 'Cerrar filtros' : 'Abrir filtros'">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                       <line x1="8" y1="5" x2="8" y2="19"></line>
                       <line x1="16" y1="5" x2="16" y2="19"></line>
@@ -492,16 +523,72 @@ onMounted(loadDestinations)
             <div v-if="saveError" class="mt-3 text-sm text-red-600 font-body bg-red-50 border border-red-200 rounded-lg px-3 py-2">{{ saveError }}</div>
             <div v-if="saveSuccess" class="mt-3 text-sm text-green-600 font-body bg-green-50 border border-green-200 rounded-lg px-3 py-2">{{ saveSuccess }}</div>
 
-            <div class="flex justify-end gap-3 mt-6">
-              <button @click="closeEditModal" class="px-4 py-2 text-sm font-titles font-semibold text-slate-600 hover:bg-gray-100 rounded-lg transition-colors">
+            <div class="flex items-center justify-between mt-6">
+              <button
+                @click="openDeleteConfirm"
+                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-titles font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all active:scale-95"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Eliminar
+              </button>
+              <div class="flex gap-3">
+                <button @click="closeEditModal" class="px-4 py-2 text-sm font-titles font-semibold text-slate-600 hover:bg-gray-100 rounded-lg transition-colors">
+                  Cancelar
+                </button>
+                <button
+                  @click="saveEdit"
+                  :disabled="isSaving"
+                  class="px-4 py-2 text-sm font-titles font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {{ isSaving ? 'Guardando...' : 'Guardar' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
+
+    <!-- Modal CONFIRMAR ELIMINACIÓN -->
+    <Teleport to="body">
+      <transition enter-active-class="transition duration-150 ease-out" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition duration-100 ease-in" leave-from-class="opacity-100" leave-to-class="opacity-0">
+        <div v-if="isDeleteConfirmOpen" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
+          <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <div class="flex flex-col items-center text-center gap-3 mb-5">
+              <div class="flex items-center justify-center w-14 h-14 rounded-full bg-red-100">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <h2 class="text-lg font-titles font-bold text-slate-800">¿Eliminar destino?</h2>
+              <p class="text-sm font-body text-slate-500">
+                Estás a punto de eliminar <span class="font-semibold text-slate-700">{{ editForm.name }}</span>.
+                Esta acción es <span class="font-bold text-red-600">irreversible</span> y no se puede deshacer.
+              </p>
+            </div>
+
+            <div v-if="deleteError" class="mb-4 text-sm text-red-600 font-body bg-red-50 border border-red-200 rounded-lg px-3 py-2">{{ deleteError }}</div>
+
+            <div class="flex gap-3">
+              <button
+                @click="closeDeleteConfirm"
+                :disabled="isDeleting"
+                class="flex-1 px-4 py-2 text-sm font-titles font-semibold text-slate-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              >
                 Cancelar
               </button>
               <button
-                @click="saveEdit"
-                :disabled="isSaving"
-                class="px-4 py-2 text-sm font-titles font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-all active:scale-95 disabled:opacity-50"
+                @click="confirmDelete"
+                :disabled="isDeleting"
+                class="flex-1 px-4 py-2 text-sm font-titles font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all active:scale-95 disabled:opacity-50"
               >
-                {{ isSaving ? 'Guardando...' : 'Guardar' }}
+                {{ isDeleting ? 'Eliminando...' : 'Sí, eliminar' }}
               </button>
             </div>
           </div>

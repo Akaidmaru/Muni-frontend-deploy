@@ -56,16 +56,14 @@ const loadEmployees = async () => {
   employeesError.value = "";
 
   try {
-    const { data } = await api.get("/users/by-roles", {
-      params: { roles: "EMPLOYEE" },
-    });
+    const { data } = await api.get("/employees");
 
     employees.value = Array.isArray(data)
       ? data
-          .filter((user) => user?.id)
-          .map((user) => ({
-            id: user.id,
-            name: user.name || user.email || `Funcionario ${user.id}`,
+          .filter((employee) => employee?.id)
+          .map((employee) => ({
+            id: employee.id,
+            name: employee.name || `Funcionario ${employee.id}`,
           }))
       : [];
   } catch (error) {
@@ -277,10 +275,24 @@ const formatDisplayDate = (dateValue) => {
   ).padStart(2, "0")}/${date.getUTCFullYear()}`;
 };
 
+const normalizeItemToken = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "");
+
 const populateMaintenanceFormFromRecord = (record) => {
   const form = createDefaultMaintenanceForm(record?.currentMileage ?? "");
   const itemsByCode = new Map(
     (record?.dailyMaintenanceItems || []).map((item) => [item.itemCode, item]),
+  );
+  const itemsByNameToken = new Map(
+    (record?.dailyMaintenanceItems || []).map((item) => [
+      normalizeItemToken(item?.itemName),
+      item,
+    ]),
   );
 
   form.identificationVehicle = selectedPlate.value || form.identificationVehicle;
@@ -295,7 +307,9 @@ const populateMaintenanceFormFromRecord = (record) => {
   form.items = form.items.map((item) => {
     if (item.type === "section") return item;
 
-    const existingItem = itemsByCode.get(item.id);
+    const existingItem =
+      itemsByCode.get(item.id) ||
+      itemsByNameToken.get(normalizeItemToken(item.label));
     if (!existingItem) return item;
 
     return {
@@ -337,8 +351,34 @@ const toIsoDateFromDisplay = (displayDate) => {
   return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 };
 
+const fetchMaintenanceRecordForEdit = async (recordId) => {
+  const encodedId = encodeURIComponent(recordId);
+  const endpointCandidates =
+    sourceFromRoute.value === "admin-maintenance-daily"
+      ? [
+          `/daily-maintenance-records/admin/${encodedId}`,
+          `/daily-maintenance-records/${encodedId}`,
+        ]
+      : [
+          `/daily-maintenance-records/${encodedId}`,
+          `/daily-maintenance-records/admin/${encodedId}`,
+        ];
+
+  let lastError = null;
+  for (const endpoint of endpointCandidates) {
+    try {
+      const { data } = await api.get(endpoint);
+      return data;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("No se pudo obtener el registro de mantenimiento");
+};
+
 const loadMaintenanceRecordById = async (recordId) => {
-  const { data } = await api.get(`/daily-maintenance-records/${recordId}`);
+  const data = await fetchMaintenanceRecordForEdit(recordId);
 
   existingMaintenanceRecordId.value = data?.id || null;
   selectedTruckId.value = data?.truckId || data?.truck?.id || null;

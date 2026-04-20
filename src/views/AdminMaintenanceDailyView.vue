@@ -161,6 +161,20 @@ const hasPendingIssues = (record) => {
 const deriveStatus = (record) =>
   hasPendingIssues(record) ? 'PENDIENTE' : 'REVISADO'
 
+const mapStatusFromApi = (status) => {
+  if (status === 'REVIEWED') return 'REVISADO'
+  if (status === 'PENDING') return 'PENDIENTE'
+  return null
+}
+
+const mapStatusToApi = (status) =>
+  status === 'REVISADO' ? 'REVIEWED' : 'PENDING'
+const statusLabel = (status) => {
+  if (status === 'REVISADO') return 'Revisado'
+  if (status === 'PENDIENTE') return 'Pendiente'
+  return 'Sin estado'
+}
+
 const mapCategoryLabel = (category) =>
   CATEGORY_LABELS[category] || category || 'Sin categoría'
 
@@ -192,7 +206,7 @@ const mapRecordFromApi = (record) => ({
   driver:
     record.driver?.name || record.driver?.email || `Conductor ${record.driverId}`,
   faultSummary: buildFaultSummaryFromItems(record.dailyMaintenanceItems),
-  status: deriveStatus(record),
+  status: mapStatusFromApi(record.status),
   inspectionDateRaw: record.inspectionDate,
   inspectionTime: record.inspectionTime,
   municipalLicense: record.municipalLicense,
@@ -458,7 +472,11 @@ onBeforeUnmount(() => {
 // HELPERS
 // ═══════════════════════════════════════════════════════════
 const statusClass = (status) =>
-  status === 'REVISADO' ? 'bg-[#1b2e4b] text-white' : 'bg-[#E85D26] text-white'
+  status === 'REVISADO'
+    ? 'bg-[#1b2e4b] text-white'
+    : status === 'PENDIENTE'
+      ? 'bg-[#E85D26] text-white'
+      : 'bg-slate-200 text-slate-700'
 
 // ═══════════════════════════════════════════════════════════
 // MODAL VER — reporte de un registro
@@ -557,8 +575,8 @@ const editError = ref('')
 
 const editRecord = (record) => {
   editForm.value = {
-    status:       record.status,
-    faultSummary: record.faultSummary,
+    status:       record.status || 'PENDIENTE',
+    faultSummary: record.faultSummary || '',
   }
   editModal.value = { open: true, record }
   editError.value = ''
@@ -572,6 +590,11 @@ const saveEdit = async () => {
   editError.value = ''
 
   try {
+    await api.patch(
+      `/daily-maintenance-records/admin/${editModal.value.record.id}/status`,
+      { status: mapStatusToApi(editForm.value.status) },
+    )
+
     const idx = records.value.findIndex(r => r.id === editModal.value.record.id)
     if (idx !== -1) {
       records.value[idx] = {
@@ -674,7 +697,7 @@ const buildChecklistPdfBlob = async (recordId) => {
               l2: 'KILOMETRAJE:',      v2: normalized.currentMileage != null ? String(normalized.currentMileage) : '—' },
     { y: 62, l1: 'FECHA INSPECCIÓN:', v1: normalized.date || '—',
               l2: 'HORA INSPECCIÓN:',  v2: normalized.inspectionTime || '—' },
-    { y: 69, l1: 'ESTADO:',           v1: normalized.status === 'REVISADO' ? 'Revisado' : 'Pendiente',
+    { y: 69, l1: 'ESTADO:',           v1: statusLabel(normalized.status),
               l2: '',                  v2: '' },
   ]
 
@@ -1029,17 +1052,15 @@ const exportChecklistPDF = async (record) => {
                   <td class="py-4 px-5 text-center text-slate-600 text-xs border border-gray-300">{{ record.driver }}</td>
                   <td class="py-4 px-5 text-center text-slate-600 text-xs border border-gray-300 whitespace-pre-line">{{ record.faultSummary }}</td>
                   <td class="py-4 px-5 text-center border border-gray-300">
-                    <span v-if="record.status"
-                          class="inline-block px-4 py-1.5 rounded-full text-xs font-bold"
+                    <span class="inline-block px-4 py-1.5 rounded-full text-xs font-bold"
                           :class="statusClass(record.status)">
-                      {{ record.status === 'REVISADO' ? 'Revisado' : 'Pendiente' }}
+                      {{ statusLabel(record.status) }}
                     </span>
                   </td>
                   <td class="py-4 px-5 text-center border border-gray-300">
                     <div class="flex items-center justify-center gap-3">
                       <!-- Ver: disponible para todos los registros con estado -->
                       <button
-                        v-if="record.status"
                         @click="viewRecord(record)"
                         class="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-primary transition-colors">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -1050,7 +1071,6 @@ const exportChecklistPDF = async (record) => {
                       </button>
                       <!-- Editar: disponible para todos los registros con estado -->
                       <button
-                        v-if="record.status"
                         @click="editRecord(record)"
                         class="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-primary transition-colors">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -1189,7 +1209,7 @@ const exportChecklistPDF = async (record) => {
             <div>
               <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">Estado</p>
               <span class="inline-block px-3 py-1 rounded-full text-xs font-bold" :class="statusClass(viewModal.record?.status)">
-                {{ viewModal.record?.status === 'REVISADO' ? 'Revisado' : 'Pendiente' }}
+                      {{ statusLabel(viewModal.record?.status) }}
               </span>
             </div>
             <div v-if="viewModal.record?.licMunicipal">

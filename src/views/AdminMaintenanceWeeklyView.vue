@@ -45,6 +45,9 @@ const createEmptySanitizationRows = () =>
     observacion: '',
   }))
 
+const SANITIZATION_ITEM_CODE_PREFIX = 'sanitization_row_'
+const SANITIZATION_CATEGORY = 'systemSanitization'
+
 const tituloMesPrincipal = computed(() => {
   const [year, month] = currentDateStr.value.split('-').map(Number);
   return `CHECK LIST MANTENCIONES INTERNAS ${mesesAnio[month - 1].toUpperCase()} ${year}`;
@@ -268,6 +271,25 @@ const loadTruckData = async (truckId) => {
     populateSection(itemsMecanica, 'mecanica')
     populateSection(itemsAccesorios, 'accesorios')
 
+    const sanitizationRows = createEmptySanitizationRows()
+    ;(monthlyRecord.monthlyMaintenanceItems || []).forEach((item) => {
+      const itemCode = String(item?.itemCode || '')
+      const isSanitizationItem =
+        item?.category === SANITIZATION_CATEGORY ||
+        itemCode.startsWith(SANITIZATION_ITEM_CODE_PREFIX)
+
+      if (!isSanitizationItem) return
+
+      const weekIndex = Number(item?.weekIndex)
+      if (!Number.isInteger(weekIndex) || weekIndex < 1 || weekIndex > sanitizationRows.length) return
+
+      sanitizationRows[weekIndex - 1] = {
+        fecha: item?.status || '',
+        observacion: item?.notes || '',
+      }
+    })
+    registros.value.sanitizacion = sanitizationRows
+
   } catch (err) {
     const msg = err?.response?.data?.message
     truckLoadError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudieron cargar los datos del vehículo.'
@@ -325,6 +347,22 @@ const guardarFormulario = async () => {
   pushSectionItems(itemsLuces, 'luces')
   pushSectionItems(itemsMecanica, 'mecanica')
   pushSectionItems(itemsAccesorios, 'accesorios')
+
+  ;(registros.value.sanitizacion || []).forEach((row, idx) => {
+    const fecha = String(row?.fecha || '').trim()
+    const observacion = String(row?.observacion || '').trim()
+    if (!fecha && !observacion) return
+
+    const weekIndex = idx + 1
+    monthlyMaintenanceItems.push({
+      weekIndex,
+      itemCode: `${SANITIZATION_ITEM_CODE_PREFIX}${weekIndex}`,
+      itemName: `Sanitización ${weekIndex}`,
+      category: SANITIZATION_CATEGORY,
+      status: fecha,
+      notes: observacion,
+    })
+  })
 
   try {
     await api.post('/monthly-maintenance-records/admin', {
