@@ -8,6 +8,7 @@ import UserMenu from '@/components/UserMenu.vue'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import warningIcon from '@/assets/images/admin/warning.png'
 import repairIcon from '@/assets/images/admin/repair.png'
+import estadisticasIcon from '@/assets/images/Images admin nabvar left/stadistics.png'
 const auth = useAuthStore()
 const router = useRouter()
 
@@ -22,6 +23,9 @@ const goToAdminReports = () => {
 }
 const goToAdminMaintenance = () => {
   router.push('/admin/mantencion-vehicular')
+}
+const goToAdminEstadisticas = () => {
+  router.push('/admin/mantencion-vehicular/estadisticas')
 }
 </script>
 
@@ -77,6 +81,14 @@ const goToAdminMaintenance = () => {
           >
             <img :src="repairIcon" alt="Mantenimiento Vehicular" class="w-12 sm:w-16 h-12 sm:h-16 object-contain mb-3 sm:mb-4" />
             <span class="text-base sm:text-xl font-titles font-semibold text-text-title">Mantenimiento Vehicular</span>
+          </button>
+
+          <button
+            @click="goToAdminEstadisticas"
+            class="bg-white rounded-2xl shadow-lg border border-gray-100 p-5 sm:p-6 h-auto min-h-[140px] sm:h-52 flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
+          >
+            <img :src="estadisticasIcon" alt="Estadísticas" class="w-12 sm:w-16 h-12 sm:h-16 object-contain mb-3 sm:mb-4" />
+            <span class="text-base sm:text-xl font-titles font-semibold text-text-title">Estadísticas</span>
           </button>
         </div>
           </div>

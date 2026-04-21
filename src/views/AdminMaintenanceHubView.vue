@@ -12,7 +12,6 @@ const router = useRouter()
 const cards = [
   { label: 'Mantenimiento vehicular diario',   icon: dailyMaintenanceIcon,   path: '/admin/mantencion-vehicular/diario'           },
   { label: 'Mantenimiento vehicular mensual',  icon: monthlyMaintenanceIcon, path: '/admin/mantencion-vehicular/historial-mensual' },
-  { label: 'Estadísticas',                     icon: estadisticasIcon,       path: '/admin/mantencion-vehicular/estadisticas'      },
 ]
 </script>
 

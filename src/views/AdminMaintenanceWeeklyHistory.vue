@@ -419,55 +419,53 @@ const editChecklist = (record) => {
 const viewModal = ref({ open: false, record: null })
 const closeViewModal = () => { viewModal.value = { open: false, record: null } }
 
+const CHECKLIST_SECTIONS = [
+  { section: 'Check list. Normas y Seguridad de Vehículo', items: ['Luces Bajas', 'Luces Altas', 'Luz retroceso', 'Luz freno', '3ra Luz freno', 'Intermitentes', 'Luz interior'] },
+  { section: 'Revisión mecánica de vehículo', items: [
+    'Cambio aceite caja', 'Revisión de frenos', 'Aire acondicionado', 'Cambio agua verde', 'Revisión filtros',
+    'Revisión batería', 'Revisión cables eléctricos', 'Revisión motor', 'Revisión embrague', 'Niveles hidráulicos',
+    'Niveles de aceite', 'Cambio aceite motor', 'Frenos', 'Freno de mano', 'Limpia parabrisas', 'Vidrios laterales',
+    'Tuercas', 'Puertas', 'Manillas de puertas', 'Parachoques', 'Nivel de agua', 'Nivel de aceite', 'Espejos',
+    'Cierre centralizado', 'Cinturón de seguridad', 'Aseo interior/exterior', 'Neumático delantero derecho',
+    'Neumático delantero izquierdo', 'Neumático trasero derecho', 'Neumático trasero izquierdo'
+  ] },
+  { section: 'Accesorios', items: ['Botiquín', 'Triangulo', 'Gata', 'Extintor', 'Llave de rueda', 'Neumático repuesto'] }
+]
+
 const viewRecord = (record) => {
   if (!record || !record.maintenanceItems) return
 
-  const groupedByCode = new Map()
-  ;(record.maintenanceItems || []).forEach((item) => {
-    const code = normalizeCategoryCode(item?.category)
-    if (!groupedByCode.has(code)) groupedByCode.set(code, [])
-    groupedByCode.get(code).push(item)
-  })
+  const itemsArray = record.maintenanceItems || []
+  const weekIndices = [1, 2, 3, 4, 5]
 
-  const preferredSectionOrder = ['systemLights', 'systemMechanical', 'systemAccessories']
-  const dynamicSectionCodes = [...groupedByCode.keys()].filter(
-    (code) => !preferredSectionOrder.includes(code),
-  )
-  const orderedSectionCodes = [...preferredSectionOrder, ...dynamicSectionCodes]
-
-  const groupedItems = orderedSectionCodes.map((sectionCode) => {
-    const items = groupedByCode.get(sectionCode) || []
-
-    const dbItemNames = [...new Set(items.map((i) => i.itemName || i.itemCode || 'Ítem'))]
-    const catalogNames = monthlySectionCatalog[sectionCode] || []
-    const itemNames = [...catalogNames, ...dbItemNames.filter((name) => !catalogNames.includes(name))]
-
-    const weekIndices = [...new Set(
-      items.map((i) => i.weekIndex ?? i.week ?? null).filter((w) => w !== null),
-    )].sort((a, b) => Number(a) - Number(b))
-
+  const groupedItems = CHECKLIST_SECTIONS.map(({ section, items }) => {
     const pivot = {}
-    items.forEach((item) => {
-      const name = item.itemName || item.itemCode || 'Ítem'
-      const week = Number(item.weekIndex ?? item.week ?? 1)
-      if (!pivot[name]) pivot[name] = {}
-      pivot[name][week] = item.status || ''
+    items.forEach((name) => {
+      pivot[name] = {}
+      weekIndices.forEach(w => pivot[name][w] = '')
     })
 
-    // Ensure every catalog item renders even when no status was recorded yet.
-    itemNames.forEach((name) => {
-      if (!pivot[name]) pivot[name] = {}
+    itemsArray.forEach((item) => {
+      const name = item.itemName || item.itemCode || 'Ítem'
+      if (items.includes(name)) {
+        const week = Number(item.weekIndex ?? item.week ?? 1)
+        pivot[name][week] = item.status || ''
+      }
     })
 
     return {
-      section: mapCategoryLabel(sectionCode),
-      itemNames,
-      weekIndices: weekIndices.length > 0 ? weekIndices : [1],
+      section,
+      itemNames: items,
+      weekIndices,
       pivot,
       hasWeeks: true,
       rows: [],
     }
-  }).filter((section) => section.itemNames.length > 0)
+  })
+
+  const sanitizationRecords = itemsArray
+    .filter((i) => i.itemName === 'Sanitización')
+    .sort((a, b) => (a.weekIndex || 1) - (b.weekIndex || 1))
 
   viewModal.value = {
     open: true,
@@ -475,6 +473,7 @@ const viewRecord = (record) => {
       ...record,
       monthLabel: formatMonthLabel(record.monthKey),
       items: groupedItems,
+      sanitizationRecords,
       annex: {
         revisionTecnica: getDocumentStatusByExpiry(record.truck?.technicalReviewExpiresAt),
         permisoCirculacion: getDocumentStatusByExpiry(record.truck?.circulationPermitExpiresAt),
@@ -500,12 +499,10 @@ const buildMonthlyChecklistPdfBlob = async (record) => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
 
-  try { doc.addImage(logoCompleto, 'PNG', 14, 8, 28, 13) } catch (_) {}
-
   doc.setFontSize(13)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(33, 33, 33)
-  doc.text('Registro de Mantención Mensual Vehicular', 50, 16)
+  doc.text('Registro de Mantención Mensual Vehicular', pageWidth / 2, 16, { align: 'center' })
 
   doc.setFontSize(7)
   doc.setFont('helvetica', 'normal')
@@ -547,7 +544,7 @@ const buildMonthlyChecklistPdfBlob = async (record) => {
 
   // Helper: convert a status string into styled cell content for PDF
   const renderStatusCell = (status) => {
-    if (!status) return { content: '\u2014', styles: { textColor: [180, 180, 180], halign: 'center' } }
+    if (!status) return { content: 'X', styles: { textColor: [220, 38, 38], fontStyle: 'bold', halign: 'center', fontSize: 10 } }
     if (status === 'Si') return { content: '\u2713', styles: { textColor: [22, 163, 74], fontStyle: 'bold', halign: 'center', fontSize: 11 } }
     if (status === 'Bueno') return { content: 'Bueno', styles: { textColor: [22, 163, 74], fontStyle: 'bold', halign: 'center' } }
     if (status === 'Regular') return { content: 'Regular', styles: { textColor: [217, 119, 6], fontStyle: 'bold', halign: 'center' } }
@@ -556,17 +553,10 @@ const buildMonthlyChecklistPdfBlob = async (record) => {
   }
 
   const tableBody = []
+  const weekIndices = [1, 2, 3, 4, 5]
+  const colCount = 6
 
-  for (const [section, items] of groupItemsByCategory(record.maintenanceItems)) {
-    // Unique item names and sorted week indices for this section
-    const itemNames = [...new Set(items.map((i) => i.itemName || i.itemCode || 'Item'))]
-    const weekIndices = [...new Set(
-      items.map((i) => i.weekIndex ?? i.week ?? null).filter((w) => w !== null)
-    )].sort((a, b) => Number(a) - Number(b))
-
-    const hasWeeks = weekIndices.length > 0
-    const colCount = hasWeeks ? weekIndices.length + 1 : 2
-
+  for (const { section, items: sectionItems } of CHECKLIST_SECTIONS) {
     // Section header spanning all columns
     tableBody.push([{
       content: section,
@@ -575,39 +565,35 @@ const buildMonthlyChecklistPdfBlob = async (record) => {
     }])
 
     // Sub-header row: Descripcion + one "Sab/Dom" per week
-    if (hasWeeks) {
-      tableBody.push([
-        { content: 'Descripci\u00f3n', styles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', halign: 'left' } },
-        ...weekIndices.map(() => ({
-          content: 'Sab/Dom',
-          styles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', halign: 'center' },
-        })),
-      ])
-    }
+    tableBody.push([
+      { content: 'Descripción', styles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', halign: 'left' } },
+      ...weekIndices.map((w) => ({
+        content: `Sab/Dom_${w}`,
+        styles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', halign: 'center' },
+      })),
+    ])
 
     // Build pivot: pivot[itemName][weekIndex] = status string
     const pivot = {}
-    items.forEach((item) => {
+    sectionItems.forEach((name) => {
+      pivot[name] = {}
+      weekIndices.forEach(w => pivot[name][w] = '')
+    })
+
+    ;(record.maintenanceItems || []).forEach((item) => {
       const name = item.itemName || item.itemCode || 'Item'
-      const week = Number(item.weekIndex ?? item.week ?? 1)
-      if (!pivot[name]) pivot[name] = {}
-      pivot[name][week] = item.status || ''
+      if (sectionItems.includes(name)) {
+        const week = Number(item.weekIndex ?? item.week ?? 1)
+        pivot[name][week] = item.status || ''
+      }
     })
 
     // One data row per unique item name
-    itemNames.forEach((name) => {
-      if (hasWeeks) {
-        tableBody.push([
-          { content: name, styles: { halign: 'left', textColor: [51, 65, 85] } },
-          ...weekIndices.map((week) => renderStatusCell(pivot[name]?.[week] || '')),
-        ])
-      } else {
-        const anyItem = items.find((i) => (i.itemName || i.itemCode) === name)
-        tableBody.push([
-          { content: name, styles: { halign: 'left', textColor: [51, 65, 85] } },
-          renderStatusCell(anyItem?.status || ''),
-        ])
-      }
+    sectionItems.forEach((name) => {
+      tableBody.push([
+        { content: name, styles: { halign: 'left', textColor: [51, 65, 85] } },
+        ...weekIndices.map((week) => renderStatusCell(pivot[name][week])),
+      ])
     })
   }
 
@@ -620,6 +606,33 @@ const buildMonthlyChecklistPdfBlob = async (record) => {
     columnStyles: { 0: { cellWidth: 70 } },
     tableWidth: 'auto',
   })
+
+  const sanitizationRecords = (record.maintenanceItems || []).filter(item => item.itemName === 'Sanitización')
+  if (sanitizationRecords.length > 0) {
+    const saniBody = [[
+      { content: 'Sanitización Vehículo', colSpan: 2, styles: { fillColor: [27, 46, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } } }
+    ], [
+      { content: 'Fecha', styles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', halign: 'center' } },
+      { content: 'Observación', styles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', halign: 'left' } }
+    ]]
+
+    sanitizationRecords.sort((a,b) => (a.weekIndex || 1) - (b.weekIndex || 1)).forEach(item => {
+      saniBody.push([
+        { content: item.status || '—', styles: { halign: 'center', textColor: [51, 65, 85] } },
+        { content: item.notes || '—', styles: { halign: 'left', textColor: [51, 65, 85] } }
+      ])
+    })
+
+    autoTable(doc, {
+      startY: doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 54,
+      head: [],
+      body: saniBody,
+      styles: { fontSize: 7, cellPadding: 2.5, lineColor: [209, 209, 209], lineWidth: 0.3, textColor: [33, 33, 33] },
+      alternateRowStyles: { fillColor: [247, 248, 250] },
+      columnStyles: { 0: { cellWidth: 35 } },
+      tableWidth: 'auto',
+    })
+  }
 
   const totalPages = doc.internal.getNumberOfPages()
   for (let i = 1; i <= totalPages; i += 1) {
@@ -736,6 +749,37 @@ watch([filterPatente, filterFecha, searchQuery], () => {
 onMounted(() => {
   loadRecords()
 })
+
+// ═══════════════════════════════════════════════════════════
+// ELIMINAR REGISTRO
+// ═══════════════════════════════════════════════════════════
+const deleteModal = ref({ open: false, record: null })
+const isDeleting = ref(false)
+
+const openDeleteModal = (record) => {
+  deleteModal.value = { open: true, record }
+}
+
+const closeDeleteModal = () => {
+  if (!isDeleting.value) {
+    deleteModal.value = { open: false, record: null }
+  }
+}
+
+const confirmDeleteRecord = async () => {
+  if (!deleteModal.value.record) return
+  isDeleting.value = true
+  try {
+    await api.delete(`/monthly-maintenance-records/admin/${deleteModal.value.record.id}`)
+    await loadRecords()
+    closeDeleteModal()
+  } catch (err) {
+    console.error('[AdminMaintenanceMonthlyHistory] Error al eliminar registro:', err)
+    alert('No se pudo eliminar el registro.')
+  } finally {
+    isDeleting.value = false
+  }
+}
 </script>
 
 <template>
@@ -955,7 +999,7 @@ onMounted(() => {
 
     <Teleport to="body">
       <div v-if="viewModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-        <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl border border-gray-200 overflow-hidden">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl border border-gray-200 overflow-y-auto max-h-[90vh]">
           <div class="bg-[#1b2e4b] px-6 py-5 flex items-center justify-between">
             <h3 class="text-white font-titles font-bold text-lg">Detalle del registro mensual</h3>
             <button @click="closeViewModal" class="text-white/70 hover:text-white transition-colors">
@@ -1045,9 +1089,7 @@ onMounted(() => {
                             class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700"
                           >Malo</span>
                           <!-- no data -->
-                          <span v-else class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-red-500 text-white" title="Sin check">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                          </span>
+                          <span v-else class="inline-flex items-center justify-center w-6 h-6 rounded-lg text-red-600 font-bold bg-red-50 text-[10px]">X</span>
                         </td>
                       </tr>
                     </tbody>
@@ -1096,6 +1138,27 @@ onMounted(() => {
               </div>
             </div>
 
+            <!-- Sanitización Section in View Modal -->
+            <div v-if="viewModal.record?.sanitizationRecords?.length" class="space-y-4">
+              <p class="text-xs font-bold text-white bg-[#1b2e4b] rounded-lg px-3 py-1.5 mb-2 mt-4">Sanitización Vehículo</p>
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs" style="border-collapse:collapse;">
+                  <thead class="bg-slate-100 text-slate-600">
+                    <tr>
+                      <th class="text-left px-3 py-2 border border-slate-200 font-semibold w-1/3">Fecha</th>
+                      <th class="text-left px-3 py-2 border border-slate-200 font-semibold">Observación</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(item, idx) in viewModal.record.sanitizationRecords" :key="idx" class="hover:bg-slate-50">
+                      <td class="px-3 py-2 border border-slate-200 text-slate-700 font-medium">{{ item.status || '—' }}</td>
+                      <td class="px-3 py-2 border border-slate-200 text-slate-600 italic">{{ item.notes || '—' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             <div v-if="viewModal.record?.annex" class="space-y-3">
               <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide">Documentación</p>
               <div class="grid grid-cols-4 gap-2 text-xs text-center">
@@ -1139,7 +1202,7 @@ onMounted(() => {
   <!-- ═══════════ MODAL EDITAR ═══════════ -->
   <Teleport to="body">
     <div v-if="editModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg border border-gray-200 relative">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg border border-gray-200 overflow-y-auto max-h-[90vh] relative">
 
         <!-- X -->
         <button @click="closeEditModal"
@@ -1196,21 +1259,20 @@ onMounted(() => {
               Editar Check List
             </button>
             <button
-              @click="exportRecordPdf(editModal.record); closeEditModal()"
-              :disabled="isExportingPdf"
-              class="flex-1 py-2 bg-[#007ACC] hover:bg-[#005fa3] text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed">
-              Exportar PDF
+              @click="openDeleteModal(editModal.record); closeEditModal()"
+              class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide">
+              Eliminar Registro
             </button>
           </div>
 
           <!-- Confirmar / Cancelar -->
-          <div class="flex justify-between">
+          <div class="flex justify-center gap-3 sm:gap-6">
             <button @click="saveEditModal" :disabled="isSavingEdit"
-                    class="px-10 py-3 bg-[#C0392B] hover:bg-red-700 text-white text-base font-bold rounded-xl transition-all disabled:opacity-50">
+                    class="flex-1 max-w-[160px] px-4 sm:px-8 py-2.5 bg-[#C0392B] hover:bg-red-700 text-white text-sm sm:text-base font-bold rounded-xl transition-all disabled:opacity-50">
               {{ isSavingEdit ? 'Guardando…' : 'Confirmar' }}
             </button>
             <button @click="closeEditModal"
-                    class="px-10 py-3 bg-[#215179] hover:bg-blue-900 text-white text-base font-bold rounded-xl transition-all">
+                    class="flex-1 max-w-[160px] px-4 sm:px-8 py-2.5 bg-[#215179] hover:bg-blue-900 text-white text-sm sm:text-base font-bold rounded-xl transition-all">
               Cancelar
             </button>
           </div>
@@ -1225,7 +1287,7 @@ onMounted(() => {
   <!-- ═══════════ MODAL EXPORTAR ZIP ═══════════ -->
   <Teleport to="body">
     <div v-if="exportZipModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md border border-gray-200 relative">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md border border-gray-200 overflow-y-auto max-h-[90vh] relative">
 
         <button @click="closeExportZipModal"
                 class="absolute top-4 right-4 w-8 h-8 border border-gray-300 rounded flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors">
@@ -1256,9 +1318,9 @@ onMounted(() => {
 
           <p v-if="exportZipError" class="text-sm text-red-600 text-center">{{ exportZipError }}</p>
 
-          <div class="flex justify-between pt-1">
+          <div class="flex justify-center gap-3 sm:gap-6 pt-1">
             <button @click="exportZip" :disabled="isExportingZip"
-                    class="px-10 py-3 bg-[#C0392B] hover:bg-red-700 text-white text-base font-bold rounded-xl transition-all disabled:opacity-50 flex items-center gap-2">
+                    class="flex-1 max-w-[160px] px-4 sm:px-8 py-2.5 bg-[#C0392B] hover:bg-red-700 text-white text-sm sm:text-base font-bold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2">
               <svg v-if="isExportingZip" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
@@ -1266,7 +1328,7 @@ onMounted(() => {
               {{ isExportingZip ? 'Generando…' : 'Confirmar' }}
             </button>
             <button @click="closeExportZipModal" :disabled="isExportingZip"
-                    class="px-10 py-3 bg-[#215179] hover:bg-blue-900 text-white text-base font-bold rounded-xl transition-all disabled:opacity-50">
+                    class="flex-1 max-w-[160px] px-4 sm:px-8 py-2.5 bg-[#215179] hover:bg-blue-900 text-white text-sm sm:text-base font-bold rounded-xl transition-all disabled:opacity-50">
               Cancelar
             </button>
           </div>
@@ -1274,6 +1336,34 @@ onMounted(() => {
       </div>
     </div>
   </Teleport>
+
+    <!-- ═══════════ MODAL ELIMINAR ═══════════ -->
+    <Teleport to="body">
+      <div v-if="deleteModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200">
+          <div class="p-6 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+              <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-2">Eliminar Registro</h3>
+            <p class="text-sm text-slate-500 mb-6">
+              ¿Estás seguro de que deseas eliminar este panel de historial? <br>
+              <strong>Esta acción es totalmente irreversible.</strong>
+            </p>
+            <div class="flex flex-col gap-2">
+              <button @click="confirmDeleteRecord" :disabled="isDeleting" class="w-full inline-flex justify-center rounded-xl bg-red-600 px-4 py-2 font-bold text-white shadow-sm hover:bg-red-700 focus:outline-none transition-colors disabled:opacity-50">
+                {{ isDeleting ? 'Eliminando...' : 'Sí, eliminar registro' }}
+              </button>
+              <button @click="closeDeleteModal" :disabled="isDeleting" class="w-full inline-flex justify-center rounded-xl bg-slate-100 px-4 py-2 font-bold text-slate-700 shadow-sm hover:bg-slate-200 focus:outline-none transition-colors">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
   </div>
 </template>

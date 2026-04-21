@@ -210,7 +210,7 @@ const mapRecordFromApi = (record) => ({
   inspectionDateRaw: record.inspectionDate,
   inspectionTime: record.inspectionTime,
   municipalLicense: record.municipalLicense,
-  currentMileage: record.currentMileage,
+  currentMileage: record.currentMileage != null ? Math.floor(Number(record.currentMileage)) : null,
   dailyMaintenanceItems: Array.isArray(record.dailyMaintenanceItems)
     ? record.dailyMaintenanceItems
     : [],
@@ -280,17 +280,50 @@ const kpis = ref({
 })
 const isLoadingKpis = ref(false)
 
-const loadStats = async () => {
+// ═══════════════════════════════════════════════════════════
+// ELIMINAR REGISTRO DIARIO
+// ═══════════════════════════════════════════════════════════
+const deleteModal = ref({ open: false, record: null })
+const isDeleting = ref(false)
+
+const openDeleteModal = (record) => {
+  deleteModal.value = { open: true, record }
+}
+
+const closeDeleteModal = () => {
+  if (!isDeleting.value) {
+    deleteModal.value = { open: false, record: null }
+  }
+}
+
+const confirmDeleteRecord = async () => {
+  if (!deleteModal.value.record) return
+  isDeleting.value = true
+  try {
+    await api.delete(`/daily-maintenance-records/${deleteModal.value.record.id}`)
+    await loadRecords()
+    closeDeleteModal()
+  } catch (err) {
+    console.error('[AdminMaintenanceDaily] Error al eliminar registro:', err)
+    alert('No se pudo eliminar el registro diario.')
+  } finally {
+    isDeleting.value = false
+  }
+}
+
+const updateGlobalStats = async () => {
   isLoadingKpis.value = true
   try {
     const today = new Date()
     const sameDay = (value) => {
       const date = new Date(value)
       if (Number.isNaN(date.getTime())) return false
+      // inspectionDate se almacena como UTC midnight del día local (ej: 2026-04-20T00:00:00Z).
+      // Comparar partes UTC del registro contra partes locales de hoy evita el desfase horario.
       return (
-        date.getDate() === today.getDate() &&
-        date.getMonth() === today.getMonth() &&
-        date.getFullYear() === today.getFullYear()
+        date.getUTCDate() === today.getDate() &&
+        date.getUTCMonth() === today.getMonth() &&
+        date.getUTCFullYear() === today.getFullYear()
       )
     }
 
@@ -319,6 +352,10 @@ const loadStats = async () => {
   } finally {
     isLoadingKpis.value = false
   }
+}
+
+const loadStats = async () => {
+  await updateGlobalStats()
 }
 
 const outOfServiceCount = computed(() => outOfServiceAlerts.value.length)
@@ -545,7 +582,7 @@ const viewRecord = async (record) => {
         kilometraje:
           normalized.currentMileage !== undefined &&
           normalized.currentMileage !== null
-            ? `${Number(normalized.currentMileage)} km`
+            ? `${Math.floor(Number(normalized.currentMileage))} km`
             : '—',
         items: groupItemsByCategory(normalized.dailyMaintenanceItems),
         annex: {
@@ -653,14 +690,11 @@ const buildChecklistPdfBlob = async (recordId) => {
   const pageWidth = doc.internal.pageSize.getWidth()
   const col2      = pageWidth / 2   // columna derecha ≈ x=105
 
-  // ── Logo ────────────────────────────────────────────────────────────
-  try { doc.addImage(logoCompleto, 'PNG', 14, 8, 28, 13) } catch (_) {}
-
   // ── Título ──────────────────────────────────────────────────────────
   doc.setFontSize(13)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(33, 33, 33)
-  doc.text('Registro de Mantención Diaria Vehicular', 50, 16)
+  doc.text('Registro de Mantención Diaria Vehicular', pageWidth / 2, 16, { align: 'center' })
 
   // ── Fecha generación ────────────────────────────────────────────────
   doc.setFontSize(7)
@@ -958,6 +992,33 @@ const exportChecklistPDF = async (record) => {
       </div>
     </div>
 
+    <Teleport to="body">
+      <div v-if="deleteModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200">
+          <div class="p-6 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+              <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-2">Eliminar Registro</h3>
+            <p class="text-sm text-slate-500 mb-6">
+              ¿Estás seguro de que deseas eliminar este panel de historial diario? <br>
+              <strong>Esta acción es totalmente irreversible.</strong>
+            </p>
+            <div class="flex flex-col gap-2">
+              <button @click="confirmDeleteRecord" :disabled="isDeleting" class="w-full inline-flex justify-center rounded-xl bg-red-600 px-4 py-2 font-bold text-white shadow-sm hover:bg-red-700 focus:outline-none transition-colors disabled:opacity-50">
+                {{ isDeleting ? 'Eliminando...' : 'Sí, eliminar registro' }}
+              </button>
+              <button @click="closeDeleteModal" :disabled="isDeleting" class="w-full inline-flex justify-center rounded-xl bg-slate-100 px-4 py-2 font-bold text-slate-700 shadow-sm hover:bg-slate-200 focus:outline-none transition-colors">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
   </div>
 </div>
 
@@ -1058,8 +1119,28 @@ const exportChecklistPDF = async (record) => {
                     </span>
                   </td>
                   <td class="py-4 px-5 text-center border border-gray-300">
-                    <div class="flex items-center justify-center gap-3">
-                      <!-- Ver: disponible para todos los registros con estado -->
+                    <div v-if="record.status" class="flex flex-col items-center gap-2">
+                      <div class="flex items-center gap-2">
+                        <!-- Ver: disponible para todos los registros con estado -->
+                        <button
+                          @click="viewRecord(record)"
+                          class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-primary transition-colors bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200 shadow-sm">
+                          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                          </svg>
+                          Ver
+                        </button>
+                        <!-- Editar: disponible para todos los registros con estado -->
+                        <button
+                          @click="editRecord(record)"
+                          class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-primary transition-colors bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200 shadow-sm">
+                          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                          </svg>
+                          Editar
+                        </button>
+                      </div>
                       <button
                         @click="viewRecord(record)"
                         class="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-primary transition-colors">
@@ -1069,7 +1150,6 @@ const exportChecklistPDF = async (record) => {
                         </svg>
                         Ver
                       </button>
-                      <!-- Editar: disponible para todos los registros con estado -->
                       <button
                         @click="editRecord(record)"
                         class="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-primary transition-colors">
@@ -1077,6 +1157,16 @@ const exportChecklistPDF = async (record) => {
                           <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                         </svg>
                         Editar
+                      </button>
+                      <button
+                        @click="exportChecklistPDF(record)"
+                        class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-primary transition-colors bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200 shadow-sm"
+                      >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M6 2h9a2 2 0 012 2v16a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M13 2v6h6"/>
+                        </svg>
+                        Exportar PDF
                       </button>
                     </div>
                   </td>
@@ -1122,7 +1212,7 @@ const exportChecklistPDF = async (record) => {
   <!-- ═══════════ MODAL ALERTAS ═══════════ -->
   <Teleport to="body">
     <div v-if="alertsModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl border border-gray-200 overflow-hidden">
+      <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl border border-gray-200 overflow-y-auto max-h-[90vh]">
         <div class="bg-[#9B2335] px-6 py-5 flex items-center justify-between">
           <div>
             <h3 class="text-white font-titles font-bold text-lg">Vehículos fuera de servicio</h3>
@@ -1180,7 +1270,7 @@ const exportChecklistPDF = async (record) => {
   <!-- ═══════════ MODAL VER ═══════════ -->
   <Teleport to="body">
     <div v-if="viewModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl border border-gray-200 overflow-hidden">
+      <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl border border-gray-200 overflow-y-auto max-h-[90vh]">
         <!-- Header -->
         <div class="bg-[#1b2e4b] px-6 py-5 flex items-center justify-between">
           <h3 class="text-white font-titles font-bold text-lg">Detalle del reporte</h3>
@@ -1305,7 +1395,7 @@ const exportChecklistPDF = async (record) => {
   <!-- ═══════════ MODAL EDITAR ═══════════ -->
   <Teleport to="body">
     <div v-if="editModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg border border-gray-200 relative">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg border border-gray-200 overflow-y-auto max-h-[90vh] relative">
 
         <!-- X button -->
         <button @click="closeEditModal"
@@ -1362,20 +1452,20 @@ const exportChecklistPDF = async (record) => {
               Editar Check List
             </button>
             <button
-              @click="exportChecklistPDF(editModal.record)"
-              class="flex-1 py-2 bg-[#007ACC] hover:bg-[#005fa3] text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide">
-              Exportar PDF
+              @click="openDeleteModal(editModal.record); closeEditModal()"
+              class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide">
+              Eliminar Registro
             </button>
           </div>
 
           <!-- Confirmar / Cancelar -->
-          <div class="flex justify-between">
+          <div class="flex justify-center gap-3 sm:gap-6">
             <button @click="saveEdit" :disabled="isSavingEdit"
-                    class="px-10 py-3 bg-[#C0392B] hover:bg-red-700 text-white text-base font-bold rounded-xl transition-all disabled:opacity-50">
+                    class="flex-1 max-w-[160px] px-4 sm:px-8 py-2.5 bg-[#C0392B] hover:bg-red-700 text-white text-sm sm:text-base font-bold rounded-xl transition-all disabled:opacity-50">
               {{ isSavingEdit ? 'Guardando…' : 'Confirmar' }}
             </button>
             <button @click="closeEditModal"
-                    class="px-10 py-3 bg-[#215179] hover:bg-blue-900 text-white text-base font-bold rounded-xl transition-all">
+                    class="flex-1 max-w-[160px] px-4 sm:px-8 py-2.5 bg-[#215179] hover:bg-blue-900 text-white text-sm sm:text-base font-bold rounded-xl transition-all">
               Cancelar
             </button>
           </div>
@@ -1390,7 +1480,7 @@ const exportChecklistPDF = async (record) => {
   <!-- ═══════════ MODAL EXPORTAR ZIP ═══════════ -->
   <Teleport to="body">
     <div v-if="exportZipModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md border border-gray-200 relative">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md border border-gray-200 overflow-y-auto max-h-[90vh] relative">
 
         <!-- X button -->
         <button @click="closeExportZipModal"
@@ -1432,9 +1522,9 @@ const exportChecklistPDF = async (record) => {
           <p v-if="exportZipError" class="text-sm text-red-600 text-center">{{ exportZipError }}</p>
 
           <!-- Botones -->
-          <div class="flex justify-between pt-1">
+          <div class="flex justify-center gap-3 sm:gap-6 pt-1">
             <button @click="exportZip" :disabled="isExportingZip"
-                    class="px-10 py-3 bg-[#C0392B] hover:bg-red-700 text-white text-base font-bold rounded-xl transition-all disabled:opacity-50 flex items-center gap-2">
+                    class="flex-1 max-w-[160px] px-4 sm:px-8 py-2.5 bg-[#C0392B] hover:bg-red-700 text-white text-sm sm:text-base font-bold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2">
               <svg v-if="isExportingZip" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
@@ -1442,7 +1532,7 @@ const exportChecklistPDF = async (record) => {
               {{ isExportingZip ? 'Generando…' : 'Confirmar' }}
             </button>
             <button @click="closeExportZipModal" :disabled="isExportingZip"
-                    class="px-10 py-3 bg-[#215179] hover:bg-blue-900 text-white text-base font-bold rounded-xl transition-all disabled:opacity-50">
+                    class="flex-1 max-w-[160px] px-4 sm:px-8 py-2.5 bg-[#215179] hover:bg-blue-900 text-white text-sm sm:text-base font-bold rounded-xl transition-all disabled:opacity-50">
               Cancelar
             </button>
           </div>

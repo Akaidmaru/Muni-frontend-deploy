@@ -81,10 +81,16 @@ const getDocumentStatus = (maybeStatusOrDate, maybeExpiryDate) => {
   const expiryOnly = new Date(adjustedDate)
   expiryOnly.setHours(0, 0, 0, 0)
 
+  const sevenDaysFromNow = new Date(today)
+  sevenDaysFromNow.setDate(today.getDate() + 7)
+
   const isVigente = expiryOnly >= today
+  const isExpiringSoon = isVigente && expiryOnly <= sevenDaysFromNow
+
   return {
-    label: isVigente ? 'Vigente' : 'Vencido',
+    label: isExpiringSoon ? 'Por vencer' : isVigente ? 'Vigente' : 'Vencido',
     isVigente,
+    isExpiringSoon,
     text: formattedDate,
   }
 }
@@ -160,6 +166,24 @@ const clearFilters = () => {
   filterPatente.value = ''
   filterModelo.value = ''
   currentPage.value = 1
+}
+
+const activeFilterChips = computed(() => {
+  const chips = []
+  if (filterDesde.value) chips.push({ label: 'Desde', value: filterDesde.value, field: 'filterDesde' })
+  if (filterHasta.value) chips.push({ label: 'Hasta', value: filterHasta.value, field: 'filterHasta' })
+  if (searchQuery.value) chips.push({ label: 'Búsqueda', value: searchQuery.value, field: 'searchQuery' })
+  if (filterPatente.value) chips.push({ label: 'Patente', value: filterPatente.value, field: 'filterPatente' })
+  if (filterModelo.value) chips.push({ label: 'Modelo', value: filterModelo.value, field: 'filterModelo' })
+  return chips
+})
+
+const removeFilter = (field) => {
+  if (field === 'filterDesde') filterDesde.value = ''
+  if (field === 'filterHasta') filterHasta.value = ''
+  if (field === 'searchQuery') searchQuery.value = ''
+  if (field === 'filterPatente') filterPatente.value = ''
+  if (field === 'filterModelo') filterModelo.value = ''
 }
 
 const viewVehicle = (vehicle) => {
@@ -333,10 +357,10 @@ onMounted(() => {
             isFilterOpen ? 'sm:max-w-[calc(100%-23rem)]' : 'w-full'
           ]">
 
-            <div class="flex items-center justify-center p-4 sm:p-8 relative min-h-[4rem] sm:min-h-[5rem]">
-               <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center">Administración de Vehículos</h1>
-               
-               <div class="absolute right-4 sm:right-6 lg:right-8 top-4 sm:top-6 lg:top-8 flex items-center gap-2">
+            <div class="flex flex-col md:flex-row items-center justify-center p-4 sm:p-8 pb-4 sm:pb-6 relative min-h-[4rem] sm:min-h-[5rem] gap-3 md:gap-0">
+               <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center order-1 md:absolute md:left-1/2 md:-translate-x-1/2">Administración de Vehículos</h1>
+
+               <div class="order-2 flex items-center gap-2 md:absolute md:right-4 md:top-6 lg:right-8">
                  <button @click="openAddModal" class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow transition-colors">
                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                    Añadir patente
@@ -409,9 +433,10 @@ onMounted(() => {
                             <td class="py-4 px-3 text-center border border-gray-300">
                       <div class="w-full h-full flex items-center justify-center">
                         <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-transparent shadow-sm whitespace-nowrap min-w-[125px] justify-center"
-                             :class="getDocumentStatus(vehicle.circulationPermitStatus, vehicle.circulationPermitExpiresAt).label === 'No tiene' ? 'bg-gray-400 text-white' : getDocumentStatus(vehicle.circulationPermitStatus, vehicle.circulationPermitExpiresAt).isVigente ? 'bg-[#3b8e53] text-white' : 'bg-[#A61919] text-white'">
-                          <svg v-if="getDocumentStatus(vehicle.circulationPermitStatus, vehicle.circulationPermitExpiresAt).isVigente" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                          <svg v-else class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                             :class="getDocumentStatus(vehicle.circulationPermitStatus, vehicle.circulationPermitExpiresAt).label === 'No tiene' ? 'bg-gray-400 text-white' : getDocumentStatus(vehicle.circulationPermitStatus, vehicle.circulationPermitExpiresAt).isExpiringSoon ? 'bg-orange-400 text-white' : getDocumentStatus(vehicle.circulationPermitStatus, vehicle.circulationPermitExpiresAt).isVigente ? 'bg-[#3b8e53] text-white' : 'bg-[#A61919] text-white'">
+                          <svg v-if="!getDocumentStatus(vehicle.circulationPermitStatus, vehicle.circulationPermitExpiresAt).isExpiringSoon && getDocumentStatus(vehicle.circulationPermitStatus, vehicle.circulationPermitExpiresAt).isVigente" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          <svg v-else-if="getDocumentStatus(vehicle.circulationPermitStatus, vehicle.circulationPermitExpiresAt).isExpiringSoon" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                          <svg v-else class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                           <div class="flex flex-col items-start leading-[1.1] text-left">
                             <span class="text-[11px] font-bold">{{ getDocumentStatus(vehicle.circulationPermitStatus, vehicle.circulationPermitExpiresAt).label }}</span>
                             <span class="text-[9px] opacity-90">({{ getDocumentStatus(vehicle.circulationPermitStatus, vehicle.circulationPermitExpiresAt).text }})</span>
@@ -422,9 +447,10 @@ onMounted(() => {
                     <td class="py-4 px-3 text-center border border-gray-300">
                       <div class="w-full h-full flex items-center justify-center">
                         <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-transparent shadow-sm whitespace-nowrap min-w-[125px] justify-center"
-                             :class="getDocumentStatus(vehicle.technicalReviewStatus, vehicle.technicalReviewExpiresAt).label === 'No tiene' ? 'bg-gray-400 text-white' : getDocumentStatus(vehicle.technicalReviewStatus, vehicle.technicalReviewExpiresAt).isVigente ? 'bg-[#3b8e53] text-white' : 'bg-[#A61919] text-white'">
-                          <svg v-if="getDocumentStatus(vehicle.technicalReviewStatus, vehicle.technicalReviewExpiresAt).isVigente" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                          <svg v-else class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                             :class="getDocumentStatus(vehicle.technicalReviewStatus, vehicle.technicalReviewExpiresAt).label === 'No tiene' ? 'bg-gray-400 text-white' : getDocumentStatus(vehicle.technicalReviewStatus, vehicle.technicalReviewExpiresAt).isExpiringSoon ? 'bg-orange-400 text-white' : getDocumentStatus(vehicle.technicalReviewStatus, vehicle.technicalReviewExpiresAt).isVigente ? 'bg-[#3b8e53] text-white' : 'bg-[#A61919] text-white'">
+                          <svg v-if="!getDocumentStatus(vehicle.technicalReviewStatus, vehicle.technicalReviewExpiresAt).isExpiringSoon && getDocumentStatus(vehicle.technicalReviewStatus, vehicle.technicalReviewExpiresAt).isVigente" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          <svg v-else-if="getDocumentStatus(vehicle.technicalReviewStatus, vehicle.technicalReviewExpiresAt).isExpiringSoon" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                          <svg v-else class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                           <div class="flex flex-col items-start leading-[1.1] text-left">
                             <span class="text-[11px] font-bold">{{ getDocumentStatus(vehicle.technicalReviewStatus, vehicle.technicalReviewExpiresAt).label }}</span>
                             <span class="text-[9px] opacity-90">({{ getDocumentStatus(vehicle.technicalReviewStatus, vehicle.technicalReviewExpiresAt).text }})</span>
@@ -435,9 +461,10 @@ onMounted(() => {
                     <td class="py-4 px-3 text-center border border-gray-300">
                       <div class="w-full h-full flex items-center justify-center">
                         <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-transparent shadow-sm whitespace-nowrap min-w-[125px] justify-center"
-                             :class="getDocumentStatus(vehicle.emissionsStatus, vehicle.emissionsExpiresAt).label === 'No tiene' ? 'bg-gray-400 text-white' : getDocumentStatus(vehicle.emissionsStatus, vehicle.emissionsExpiresAt).isVigente ? 'bg-[#3b8e53] text-white' : 'bg-[#A61919] text-white'">
-                          <svg v-if="getDocumentStatus(vehicle.emissionsStatus, vehicle.emissionsExpiresAt).isVigente" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                          <svg v-else class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                             :class="getDocumentStatus(vehicle.emissionsStatus, vehicle.emissionsExpiresAt).label === 'No tiene' ? 'bg-gray-400 text-white' : getDocumentStatus(vehicle.emissionsStatus, vehicle.emissionsExpiresAt).isExpiringSoon ? 'bg-orange-400 text-white' : getDocumentStatus(vehicle.emissionsStatus, vehicle.emissionsExpiresAt).isVigente ? 'bg-[#3b8e53] text-white' : 'bg-[#A61919] text-white'">
+                          <svg v-if="!getDocumentStatus(vehicle.emissionsStatus, vehicle.emissionsExpiresAt).isExpiringSoon && getDocumentStatus(vehicle.emissionsStatus, vehicle.emissionsExpiresAt).isVigente" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          <svg v-else-if="getDocumentStatus(vehicle.emissionsStatus, vehicle.emissionsExpiresAt).isExpiringSoon" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                          <svg v-else class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                           <div class="flex flex-col items-start leading-[1.1] text-left">
                             <span class="text-[11px] font-bold">{{ getDocumentStatus(vehicle.emissionsStatus, vehicle.emissionsExpiresAt).label }}</span>
                             <span class="text-[9px] opacity-90">({{ getDocumentStatus(vehicle.emissionsStatus, vehicle.emissionsExpiresAt).text }})</span>
@@ -448,9 +475,10 @@ onMounted(() => {
                     <td class="py-4 px-3 text-center border border-gray-300">
                       <div class="w-full h-full flex items-center justify-center">
                         <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-transparent shadow-sm whitespace-nowrap min-w-[125px] justify-center"
-                             :class="getDocumentStatus(vehicle.insuranceStatus, vehicle.insuranceExpiresAt).label === 'No tiene' ? 'bg-gray-400 text-white' : getDocumentStatus(vehicle.insuranceStatus, vehicle.insuranceExpiresAt).isVigente ? 'bg-[#3b8e53] text-white' : 'bg-[#A61919] text-white'">
-                          <svg v-if="getDocumentStatus(vehicle.insuranceStatus, vehicle.insuranceExpiresAt).isVigente" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                          <svg v-else class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                             :class="getDocumentStatus(vehicle.insuranceStatus, vehicle.insuranceExpiresAt).label === 'No tiene' ? 'bg-gray-400 text-white' : getDocumentStatus(vehicle.insuranceStatus, vehicle.insuranceExpiresAt).isExpiringSoon ? 'bg-orange-400 text-white' : getDocumentStatus(vehicle.insuranceStatus, vehicle.insuranceExpiresAt).isVigente ? 'bg-[#3b8e53] text-white' : 'bg-[#A61919] text-white'">
+                          <svg v-if="!getDocumentStatus(vehicle.insuranceStatus, vehicle.insuranceExpiresAt).isExpiringSoon && getDocumentStatus(vehicle.insuranceStatus, vehicle.insuranceExpiresAt).isVigente" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          <svg v-else-if="getDocumentStatus(vehicle.insuranceStatus, vehicle.insuranceExpiresAt).isExpiringSoon" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                          <svg v-else class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                           <div class="flex flex-col items-start leading-[1.1] text-left">
                             <span class="text-[11px] font-bold">{{ getDocumentStatus(vehicle.insuranceStatus, vehicle.insuranceExpiresAt).label }}</span>
                             <span class="text-[9px] opacity-90">({{ getDocumentStatus(vehicle.insuranceStatus, vehicle.insuranceExpiresAt).text }})</span>
@@ -509,8 +537,8 @@ onMounted(() => {
           <div v-if="isFilterOpen" class="fixed inset-0 bg-black/30 z-40 sm:hidden" @click="isFilterOpen = false" />
 
           <Transition name="slide">
-            <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[140px] z-50 sm:static sm:z-20 sm:w-[22rem] sm:h-full bg-[#DADBDB] sm:rounded-[2rem] rounded-t-[2rem] border border-gray-300/50 shadow-sm flex flex-col p-6 sm:shrink-0 overflow-y-auto relative">
-              <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent">
+            <div v-show="isFilterOpen" class="fixed inset-x-4 top-[108px] z-50 sm:z-20 sm:w-[22rem] bg-[#DADBDB] rounded-[2rem] border border-gray-300/50 shadow-sm flex flex-col p-6 sm:shrink-0 overflow-y-auto relative sm:self-start max-h-[85vh] sm:max-h-none">
+              <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent sm:hidden">
                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                    <line x1="8" y1="5" x2="8" y2="19"></line>
                    <line x1="16" y1="5" x2="16" y2="19"></line>
@@ -519,16 +547,30 @@ onMounted(() => {
                  </svg>
               </button>
   
-              <div class="flex justify-center items-center mb-6 mt-2 relative">
-                <button @click="clearFilters" class="absolute left-0 text-gray-500 hover:text-gray-700 focus:outline-none flex items-center gap-1.5 px-3 py-1 bg-white border border-gray-300 rounded-full text-[10px] font-bold shadow-sm transition-all hover:bg-gray-50">
-                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" class="stroke-current" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                   Limpiar
-                </button>
-  
-                <h2 class="text-xl font-titles font-bold text-[#1b2533]">Filtros</h2>
+              <div class="flex flex-col gap-4 mb-6 mt-2 relative">
+                <div class="flex justify-center items-center">
+                  <h2 class="text-2xl font-titles font-extrabold text-[#1b2533]">Filtros</h2>
+                </div>
+
+                <!-- Chips de Filtros Activos -->
+                <div v-if="activeFilterChips.length > 0" class="flex flex-wrap items-center gap-2 bg-gray-100/50 p-3 rounded-[1.5rem] border border-gray-200">
+                  <div v-for="chip in activeFilterChips" :key="chip.field" class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full text-[10px] font-bold text-gray-600 shadow-sm border border-gray-100">
+                    <span class="text-gray-400 font-medium">{{ chip.label }}:</span> {{ chip.value }}
+                    <button @click="removeFilter(chip.field)" class="ml-1 hover:text-red-500 transition-colors">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
+                  </div>
+                  <button @click="clearFilters" class="ml-auto text-[#A61919] hover:text-red-800 font-bold text-[11px] px-3 py-1.5 bg-white border border-gray-200 rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-1.5">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    Limpiar Todo
+                  </button>
+                </div>
               </div>
 
-            <div class="flex flex-col gap-6 flex-1 mt-4">
+            <div class="flex flex-col gap-6 mt-4">
               
               <div class="grid grid-cols-2 gap-4">
                 <div class="flex flex-col relative w-full">
@@ -584,7 +626,7 @@ onMounted(() => {
                 </div>
               </div>
 
-              <div class="mt-auto pt-4 flex justify-end">
+              <div class="mt-6 flex justify-end">
                 <button class="px-6 py-2.5 bg-[#A61919] text-white text-xs rounded-xl font-bold shadow-sm hover:bg-red-800 transition-all w-28">
                   Aplicar
                 </button>
@@ -599,7 +641,7 @@ onMounted(() => {
 
     <Teleport to="body">
       <div v-if="isEditModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-opacity">
-        <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-hidden border border-gray-200 relative" @click.stop>
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-y-auto max-h-[90vh] border border-gray-200 relative" @click.stop>
           <div class="px-8 pt-8 pb-4 flex justify-between items-start border-b border-gray-100">
             <div>
               <h3 class="text-2xl font-titles font-extrabold text-slate-800">Actualizar Documentos</h3>
@@ -681,8 +723,8 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-between items-center gap-3">
-            <button @click="isDeleteConfirmOpen = true" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white shadow transition-colors">
+          <div class="px-6 md:px-8 py-5 border-t border-gray-100 bg-gray-50 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+            <button @click="isDeleteConfirmOpen = true" class="order-2 md:order-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white shadow transition-colors">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
                 <line x1="12" y1="9" x2="12" y2="13"/>
@@ -690,9 +732,9 @@ onMounted(() => {
               </svg>
               Borrar patente
             </button>
-            <div class="flex gap-3">
-              <button @click="closeEditModal" class="px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 shadow-sm border border-slate-300 hover:bg-slate-100 transition-colors">Cancelar</button>
-              <button @click="saveEdit" :disabled="isLoading" class="px-6 py-2.5 rounded-xl font-bold bg-[#A61919] text-white shadow hover:bg-red-800 transition-colors flex items-center gap-2">
+            <div class="order-1 md:order-2 flex gap-3">
+              <button @click="closeEditModal" class="flex-1 md:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 shadow-sm border border-slate-300 hover:bg-slate-100 transition-colors flex items-center">Cancelar</button>
+              <button @click="saveEdit" :disabled="isLoading" class="flex-1 md:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-blue-600 text-white shadow hover:bg-blue-800 transition-colors flex items-center gap-2">
                 <svg v-if="isLoading" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 <span>Actualizar</span>
               </button>
@@ -710,9 +752,9 @@ onMounted(() => {
               <p class="text-lg font-extrabold text-slate-800">¿Eliminar vehículo?</p>
               <p class="text-sm text-slate-500 mt-1">Esta acción no se puede deshacer. Se eliminará <span class="font-bold text-slate-700">{{ vehicleToEdit?.plate }}</span> permanentemente.</p>
             </div>
-            <div class="flex gap-3">
-              <button @click="isDeleteConfirmOpen = false" class="px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 border border-slate-300 hover:bg-slate-100 transition-colors">Cancelar</button>
-              <button @click="deleteVehicle" :disabled="isLoading" class="px-6 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center gap-2">
+            <div class="flex gap-3 w-full sm:w-auto justify-center">
+              <button @click="isDeleteConfirmOpen = false" class="flex-1 sm:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 border border-slate-300 hover:bg-slate-100 transition-colors flex items-center">Cancelar</button>
+              <button @click="deleteVehicle" :disabled="isLoading" class="flex-1 sm:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center gap-2">
                 <svg v-if="isLoading" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 Sí, eliminar
               </button>
@@ -724,7 +766,7 @@ onMounted(() => {
 
     <Teleport to="body">
       <div v-if="isAddModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-        <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-hidden border border-gray-200" @click.stop>
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-y-auto max-h-[90vh] border border-gray-200" @click.stop>
           <div class="px-8 pt-8 pb-4 flex justify-between items-start border-b border-gray-100">
             <div>
               <h3 class="text-2xl font-titles font-extrabold text-slate-800">Añadir patente</h3>
@@ -796,9 +838,9 @@ onMounted(() => {
               </div>
             </div>
           </div>
-          <div class="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-            <button @click="closeAddModal" class="px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 shadow-sm border border-slate-300 hover:bg-slate-100 transition-colors">Cancelar</button>
-            <button @click="saveAdd" :disabled="isLoading || !formAdd.plate || !formAdd.model" class="px-6 py-2.5 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white shadow transition-colors flex items-center gap-2">
+          <div class="px-6 md:px-8 py-5 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
+            <button @click="closeAddModal" class="flex-1 md:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 shadow-sm border border-slate-300 hover:bg-slate-100 transition-colors flex items-center">Cancelar</button>
+            <button @click="saveAdd" :disabled="isLoading || !formAdd.plate || !formAdd.model" class="flex-1 md:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white shadow transition-colors flex items-center gap-2">
               <svg v-if="isLoading" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
               Guardar
             </button>
@@ -809,7 +851,7 @@ onMounted(() => {
 
     <Teleport to="body">
       <div v-if="isViewModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-opacity">
-        <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-hidden border border-gray-200" @click.stop>
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-y-auto max-h-[90vh] border border-gray-200" @click.stop>
           <div class="px-8 pt-8 pb-4 flex justify-between items-start border-b border-gray-100">
             <div>
               <h3 class="text-2xl font-titles font-extrabold text-slate-800">Detalles de Documentos</h3>
@@ -827,40 +869,40 @@ onMounted(() => {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3 relative overflow-hidden">
-                <div class="absolute right-0 top-0 h-full w-1" :class="getDocumentStatus(vehicleToView?.circulationPermitStatus, vehicleToView?.circulationPermitExpiresAt).label === 'No tiene' ? 'bg-gray-400' : getDocumentStatus(vehicleToView?.circulationPermitStatus, vehicleToView?.circulationPermitExpiresAt).isVigente ? 'bg-[#3b8e53]' : 'bg-[#A61919]'"></div>
+                <div class="absolute right-0 top-0 h-full w-1" :class="getDocumentStatus(vehicleToView?.circulationPermitStatus, vehicleToView?.circulationPermitExpiresAt).label === 'No tiene' ? 'bg-gray-400' : getDocumentStatus(vehicleToView?.circulationPermitStatus, vehicleToView?.circulationPermitExpiresAt).isExpiringSoon ? 'bg-orange-400' : getDocumentStatus(vehicleToView?.circulationPermitStatus, vehicleToView?.circulationPermitExpiresAt).isVigente ? 'bg-[#3b8e53]' : 'bg-[#A61919]'"></div>
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Permiso de circulación</label>
                 <div class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  {{ getDocumentStatus(vehicleToView?.circulationPermitExpiresAt).label }}
+                  {{ getDocumentStatus(vehicleToView?.circulationPermitStatus, vehicleToView?.circulationPermitExpiresAt).label }}
                 </div>
                 <div v-if="vehicleToView?.circulationPermitExpiresAt" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  Vence: {{ getDocumentStatus(vehicleToView?.circulationPermitExpiresAt).text }}
+                  Vence: {{ getDocumentStatus(vehicleToView?.circulationPermitStatus, vehicleToView?.circulationPermitExpiresAt).text }}
                 </div>
               </div>
 
               <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3 relative overflow-hidden">
-                <div class="absolute right-0 top-0 h-full w-1" :class="getDocumentStatus(vehicleToView?.technicalReviewStatus, vehicleToView?.technicalReviewExpiresAt).label === 'No tiene' ? 'bg-gray-400' : getDocumentStatus(vehicleToView?.technicalReviewStatus, vehicleToView?.technicalReviewExpiresAt).isVigente ? 'bg-[#3b8e53]' : 'bg-[#A61919]'"></div>
+                <div class="absolute right-0 top-0 h-full w-1" :class="getDocumentStatus(vehicleToView?.technicalReviewStatus, vehicleToView?.technicalReviewExpiresAt).label === 'No tiene' ? 'bg-gray-400' : getDocumentStatus(vehicleToView?.technicalReviewStatus, vehicleToView?.technicalReviewExpiresAt).isExpiringSoon ? 'bg-orange-400' : getDocumentStatus(vehicleToView?.technicalReviewStatus, vehicleToView?.technicalReviewExpiresAt).isVigente ? 'bg-[#3b8e53]' : 'bg-[#A61919]'"></div>
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Revisión técnica</label>
                 <div class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  {{ getDocumentStatus(vehicleToView?.technicalReviewExpiresAt).label }}
+                  {{ getDocumentStatus(vehicleToView?.technicalReviewStatus, vehicleToView?.technicalReviewExpiresAt).label }}
                 </div>
                 <div v-if="vehicleToView?.technicalReviewExpiresAt" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  Vence: {{ getDocumentStatus(vehicleToView?.technicalReviewExpiresAt).text }}
+                  Vence: {{ getDocumentStatus(vehicleToView?.technicalReviewStatus, vehicleToView?.technicalReviewExpiresAt).text }}
                 </div>
               </div>
 
               <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3 relative overflow-hidden">
-                <div class="absolute right-0 top-0 h-full w-1" :class="getDocumentStatus(vehicleToView?.emissionsStatus, vehicleToView?.emissionsExpiresAt).label === 'No tiene' ? 'bg-gray-400' : getDocumentStatus(vehicleToView?.emissionsStatus, vehicleToView?.emissionsExpiresAt).isVigente ? 'bg-[#3b8e53]' : 'bg-[#A61919]'"></div>
+                <div class="absolute right-0 top-0 h-full w-1" :class="getDocumentStatus(vehicleToView?.emissionsStatus, vehicleToView?.emissionsExpiresAt).label === 'No tiene' ? 'bg-gray-400' : getDocumentStatus(vehicleToView?.emissionsStatus, vehicleToView?.emissionsExpiresAt).isExpiringSoon ? 'bg-orange-400' : getDocumentStatus(vehicleToView?.emissionsStatus, vehicleToView?.emissionsExpiresAt).isVigente ? 'bg-[#3b8e53]' : 'bg-[#A61919]'"></div>
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Emisión contaminante</label>
                 <div class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  {{ getDocumentStatus(vehicleToView?.emissionsExpiresAt).label }}
+                  {{ getDocumentStatus(vehicleToView?.emissionsStatus, vehicleToView?.emissionsExpiresAt).label }}
                 </div>
                 <div v-if="vehicleToView?.emissionsExpiresAt" class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
-                  Vence: {{ getDocumentStatus(vehicleToView?.emissionsExpiresAt).text }}
+                  Vence: {{ getDocumentStatus(vehicleToView?.emissionsStatus, vehicleToView?.emissionsExpiresAt).text }}
                 </div>
               </div>
 
               <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3 relative overflow-hidden">
-                <div class="absolute right-0 top-0 h-full w-1" :class="getDocumentStatus(vehicleToView?.insuranceStatus, vehicleToView?.insuranceExpiresAt).label === 'No tiene' ? 'bg-gray-400' : getDocumentStatus(vehicleToView?.insuranceStatus, vehicleToView?.insuranceExpiresAt).isVigente ? 'bg-[#3b8e53]' : 'bg-[#A61919]'"></div>
+                <div class="absolute right-0 top-0 h-full w-1" :class="getDocumentStatus(vehicleToView?.insuranceStatus, vehicleToView?.insuranceExpiresAt).label === 'No tiene' ? 'bg-gray-400' : getDocumentStatus(vehicleToView?.insuranceStatus, vehicleToView?.insuranceExpiresAt).isExpiringSoon ? 'bg-orange-400' : getDocumentStatus(vehicleToView?.insuranceStatus, vehicleToView?.insuranceExpiresAt).isVigente ? 'bg-[#3b8e53]' : 'bg-[#A61919]'"></div>
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Seguro obligatorio</label>
                 <div class="text-sm font-semibold rounded-xl border border-gray-200 px-4 py-2 bg-white text-slate-700">
                   {{ getDocumentStatus(vehicleToView?.insuranceExpiresAt).label }}
@@ -873,8 +915,8 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-            <button @click="closeViewModal" class="px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 shadow-sm border border-slate-300 hover:bg-slate-100 transition-colors">Cerrar</button>
+          <div class="px-6 md:px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+            <button @click="closeViewModal" class="w-full md:w-auto justify-center px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 shadow-sm border border-slate-300 hover:bg-slate-100 transition-colors flex items-center">Cerrar</button>
           </div>
         </div>
       </div>
