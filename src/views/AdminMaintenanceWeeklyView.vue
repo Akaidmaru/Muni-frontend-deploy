@@ -215,7 +215,7 @@ const loadTruckData = async (truckId) => {
     datosVehiculo.value = {
       modelo:      truck.model    || 'N/D',
       patente:     truck.plate    || 'N/D',
-      kilometraje: truck.mileage != null ? `${truck.mileage} km` : 'N/D',
+      kilometraje: truck.mileage != null ? `${Math.floor(Number(truck.mileage))} km` : 'N/D',
       marca:    truck.brand || 'N/D',
       anio:     truck.year != null ? String(truck.year) : 'N/D',
       asientos: truck.seatCount != null ? String(truck.seatCount) : 'N/D',

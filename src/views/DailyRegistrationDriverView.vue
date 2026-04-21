@@ -894,6 +894,7 @@ const startTrip = async (trip) => {
         ? { customEmployee: customEmployeeName }
         : { employeeId: Number(trip.employee.id) }),
       startTime,
+      clientDate: getLocalDateParam(),
       ...(trimmedCustomDestination
         ? { customDestination: trimmedCustomDestination }
         : { destinationId: Number(trip.destination) }),
@@ -1016,7 +1017,18 @@ onMounted(async () => {
 
   if (plateFromRoute.value) {
     selectedPlate.value = plateFromRoute.value;
-    confirmed.value = true;
+    const truckId = await resolveTruckIdByPlate(plateFromRoute.value);
+    const alreadyFilled = await hasMaintenanceToday(auth.user?.id, truckId);
+
+    if (alreadyFilled) {
+      confirmed.value = true;
+      return;
+    }
+
+    await router.replace({
+      name: 'daily-registration-maintenance',
+      query: { plate: plateFromRoute.value },
+    });
   }
 });
 

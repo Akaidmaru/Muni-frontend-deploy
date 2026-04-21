@@ -29,6 +29,18 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  const url = String(config.url || '');
+  const isTripStartEndpoint =
+    config.method?.toLowerCase() === 'post' && url.includes('/trip-history/start');
+
+  if (isTripStartEndpoint) {
+    const clientTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (clientTimeZone) {
+      config.headers['X-Client-Timezone'] = clientTimeZone;
+    }
+  }
+
   return config;
 });
 

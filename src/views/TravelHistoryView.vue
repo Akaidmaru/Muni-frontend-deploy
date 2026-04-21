@@ -284,8 +284,8 @@ watch(currentPage, () => {
                       <td class="px-2 py-5 text-gray-500">{{ travel.startTime }}</td>
                       <td class="px-2 py-5 text-gray-500">{{ travel.endTime }}</td>
                       <td class="px-2 py-5 text-gray-700">{{ travel.destination }}</td>
-                      <td class="px-2 py-5 font-medium">{{ travel.startKm ?? '-' }}</td>
-                      <td class="px-2 py-5 font-medium">{{ travel.endKm ?? '-' }}</td>
+                      <td class="px-2 py-5 font-medium">{{ travel.startKm != null ? Math.floor(travel.startKm) : '-' }}</td>
+                      <td class="px-2 py-5 font-medium">{{ travel.endKm != null ? Math.floor(travel.endKm) : '-' }}</td>
                       <td class="px-4 py-5 text-gray-700">{{ travel.official }}</td>
                       <td class="px-4 py-5">
                          <div v-if="travel.signatureUrl" class="w-full flex justify-center">

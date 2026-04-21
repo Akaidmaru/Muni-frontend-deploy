@@ -728,7 +728,7 @@ const buildChecklistPdfBlob = async (recordId) => {
     { y: 48, l1: 'NOMBRE:',           v1: normalized.driver || '—',
               l2: 'PATENTE:',          v2: normalized.plate  || '—' },
     { y: 55, l1: 'LIC-MUNICIPAL:',    v1: normalized.municipalLicense || '—',
-              l2: 'KILOMETRAJE:',      v2: normalized.currentMileage != null ? String(normalized.currentMileage) : '—' },
+              l2: 'KILOMETRAJE:',      v2: normalized.currentMileage != null ? String(Math.floor(Number(normalized.currentMileage))) : '—' },
     { y: 62, l1: 'FECHA INSPECCIÓN:', v1: normalized.date || '—',
               l2: 'HORA INSPECCIÓN:',  v2: normalized.inspectionTime || '—' },
     { y: 69, l1: 'ESTADO:',           v1: statusLabel(normalized.status),

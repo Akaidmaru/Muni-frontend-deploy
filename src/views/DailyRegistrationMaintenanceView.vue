@@ -587,7 +587,14 @@ const clearFieldError = (field) => {
   fieldErrors.value[field] = false;
 };
 
-const sanitizeMileageValue = (value) => String(value ?? "").replace(/[^\d]/g, "");
+const sanitizeMileageValue = (value) => {
+  const str = String(value ?? "").trim();
+  if (!str) return "";
+  // Allow digits and at most one decimal point; preserve float precision
+  const cleaned = str.replace(/[^\d.]/g, "");
+  const parts = cleaned.split(".");
+  return parts.length > 1 ? parts[0] + "." + parts.slice(1).join("") : parts[0];
+};
 
 const handleMileageInput = (event) => {
   if (!maintenanceForm.value) return;
@@ -639,9 +646,9 @@ const saveMaintenanceForm = async () => {
   if (!mileageInput) {
     fieldErrors.value.kilometraje = true;
     hasErrors = true;
-  } else if (!/^\d+$/.test(mileageInput)) {
+  } else if (!/^\d+(\.\d+)?$/.test(mileageInput)) {
     fieldErrors.value.kilometraje = true;
-    maintenanceFormError.value = "El kilometraje debe ser un número entero.";
+    maintenanceFormError.value = "El kilometraje debe ser un número válido.";
     hasErrors = true;
   }
 
@@ -687,7 +694,7 @@ const saveMaintenanceForm = async () => {
     inspectionDate: toIsoDateFromDisplay(maintenanceForm.value.inspectionDate),
     inspectionTime: maintenanceForm.value.inspectionTime,
     municipalLicense: maintenanceForm.value.licMunicipal,
-    currentMileage: Number.parseInt(maintenanceForm.value.kilometraje, 10),
+    currentMileage: parseFloat(maintenanceForm.value.kilometraje),
     dailyMaintenanceItems: maintenanceItems,
   };
 
@@ -698,6 +705,15 @@ const saveMaintenanceForm = async () => {
         payload,
       );
     } else {
+      // Verificación final antes de crear: otro usuario puede haber creado el registro
+      // para este camión entre que se seleccionó la placa y ahora
+      const alreadyExists = await checkDailyMaintenanceByDriverAndTruck();
+      if (alreadyExists) {
+        maintenanceFormError.value =
+          "Ya existe un registro de mantenimiento para este vehículo hoy. Se han cargado los datos existentes.";
+        return;
+      }
+
       const { data } = await api.post("/daily-maintenance-records", payload);
       existingMaintenanceRecordId.value = data?.id || null;
     }
@@ -1256,12 +1272,12 @@ onMounted(async () => {
                             @input="handleMileageInput"
                             placeholder="Ingrese el kilometraje"
                             min="0"
-                            step="1"
-                            inputmode="numeric"
+                            step="any"
+                            inputmode="decimal"
                             class="w-full rounded-xl border bg-white px-3 py-2 text-sm text-text-title outline-none focus:ring-1"
                             :class="fieldErrors.kilometraje ? 'border-red-500 focus:border-red-500 focus:ring-red-200 animate-shake' : 'border-gray-300 focus:border-primary focus:ring-primary'"
                           />
-                          <p v-if="fieldErrors.kilometraje" class="text-[10px] text-red-600 mt-1 font-medium">Ingrese un kilometraje entero</p>
+                          <p v-if="fieldErrors.kilometraje" class="text-[10px] text-red-600 mt-1 font-medium">Ingrese un kilometraje válido</p>
                         </div>
                       </div>
                       <p class="text-base">

@@ -348,8 +348,8 @@ const isAdminEditComplete = computed(() => {
               {{ trip.status === 'COMPLETED' ? 'Completado' : 'En transcurso' }}
             </td>
 
-            <td class="px-2 py-5 font-medium">{{ trip.startKm ?? '-' }}</td>
-            <td class="px-2 py-5 font-medium">{{ trip.endKm ?? '-' }}</td>
+            <td class="px-2 py-5 font-medium">{{ trip.startKm != null ? Math.floor(trip.startKm) : '-' }}</td>
+            <td class="px-2 py-5 font-medium">{{ trip.endKm != null ? Math.floor(trip.endKm) : '-' }}</td>
             <td class="px-4 py-5 text-gray-700 text-xs">{{ trip.driver }}</td>
             <td class="px-4 py-5 text-gray-700 text-xs">{{ trip.official }}</td>
           </template>
