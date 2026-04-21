@@ -384,7 +384,7 @@ onMounted(() => {
                   <tr v-else v-for="vehicle in paginatedVehicles" :key="vehicle.id" class="hover:bg-slate-50 transition-colors">
                     <td class="py-4 px-3 text-center text-slate-500 font-medium text-xs border border-gray-300">{{ vehicle.plate }}</td>
                     <td class="py-4 px-3 text-center text-slate-500 font-medium text-xs border border-gray-300">{{ vehicle.model }}</td>
-                    <td class="py-4 px-3 text-center text-slate-500 font-medium text-xs border border-gray-300">{{ vehicle.mileage || 0 }}</td>
+                    <td class="py-4 px-3 text-center text-slate-500 font-medium text-xs border border-gray-300">{{ vehicle.mileage != null ? Math.floor(vehicle.mileage) : 0 }}</td>
                     <td class="py-4 px-3 text-center border border-gray-300">
                       <div class="flex flex-col items-center justify-center gap-1">
                         <div class="flex -space-x-2">

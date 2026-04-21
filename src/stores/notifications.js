@@ -47,6 +47,14 @@ export const useNotificationStore = defineStore('notifications', () => {
         return `Nuevo reporte recibido: ${title}`
     }
 
+    const buildExpiryMessage = (data) => {
+        const when = data?.daysUntilExpiry === 1 ? 'mañana' : 'en 7 días'
+        const label = data?.documentLabel || data?.documentType || 'Documento'
+        const plate = data?.plate || 'desconocido'
+        const expires = data?.expiresAt || ''
+        return `Camión ${plate}: ${label} vence ${when}${expires ? ` (${expires})` : ''}`
+    }
+
     const buildUpdatedMessage = (data) => {
         const statusLabels = {
             OPEN: 'Nuevo',
@@ -278,6 +286,21 @@ export const useNotificationStore = defineStore('notifications', () => {
                 reportId: data.reportId,
                 message: buildUpdatedMessage(data),
                 type: 'report-updated',
+                expiresAt: new Date(Date.now() + NOTIFICATION_TTL_MS),
+            })
+        })
+
+        socket.value.on('truck:expiry', (data) => {
+            const notificationId = data?.notificationId
+            if (!notificationId || hasNotification(notificationId)) {
+                return
+            }
+
+            addNotification({
+                id: notificationId,
+                truckId: data.truckId,
+                type: 'truck-expiry',
+                message: buildExpiryMessage(data),
                 expiresAt: new Date(Date.now() + NOTIFICATION_TTL_MS),
             })
         })
