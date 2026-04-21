@@ -551,8 +551,8 @@ onMounted(loadDestinations)
               <div class="flex items-center justify-center w-14 h-14 rounded-full bg-red-100">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               </div>
-              <h2 class="text-lg font-titles font-bold text-slate-800">¿Eliminar destino?</h2>
-              <p class="text-sm font-body text-slate-500">Estás a punto de eliminar <span class="font-semibold text-slate-700">{{ editForm.name }}</span>. Esta acción es <span class="font-bold text-red-600">irreversible</span>.</p>
+              <h2 class="text-xl font-titles font-bold text-slate-800">¿Eliminar destino?</h2>
+              <p class="text-base font-body text-slate-500">Estás a punto de eliminar <span class="font-semibold text-slate-700">{{ editForm.name }}</span>. Esta acción es <span class="font-bold text-red-600">irreversible</span>.</p>
             </div>
             <div v-if="deleteError" class="mb-4 text-sm text-red-600 font-body bg-red-50 border border-red-200 rounded-lg px-3 py-2">{{ deleteError }}</div>
             <div class="flex gap-3">

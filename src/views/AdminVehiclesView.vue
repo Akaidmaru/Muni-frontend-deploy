@@ -749,12 +749,12 @@ onMounted(() => {
               <line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
             <div class="text-center">
-              <p class="text-lg font-extrabold text-slate-800">¿Eliminar vehículo?</p>
-              <p class="text-sm text-slate-500 mt-1">Esta acción no se puede deshacer. Se eliminará <span class="font-bold text-slate-700">{{ vehicleToEdit?.plate }}</span> permanentemente.</p>
+              <p class="text-xl font-extrabold text-slate-800">¿Eliminar vehículo?</p>
+              <p class="text-base text-slate-500 mt-1">Esta acción no se puede deshacer. Se eliminará <span class="font-bold text-slate-700">{{ vehicleToEdit?.plate }}</span> permanentemente.</p>
             </div>
             <div class="flex gap-3 w-full sm:w-auto justify-center">
-              <button @click="isDeleteConfirmOpen = false" class="flex-1 sm:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 border border-slate-300 hover:bg-slate-100 transition-colors flex items-center">Cancelar</button>
-              <button @click="deleteVehicle" :disabled="isLoading" class="flex-1 sm:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center gap-2">
+              <button @click="isDeleteConfirmOpen = false" class="flex-1 sm:flex-none justify-center px-6 py-2.5 rounded-xl font-bold text-sm bg-white text-slate-600 border border-slate-300 hover:bg-slate-100 transition-colors flex items-center">Cancelar</button>
+              <button @click="deleteVehicle" :disabled="isLoading" class="flex-1 sm:flex-none justify-center px-6 py-2.5 rounded-xl font-bold text-sm bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center gap-2">
                 <svg v-if="isLoading" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 Sí, eliminar
               </button>

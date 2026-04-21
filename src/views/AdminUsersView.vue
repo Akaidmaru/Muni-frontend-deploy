@@ -211,9 +211,19 @@ const saveUser = async () => {
       phone: editForm.value.phone.trim() || undefined,
       email: editForm.value.email.trim() || undefined,
     }
-    const { data } = await api.patch(`/users/${editForm.value.id}`, payload)
-    const updated = mapUserFromApi({ ...selectedUser.value, ...data })
-    users.value = users.value.map((u) => (u.id === updated.id ? updated : u))
+    await api.patch(`/users/${editForm.value.id}`, payload)
+    const userIndex = users.value.findIndex(u => u.id === editForm.value.id)
+    if (userIndex !== -1) {
+      users.value[userIndex] = {
+        ...users.value[userIndex],
+        id: editForm.value.id,
+        name: editForm.value.name.trim() || 'Sin nombre',
+        rut: editForm.value.rut || '',
+        role: editForm.value.role,
+        phone: editForm.value.phone.trim() || '',
+        email: editForm.value.email.trim() || '',
+      }
+    }
     saveSuccess.value = 'Cambios guardados correctamente.'
     setTimeout(() => closeEditModal(), 800)
   } catch (error) {
@@ -295,10 +305,13 @@ onMounted(() => { loadUsers() })
           </div>
           <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col overflow-hidden flex-1">
 
-            <!-- ── Barra superior ── -->
-            <div class="px-4 sm:px-6 lg:px-10 pt-6 lg:pt-8 pb-4 flex flex-wrap items-center justify-end gap-3">
+            <!-- ── Título ── -->
+            <div class="px-4 sm:px-6 lg:px-10 pt-6 lg:pt-8 pb-2">
+              <h1 class="text-2xl md:text-3xl lg:text-4xl font-titles font-extrabold text-slate-900 text-center">Administración de Usuarios</h1>
+            </div>
 
-
+            <!-- ── Filtros ── -->
+            <div class="px-4 sm:px-6 lg:px-10 pt-2 pb-4 flex flex-wrap items-center justify-end gap-3">
               <div class="flex flex-wrap items-center gap-3">
                 <!-- Filtro rol -->
                 <div class="relative">
@@ -337,11 +350,6 @@ onMounted(() => { loadUsers() })
                   </svg>
                 </div>
               </div>
-            </div>
-
-            <!-- ── Título ── -->
-            <div class="px-4 sm:px-6 lg:px-10 pt-1 pb-5">
-              <h1 class="text-2xl md:text-3xl lg:text-4xl font-titles font-extrabold text-slate-900 text-center">Administración de Usuarios</h1>
             </div>
 
             <!-- ── Tabla ── -->

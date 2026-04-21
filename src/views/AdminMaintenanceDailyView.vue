@@ -1001,16 +1001,16 @@ const exportChecklistPDF = async (record) => {
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
               </svg>
             </div>
-            <h3 class="text-lg font-bold text-slate-900 mb-2">Eliminar Registro</h3>
-            <p class="text-sm text-slate-500 mb-6">
+            <h3 class="text-xl font-bold text-slate-900 mb-2">Eliminar Registro</h3>
+            <p class="text-base text-slate-500 mb-6">
               ¿Estás seguro de que deseas eliminar este panel de historial diario? <br>
               <strong>Esta acción es totalmente irreversible.</strong>
             </p>
             <div class="flex flex-col gap-2">
-              <button @click="confirmDeleteRecord" :disabled="isDeleting" class="w-full inline-flex justify-center rounded-xl bg-red-600 px-4 py-2 font-bold text-white shadow-sm hover:bg-red-700 focus:outline-none transition-colors disabled:opacity-50">
+              <button @click="confirmDeleteRecord" :disabled="isDeleting" class="w-full inline-flex justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-red-700 focus:outline-none transition-colors disabled:opacity-50">
                 {{ isDeleting ? 'Eliminando...' : 'Sí, eliminar registro' }}
               </button>
-              <button @click="closeDeleteModal" :disabled="isDeleting" class="w-full inline-flex justify-center rounded-xl bg-slate-100 px-4 py-2 font-bold text-slate-700 shadow-sm hover:bg-slate-200 focus:outline-none transition-colors">
+              <button @click="closeDeleteModal" :disabled="isDeleting" class="w-full inline-flex justify-center rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-200 focus:outline-none transition-colors">
                 Cancelar
               </button>
             </div>

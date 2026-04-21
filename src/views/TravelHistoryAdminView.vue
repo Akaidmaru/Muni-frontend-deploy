@@ -1115,18 +1115,18 @@ watch(currentPage, () => {
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
             <div class="flex justify-center mb-4"><div class="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg></div></div>
-            <h3 class="text-xl font-titles font-bold text-gray-900 mb-1 text-center">Eliminar registro</h3>
-            <p class="text-sm text-gray-600 mb-1 text-center">¿Está seguro de que desea eliminar este registro?</p>
-            <p class="text-xs text-red-600 font-semibold mb-5 text-center">Esta acción es irreversible.</p>
-            <div class="bg-red-50 rounded-2xl border border-red-100 p-4 mb-6 text-sm flex flex-col gap-1.5">
+            <h3 class="text-xl font-titles font-bold text-gray-900 mb-2 text-center">Eliminar registro</h3>
+            <p class="text-base text-gray-600 mb-1 text-center">¿Está seguro de que desea eliminar este registro?</p>
+            <p class="text-base text-red-600 font-semibold mb-5 text-center">Esta acción es irreversible.</p>
+            <div class="bg-red-50 rounded-2xl border border-red-100 p-4 mb-6 text-lg flex flex-col gap-1.5">
               <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Fecha:</span><span>{{ tripToDelete?.date || '-' }}</span></div>
               <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Patente:</span><span>{{ tripToDelete?.licensePlate || '-' }}</span></div>
               <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Destino:</span><span>{{ tripToDelete?.destination || '-' }}</span></div>
               <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Conductor:</span><span>{{ tripToDelete?.driver || '-' }}</span></div>
             </div>
             <div class="flex justify-center gap-6 font-titles font-bold tracking-wide">
-              <button @click="confirmDeleteTrip" class="px-6 py-2.5 bg-[#A61919] text-white text-xs rounded-xl shadow-sm hover:bg-red-800 transition-all flex-1 max-w-[140px]">Confirmar</button>
-              <button @click="cancelDeleteTrip" class="px-6 py-2.5 bg-[#215179] text-white text-xs rounded-xl shadow-sm hover:bg-blue-900 transition-all flex-1 max-w-[140px]">Cancelar</button>
+              <button @click="confirmDeleteTrip" class="px-6 py-2.5 bg-[#A61919] text-white text-sm rounded-xl shadow-sm hover:bg-red-800 transition-all flex-1 max-w-[140px]">Confirmar</button>
+              <button @click="cancelDeleteTrip" class="px-6 py-2.5 bg-[#215179] text-white text-sm rounded-xl shadow-sm hover:bg-blue-900 transition-all flex-1 max-w-[140px]">Cancelar</button>
             </div>
           </div>
         </div>
