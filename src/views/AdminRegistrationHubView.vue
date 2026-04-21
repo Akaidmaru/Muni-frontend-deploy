@@ -6,13 +6,15 @@ import UserMenu from '@/components/UserMenu.vue'
 import anadirGrupoIcon from '@/assets/images/Images admin nabvar left/anadir-grupo.png'
 import camionIcon from '@/assets/images/Images admin nabvar left/camion.png'
 import destinoIcon from '@/assets/images/Images admin nabvar left/destino.png'
+import funcionarioIcon from '@/assets/images/Images admin nabvar left/funcionario.png'
 
 const router = useRouter()
 
 const cards = [
-  { label: 'Usuarios',  icon: anadirGrupoIcon, path: '/admin/gestion-usuarios' },
-  { label: 'Vehículos', icon: camionIcon,       path: '/admin/vehiculos'        },
-  { label: 'Destinos',  icon: destinoIcon,      path: '/admin/destinos'         },
+  { label: 'Usuarios',    icon: anadirGrupoIcon,  path: '/admin/gestion-usuarios' },
+  { label: 'Vehículos',   icon: camionIcon,        path: '/admin/vehiculos'        },
+  { label: 'Destinos',    icon: destinoIcon,       path: '/admin/destinos'         },
+  { label: 'Funcionario', icon: funcionarioIcon,   path: '/admin/funcionarios'     },
 ]
 </script>
 

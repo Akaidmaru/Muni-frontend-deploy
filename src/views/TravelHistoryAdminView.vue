@@ -67,8 +67,8 @@ const mapTravelFromApi = (travel) => ({
   startTime: travel.startTime || '--:--',
   endTime: travel.endTime || '--:--',
   destination: travel.destination?.name || 'Sin destino',
-  startKm: travel.startKm ?? null,
-  endKm: travel.endKm ?? null,
+  startKm: travel.startKm != null ? Math.floor(Number(travel.startKm)) : null,
+  endKm: travel.endKm != null ? Math.floor(Number(travel.endKm)) : null,
   driver: travel.driver?.name || travel.driver?.email || 'Sin conductor',
   official: travel.employee?.name || travel.employee?.email || 'Sin funcionario',
   signature: Boolean(travel.signatureUrl || travel.signatureDataUrl),
@@ -157,7 +157,7 @@ const loadAdminEditCatalogs = async () => {
 
     adminTrucksByDriver.value = Object.fromEntries(trucksEntries)
   } catch (error) {
-    console.error('No se pudieron cargar catalogos de ediciÃ³n admin', error)
+    console.error('No se pudieron cargar catalogos de edición admin', error)
   }
 }
 
@@ -173,11 +173,6 @@ const loadTravels = async () => {
         from: appliedFilters.value.from || undefined,
         to: appliedFilters.value.to || undefined,
         license: appliedFilters.value.license || undefined,
-        // Dynamic search filter â€“ maps frontend field key to backend param name:
-        //   'official'    â†’ 'name'        âœ… already supported by backend (filters by employee.name)
-        //   'destination' â†’ 'destination' â³ TODO backend: add destination filter (see service)
-        //   'driver'      â†’ 'driver'      â³ TODO backend: add driver filter (see service)
-        //   'patient'     â†’ 'patient'     âœ… already supported by backend
         ...(appliedFilters.value.searchValue ? {
           [appliedFilters.value.searchBy === 'official' ? 'name' : appliedFilters.value.searchBy]: appliedFilters.value.searchValue
         } : {}),
@@ -224,7 +219,6 @@ const filteredTravels = computed(() => {
     if (searchBy === 'destination') haystack = trip.destination
     else if (searchBy === 'driver') haystack = trip.driver
     else if (searchBy === 'official') haystack = trip.official
-    // else if (searchBy === 'patient') haystack = trip.patient
     return normalize(haystack).includes(needle)
   })
 })
@@ -262,6 +256,26 @@ const clearFilters = () => {
   loadTravels()
 }
 
+const activeFilterChips = computed(() => {
+  const chips = []
+  if (filters.value.from) chips.push({ label: 'Desde', value: filters.value.from, field: 'from' })
+  if (filters.value.to) chips.push({ label: 'Hasta', value: filters.value.to, field: 'to' })
+  if (filters.value.searchValue) {
+    const label = filters.value.searchBy === 'destination' ? 'Destino' : filters.value.searchBy === 'driver' ? 'Conductor' : 'Funcionario'
+    chips.push({ label, value: filters.value.searchValue, field: 'searchValue' })
+  }
+  if (filters.value.license) chips.push({ label: 'Patente', value: filters.value.license, field: 'license' })
+  return chips
+})
+
+const removeFilter = (field) => {
+  if (field === 'from') filters.value.from = ''
+  else if (field === 'to') filters.value.to = ''
+  else if (field === 'searchValue') filters.value.searchValue = ''
+  else if (field === 'license') filters.value.license = ''
+  applyFilters()
+}
+
 const goBack = () => {
   if (window.history.length > 1) {
     router.back()
@@ -271,17 +285,61 @@ const goBack = () => {
 }
 
 const handleEditTrip = (trip) => {
-  // handled locally in TripHistoryTable initially
+  // handled locally in TripHistoryTable
 }
 
+const isDeleteModalOpen = ref(false)
+const tripToDelete = ref(null)
+
 const handleDeleteTrip = (trip) => {
-  console.log('Delete trip clicked:', trip)
-  // TODO: Implement delete logic
+  tripToDelete.value = trip
+  isDeleteModalOpen.value = true
+}
+
+const confirmDeleteTrip = async () => {
+  if (!tripToDelete.value) return
+  try {
+    await api.delete(`/trip-history/${tripToDelete.value.id}`)
+    travels.value = travels.value.filter(t => t.id !== tripToDelete.value.id)
+    totalItems.value = Math.max(0, totalItems.value - 1)
+    travelsError.value = ''
+  } catch (err) {
+    const backendMessage = err?.response?.data?.message
+    travelsError.value = Array.isArray(backendMessage)
+      ? backendMessage.join(', ')
+      : backendMessage || 'No se pudo eliminar el viaje.'
+  } finally {
+    isDeleteModalOpen.value = false
+    tripToDelete.value = null
+  }
+}
+
+const cancelDeleteTrip = () => {
+  isDeleteModalOpen.value = false
+  tripToDelete.value = null
 }
 
 const tripTable = ref(null)
 const isSaveModalOpen = ref(false)
 const tripToSave = ref(null)
+
+const tripToSaveDriverName = computed(() => {
+  if (!tripToSave.value) return ''
+  return adminDrivers.value.find(d => d.id === tripToSave.value.driverId)?.name || tripToSave.value.driver || ''
+})
+
+const tripToSaveDestinationName = computed(() => {
+  if (!tripToSave.value) return ''
+  return adminDestinations.value.find(d => d.id === tripToSave.value.destinationId)?.name || tripToSave.value.destination || ''
+})
+
+const tripToSaveDisplayDate = computed(() => {
+  const d = tripToSave.value?.date
+  if (!d) return ''
+  const parts = d.split('-')
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`
+  return d
+})
 
 const handleSaveTripRequest = (editedTrip) => {
   tripToSave.value = editedTrip
@@ -464,30 +522,21 @@ const buildPdfDocument = (signatureImages = new Map()) => {
   const doc = new jsPDF('landscape')
   const pageWidth = doc.internal.pageSize.getWidth()
 
-  // ── Logo ──────────────────────────────────────────────────────────────────
-  try {
-    doc.addImage(logoCompleto, 'PNG', 14, 8, 38, 18)
-  } catch (_) {}
-
-  // ── Título ────────────────────────────────────────────────────────────────
   doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(33, 33, 33)
   doc.text('Historial de Viajes', pageWidth / 2, 18, { align: 'center' })
 
-  // ── Fecha de generación ───────────────────────────────────────────────────
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(120, 120, 120)
   const now = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   doc.text(`Generado: ${now}`, pageWidth - 14, 14, { align: 'right' })
 
-  // ── Línea separadora ──────────────────────────────────────────────────────
   doc.setDrawColor(85, 85, 85)
   doc.setLineWidth(0.4)
   doc.line(14, 28, pageWidth - 14, 28)
 
-  // ── Tabla ─────────────────────────────────────────────────────────────────
   autoTable(doc, {
     startY: 32,
     head: [
@@ -589,8 +638,6 @@ const buildPdfDocument = (signatureImages = new Map()) => {
         doc.text('Sin firma', data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, { align: 'center', baseline: 'middle' })
       }
     },
-
-    // ── Footer por página ──────────────────────────────────────────────────
     didDrawPage: (data) => {
       const pageCount = doc.internal.getNumberOfPages()
       const currentPageNum = doc.internal.getCurrentPageInfo().pageNumber
@@ -725,7 +772,6 @@ const onTableMouseDown = (event) => {
   if (!el) return
 
   const target = event.target
-  // Si el usuario intenta interactuar con un control, no iniciamos el drag.
   if (
     target &&
     target.closest &&
@@ -756,7 +802,6 @@ onMounted(() => {
   void loadAdminEditCatalogs()
   loadTravels()
 
-  // Eventos globales para que el drag funcione incluso si el cursor sale del contenedor.
   window.addEventListener('mousemove', onTableMouseMove)
   window.addEventListener('mouseup', onTableMouseUp)
 })
@@ -778,6 +823,7 @@ watch(currentPage, () => {
 
 <template>
   <div class="min-h-screen bg-background flex flex-col">
+    <!-- Header -->
     <div class="bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
@@ -787,168 +833,146 @@ watch(currentPage, () => {
       </div>
     </div>
 
-    <div class="flex flex-1 overflow-hidden min-w-0">
+    <!-- Body -->
+    <div class="flex flex-1 overflow-hidden min-w-0 relative">
       <DashboardSidebar />
 
-      <main class="flex-1 pt-4 pb-10 px-2 sm:px-3 overflow-hidden flex flex-col items-center min-w-0">
-        <div v-if="!selectedTripForMap" class="w-full mb-3 pl-10 sm:pl-12 shrink-0">
-          <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+      <!-- Main content -->
+      <main class="flex-1 pt-4 pb-10 px-2 sm:px-3 overflow-hidden flex flex-col items-center min-w-0 relative">
+        <div class="w-full mb-3 pl-10 sm:pl-12 shrink-0">
+          <button
+            @click="selectedTripForMap ? selectedTripForMap = null : goBack()"
+            class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors"
+          >
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Volver
           </button>
         </div>
-        <div class="flex gap-6 w-full h-full min-h-0 min-w-0">
+        
+        <div class="flex gap-6 w-full h-full min-h-0 min-w-0 relative">
 
-        <!-- MAIN TABLE VIEW -->
-        <div v-if="!selectedTripForMap" :class="[
-          'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative min-w-0',
-          isFilterOpen ? 'sm:max-w-[calc(100%-24rem)]' : 'w-full'
-        ]">
+          <!-- MAIN TABLE VIEW -->
+          <div v-if="!selectedTripForMap" :class="[
+            'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col transition-all duration-300 relative min-w-0 overflow-hidden',
+            isFilterOpen ? 'sm:max-w-[calc(100%-24rem)]' : 'w-full'
+          ]">
+            <div class="flex flex-col md:flex-row items-center justify-center p-4 sm:p-8 pb-4 sm:pb-6 relative min-h-[4rem] sm:min-h-[5rem] gap-4 md:gap-0">
+               <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-bold text-text-title text-center m-0 md:absolute md:left-1/2 md:-translate-x-1/2 md:top-6 order-1 md:order-none">Historial de viajes</h1>
 
-          <div class="flex flex-col md:flex-row items-center justify-center p-4 sm:p-8 pb-4 sm:pb-6 relative min-h-[4rem] sm:min-h-[5rem] gap-4 md:gap-0">
-             <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-bold text-text-title text-center m-0 md:absolute md:left-1/2 md:-translate-x-1/2 md:top-6 order-1 md:order-none">Historial de viajes</h1>
+               <div class="flex justify-center items-center gap-3 z-10 w-full md:w-auto md:absolute md:right-6 md:top-6 order-2 md:order-none">
+                 <button @click="exportToPDF" class="bg-[#A22026] hover:bg-red-800 text-white font-semibold py-2 px-5 rounded-xl shadow transition-colors outline-none focus:ring-2 focus:ring-red-500 text-sm">
+                   PDF
+                 </button>
+                 <button @click="exportToExcel" class="bg-[#1D6F42] hover:bg-green-800 text-white font-semibold py-2 px-5 rounded-xl shadow transition-colors outline-none focus:ring-2 focus:ring-green-500 text-sm">
+                   Excel
+                 </button>
+                 <button
+                         @click="isFilterOpen = !isFilterOpen"
+                         class="p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors outline-none focus:ring-2 focus:ring-primary border border-gray-300"
+                         :title="isFilterOpen ? 'Cerrar filtros' : 'Abrir filtros'">
+                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                     <line x1="8" y1="5" x2="8" y2="19"></line>
+                     <line x1="16" y1="5" x2="16" y2="19"></line>
+                     <line x1="5" y1="10" x2="11" y2="10"></line>
+                     <line x1="13" y1="14" x2="19" y2="14"></line>
+                   </svg>
+                 </button>
+               </div>
+            </div>
 
-             <div class="flex justify-center items-center gap-3 z-10 w-full md:w-auto md:absolute md:right-6 md:top-6 order-2 md:order-none">
-               <button @click="exportToPDF" class="bg-[#A22026] hover:bg-red-800 text-white font-semibold py-2 px-5 rounded-xl shadow transition-colors outline-none focus:ring-2 focus:ring-red-500 text-sm">
-                 PDF
-               </button>
+            <div
+              ref="tableScrollRef"
+              class="table-scroll flex-1 min-h-0 w-full overflow-x-auto overflow-y-auto px-3 sm:px-8 md:px-12 lg:px-16 relative mt-4 sm:mt-6 pb-6 min-w-0 cursor-grab active:cursor-grabbing"
+              @mousedown="onTableMouseDown"
+            >
+                <TripHistoryTable 
+                  ref="tripTable"
+                  :trips="filteredTravels"
+                  role="admin"
+                  :isLoading="isLoadingTravels"
+                  :error="travelsError"
+                  :adminDrivers="adminDrivers"
+                  :adminDestinations="adminDestinations"
+                  :adminTrucksByDriver="adminTrucksByDriver"
+                  @edit-trip="handleEditTrip"
+                  @delete-trip="handleDeleteTrip"
+                  @request-save-trip="handleSaveTripRequest"
+                  @view-map="handleViewMap"
+                />
+            </div>
 
-               <button @click="exportToExcel" class="bg-[#1D6F42] hover:bg-green-800 text-white font-semibold py-2 px-5 rounded-xl shadow transition-colors outline-none focus:ring-2 focus:ring-green-500 text-sm">
-                 Excel
-               </button>
-
-               <button
-                       @click="isFilterOpen = !isFilterOpen"
-                       class="p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors outline-none focus:ring-2 focus:ring-primary border border-gray-300"
-                       :title="isFilterOpen ? 'Cerrar filtros' : 'Abrir filtros'">
-                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                   <line x1="8" y1="5" x2="8" y2="19"></line>
-                   <line x1="16" y1="5" x2="16" y2="19"></line>
-                   <line x1="5" y1="10" x2="11" y2="10"></line>
-                   <line x1="13" y1="14" x2="19" y2="14"></line>
-                 </svg>
-               </button>
-             </div>
-          </div>
-
-          <div
-            ref="tableScrollRef"
-            class="table-scroll flex-1 min-h-0 w-full overflow-x-auto overflow-y-auto px-3 sm:px-8 md:px-12 lg:px-16 relative mt-4 sm:mt-6 pb-6 min-w-0 cursor-grab active:cursor-grabbing"
-            @mousedown="onTableMouseDown"
-          >
-              <TripHistoryTable 
-                ref="tripTable"
-                :trips="filteredTravels"
-                role="admin"
-                :isLoading="isLoadingTravels"
-                :error="travelsError"
-                :adminDrivers="adminDrivers"
-                :adminDestinations="adminDestinations"
-                :adminTrucksByDriver="adminTrucksByDriver"
-                @edit-trip="handleEditTrip"
-                @delete-trip="handleDeleteTrip"
-                @request-save-trip="handleSaveTripRequest"
-                @view-map="handleViewMap"
-              />
-          </div>
-
-          <div class="px-3 sm:px-8 md:px-12 lg:px-16 py-4 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
-            <div class="flex items-center gap-2">
-              <span>Filas por paginas</span>
-              <div class="relative">
-                <select v-model.number="itemsPerPage" class="appearance-none border border-gray-300 rounded-md px-3 py-1.5 pr-8 bg-white outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer">
-                  <option :value="10">10</option>
-                  <option :value="50">50</option>
-                  <option :value="100">100</option>
-                </select>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
+            <div class="px-3 sm:px-8 md:px-12 lg:px-16 py-4 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
+              <div class="flex items-center gap-2">
+                <span>Filas por paginas</span>
+                <div class="relative">
+                  <select v-model.number="itemsPerPage" class="appearance-none border border-gray-300 rounded-md px-3 py-1.5 pr-8 bg-white outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer">
+                    <option :value="10">10</option>
+                    <option :value="50">50</option>
+                    <option :value="100">100</option>
+                  </select>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+              </div>
+              <div class="font-semibold content-center pl-10">
+                {{ firstVisibleRow }}-{{ lastVisibleRow }} de {{ totalItems }}
+              </div>
+              <div class="flex items-center gap-1">
+                <button @click="goToPreviousPage" :disabled="currentPage <= 1 || isLoadingTravels" class="p-1.5 hover:bg-gray-100 rounded-md text-gray-600 disabled:opacity-40 transition-colors">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                </button>
+                <button @click="goToNextPage" :disabled="currentPage >= totalPages || isLoadingTravels" class="p-1.5 hover:bg-gray-100 rounded-md text-gray-600 disabled:opacity-40 transition-colors">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </button>
               </div>
             </div>
-
-            <div class="font-semibold content-center pl-10">
-              {{ firstVisibleRow }}-{{ lastVisibleRow }} de {{ totalItems }}
-            </div>
-
-            <div class="flex items-center gap-1">
-              <button
-                @click="goToPreviousPage"
-                :disabled="currentPage <= 1 || isLoadingTravels"
-                class="p-1.5 hover:bg-gray-100 rounded-md text-gray-600 disabled:opacity-40 transition-colors"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-              </button>
-              <button
-                @click="goToNextPage"
-                :disabled="currentPage >= totalPages || isLoadingTravels"
-                class="p-1.5 hover:bg-gray-100 rounded-md text-gray-600 disabled:opacity-40 transition-colors"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-              </button>
-            </div>
           </div>
-        </div>
 
-        <!-- MAP VIEW CARD -->
-        <div v-else class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative w-full p-8 hidden-scroll">
-          <div class="flex flex-col h-full min-h-0">
-            <!-- Map Header -->
-            <div class="flex flex-col relative w-full mb-6 shrink-0">
-              <div class="flex items-center justify-between w-full">
-                <!-- Volver y Patente al mismo nivel -->
-                <button @click="selectedTripForMap = null" class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-blue-900 transition-colors">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                  Volver
-                </button>
-                <div class="font-bold font-titles text-lg text-text-title tracking-tight text-right">
+          <!-- MAP VIEW CARD -->
+          <div v-else class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative w-full p-8 hidden-scroll">
+            <div class="flex flex-col h-full min-h-0">
+              <div class="relative w-full mb-6 shrink-0 flex flex-col sm:block items-center gap-1 sm:gap-0">
+                <h2 class="text-2xl font-bold font-titles text-center text-text-title w-full">Ruta de viaje</h2>
+                <div class="sm:absolute sm:top-1 sm:right-0 font-bold font-titles text-[15px] sm:text-lg text-text-title tracking-tight text-center sm:text-right">
                   Patente: <span class="text-[#215179]">{{ selectedTripForMap.licensePlate }}</span>
                 </div>
               </div>
-              <!-- Título al centro, compensando el margen negativo p/subir un poco -->
-              <h2 class="text-2xl font-bold font-titles text-center text-text-title -mt-4">Ruta de viaje</h2>
-            </div>
-
-            <!-- Stats & Icon -->
-            <div class="flex items-end justify-between mb-4 text-sm font-medium text-gray-600">
-              <div>
-                Puntos trazados: <span class="font-bold text-text-title">{{ selectedTripRoute?.snappedPoints?.length || 0 }}</span>
-              </div>
-            </div>
-
-            <div class="flex-1 rounded-xl w-full h-full min-h-0 overflow-hidden shadow-inner bg-slate-100 relative">
-              <TripRouteMap
-                v-if="selectedTripRoute"
-                :snapped-points="selectedTripRoute.snappedPoints"
-              />
-
-              <div v-else class="absolute inset-0 flex items-center justify-center text-center px-6">
+              <div class="flex items-end justify-between mb-4 text-sm font-medium text-gray-600">
                 <div>
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                  </svg>
-                  <span class="text-gray-500 font-semibold text-lg">
-                    {{ isLoadingTripRoute ? 'Cargando ruta...' : 'Mapa no disponible' }}
-                  </span>
-                  <p class="text-gray-500 text-sm mt-1">
-                    {{ isLoadingTripRoute ? 'Recuperando puntos GPS y trazado...' : (tripRouteError || 'Selecciona un viaje para ver su recorrido.') }}
-                  </p>
+                  Puntos trazados: <span class="font-bold text-text-title">{{ selectedTripRoute?.snappedPoints?.length || 0 }}</span>
                 </div>
               </div>
-            </div>
-
-            <div v-if="tripRouteError" class="mt-4 text-sm text-red-600 font-medium">
-              {{ tripRouteError }}
+              <div class="flex-1 rounded-xl w-full h-full min-h-0 overflow-hidden shadow-inner bg-slate-100 relative">
+                <TripRouteMap v-if="selectedTripRoute" :snapped-points="selectedTripRoute.snappedPoints" />
+                <div v-else class="absolute inset-0 flex items-center justify-center text-center px-6">
+                  <div>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                    </svg>
+                    <span class="text-gray-500 font-semibold text-lg">
+                      {{ isLoadingTripRoute ? 'Cargando ruta...' : 'Mapa no disponible' }}
+                    </span>
+                    <p class="text-gray-500 text-sm mt-1">
+                      {{ isLoadingTripRoute ? 'Recuperando puntos GPS y trazado...' : (tripRouteError || 'Selecciona un viaje para ver su recorrido.') }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div v-if="tripRouteError" class="mt-4 text-sm text-red-600 font-medium">
+                {{ tripRouteError }}
+              </div>
             </div>
           </div>
-        </div>
 
         <!-- Backdrop móvil -->
         <div v-if="isFilterOpen" class="fixed inset-0 bg-black/30 z-40 sm:hidden" @click="isFilterOpen = false" />
 
         <Transition name="slide">
-          <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[88px] z-50 sm:static sm:z-20 sm:w-[22rem] sm:h-full bg-[#EBEBEB] sm:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 sm:shrink-0 overflow-y-auto relative">
-            <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent">
+          <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[88px] z-50 sm:fixed md:relative md:inset-x-auto md:bottom-auto md:top-0 md:z-20 md:w-[22rem] md:self-start md:mt-0 md:max-h-[calc(100vh-220px)] bg-[#EBEBEB] md:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 md:shrink-0 overflow-y-auto">
+            
+            <!-- Filter icon top right inside panel (serves as close button also) -->
+            <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent sm:hidden">
                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                  <line x1="8" y1="5" x2="8" y2="19"></line>
                  <line x1="16" y1="5" x2="16" y2="19"></line>
@@ -957,114 +981,152 @@ watch(currentPage, () => {
                </svg>
             </button>
 
-            <div class="flex justify-center items-center mb-6 mt-2">
-              <h2 class="text-xl font-titles font-bold text-[#1b2533]">Filtros</h2>
+              <div class="flex justify-center items-center mb-6 mt-2 relative">
+                <h2 class="text-2xl font-titles font-extrabold text-[#1b2533]">Filtros</h2>
+              </div>
+
+               <div class="flex flex-col gap-4 mb-6 mt-2 relative">
+                 <!-- Chips de Filtros Activos -->
+                 <div v-if="activeFilterChips.length > 0" class="flex flex-wrap items-center gap-2 bg-gray-100/50 p-3 rounded-[1.5rem] border border-gray-200">
+                   <div v-for="chip in activeFilterChips" :key="chip.field" class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full text-[10px] font-bold text-gray-600 shadow-sm border border-gray-100">
+                      <span class="text-gray-400 font-medium">{{ chip.label }}:</span> {{ chip.value }}
+                      <button @click="removeFilter(chip.field)" class="ml-1 hover:text-red-500 transition-colors">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                      </button>
+                    </div>
+                    <button @click="clearFilters" class="ml-auto text-[#A61919] hover:text-red-800 font-bold text-[11px] px-3 py-1.5 bg-white border border-gray-200 rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-1.5">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                      Limpiar Todo
+                    </button>
+                 </div>
+               </div>
+
+                <div class="flex flex-col gap-5 mt-4">
+                  <!-- Date Range -->
+                  <div class="grid grid-cols-2 gap-4">
+                    <div class="flex flex-col relative w-full">
+                      <div class="z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2 text-[10px] text-gray-500 font-bold ml-1 mb-0.5">Desde</div>
+                      <div class="relative w-full">
+                        <input type="date" v-model="filters.from" class="text-[11px] px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
+                      </div>
+                    </div>
+                    <div class="flex flex-col relative w-full">
+                      <div class="text-[10px] text-gray-500 font-bold ml-1 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Hasta</div>
+                      <div class="relative w-full">
+                        <input type="date" v-model="filters.to" class="text-[11px] px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Buscar por -->
+                  <div class="flex flex-col relative mt-2">
+                    <div class="text-[10px] text-gray-500 font-bold ml-1 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Tipo de búsqueda</div>
+                    <div class="relative">
+                      <select v-model="filters.searchBy" class="px-3 py-2.5 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none hover:border-gray-500 focus:border-primary transition-colors appearance-none cursor-pointer">
+                        <option value="destination">Destino</option>
+                        <option value="driver">Conductor</option>
+                        <option value="official">Funcionario</option>
+                      </select>
+                      <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Valor búsqueda -->
+                  <div class="flex flex-col relative mt-2">
+                    <div class="text-[10px] text-gray-500 font-bold ml-1 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Búsqueda</div>
+                    <div class="relative">
+                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                      </div>
+                      <input type="text" v-model="filters.searchValue" placeholder="Escribe el nombre..." class="pl-8 pr-3 py-2.5 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-700 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary placeholder-gray-400" />
+                    </div>
+                  </div>
+
+                  <!-- Patente -->
+                  <div class="flex flex-col relative mt-2">
+                    <div class="text-[10px] text-gray-500 font-bold ml-1 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Patentes</div>
+                    <div class="relative">
+                      <select v-model="filters.license" class="px-3 py-2.5 pr-8 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-500 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary appearance-none cursor-pointer">
+                        <option value="">Selecciona la patente...</option>
+                        <option v-for="plate in uniquePlates" :key="plate" :value="plate">{{ plate }}</option>
+                      </select>
+                      <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Aplicar button -->
+                  <div class="mt-4 flex justify-end">
+                    <button @click="applyFilters" class="px-6 py-2 bg-[#A61919] text-white text-xs rounded-xl font-bold shadow-sm hover:bg-red-800 transition-all w-full">
+                      Aplicar
+                    </button>
+                  </div>
+                </div>
             </div>
-
-            <!-- Empty datalist: forces browsers to use THIS list (empty) for suggestions
-                 instead of their saved form history. Works in Firefox, Chrome, Safari. -->
-            <datalist id="no-suggestions"></datalist>
-
-            <div class="flex flex-col gap-5 flex-1 mt-2">
-              <div class="flex justify-end relative z-10 w-full mb-2">
-                <button @click="clearFilters" class="px-5 py-1.5 bg-transparent border border-[#b2b2b2] rounded-3xl text-[11px] font-bold text-[#5c5c5c] hover:bg-gray-200 transition-colors flex items-center justify-center gap-1.5 w-28">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" class="stroke-current" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                  Limpiar
-                </button>
-              </div>
-
-              <div class="grid grid-cols-2 gap-4">
-                <div class="flex flex-col relative">
-                  <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Desde</label>
-                  <div class="relative">
-                    <input type="date" v-model="filters.from" class="text-[11px] px-3 py-[9px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
-                    <svg width="14" height="14" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                  </div>
-                </div>
-                <div class="flex flex-col relative">
-                  <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Hasta</label>
-                  <div class="relative">
-                    <input type="date" v-model="filters.to" class="text-[11px] px-3 py-[9px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
-                    <svg width="14" height="14" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Dynamic Search Field -->
-              <div class="flex flex-col mt-2 gap-2">
-                <!-- Campo selector -->
-                <div class="relative">
-                  <label class="text-[10px] text-gray-500 font-bold bg-[#EBEBEB] w-fit px-1 mb-1 block">Buscar por</label>
-                  <select v-model="filters.searchBy" class="px-3 py-2.5 pr-8 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary appearance-none cursor-pointer">
-                    <option value="destination">Destino</option>
-                    <option value="driver">Conductor</option>
-                    <option value="official">Funcionario</option>
-                    <!-- <option value="patient">Paciente</option> -->
-                  </select>
-                  <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500" style="top: 22px;">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                  </div>
-                </div>
-
-                <!-- Input de bÃºsqueda -->
-                <div class="relative mt-1">
-                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                  </div>
-                  <input list="no-suggestions" type="text" v-model="filters.searchValue" autocomplete="off"
-                    :placeholder="filters.searchBy === 'destination' ? 'Nombre del destino...' : filters.searchBy === 'driver' ? 'Nombre del conductor...' : filters.searchBy === 'official' ? 'Nombre del funcionario...' : 'Nombre del paciente...'"
-                    class="pl-8 pr-3 py-2.5 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-700 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary placeholder-gray-400" />
-                </div>
-              </div>
-
-              <div class="flex flex-col mt-2 relative">
-                <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Patentes</label>
-                <div class="relative">
-                  <select v-model="filters.license" class="px-3 py-2.5 pr-8 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-500 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary appearance-none cursor-pointer">
-                    <option value="">Selecciona la patente...</option>
-                    <option v-for="plate in uniquePlates" :key="plate" :value="plate">{{ plate }}</option>
-                  </select>
-                  <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                  </div>
-                </div>
-              </div>
-
-              <div class="mt-4 flex justify-end">
-                <button @click="applyFilters" class="px-6 py-2 bg-[#A61919] text-white text-xs rounded-xl font-bold shadow-sm hover:bg-red-800 transition-all w-28">
-                  Aplicar
-                </button>
-              </div>
-            </div>
-          </div>
-        </Transition>
-      </div>
-    </main>
+          </Transition>
+        </div>
+      </main>
     </div>
 
-    <!-- Modal Confirmar Guardar EdiciÃ³n -->
+    <!-- Modals -->
     <Teleport to="body">
       <div v-if="isSaveModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <div class="bg-white rounded-3xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200">
-          <div class="relative p-6 pt-8 pb-10 text-center">
-            <button @click="cancelSaveTrip" class="absolute right-4 top-4 text-gray-500 hover:text-gray-700 border border-gray-200 rounded p-0.5 outline-none transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+          <div class="relative p-6 pt-8 pb-8">
+            <button @click="cancelSaveTrip" class="absolute right-4 top-4 text-gray-400 hover:text-gray-700 border border-gray-200 rounded p-0.5 outline-none transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
-            <h3 class="text-2xl font-titles font-bold text-gray-900 mb-6">Guardar</h3>
-            <p class="text-sm font-titles font-semibold text-gray-700 mb-8 whitespace-pre-line tracking-wide">
-              Â¿EstÃ¡ seguro de guardar los
-              cambios realizados?
-            </p>
-            
-            <div class="flex justify-center gap-10 mt-4 font-titles font-bold tracking-wide">
-              <button @click="confirmSaveTrip" class="px-6 py-2.5 bg-[#A61919] text-white text-[13px] rounded-xl shadow-sm hover:bg-red-800 transition-all w-36 focus:ring-2 focus:ring-red-400 outline-none">
-                Confirmar
-              </button>
-              <button @click="cancelSaveTrip" class="px-6 py-2.5 bg-[#215179] text-white text-[13px] rounded-xl shadow-sm hover:bg-blue-900 transition-all w-36 focus:ring-2 focus:ring-blue-400 outline-none">
-                Cancelar
-              </button>
+            <h3 class="text-xl font-titles font-bold text-gray-900 mb-1 text-center">Guardar cambios</h3>
+            <p class="text-sm text-gray-500 mb-5 text-center">¿Está seguro de guardar los siguientes cambios?</p>
+            <div class="bg-gray-50 rounded-2xl border border-gray-200 p-4 mb-6">
+              <div class="grid grid-cols-2 gap-x-6 gap-y-2.5 text-sm">
+                <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Fecha:</span><span>{{ tripToSaveDisplayDate }}</span></div>
+                <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Patente:</span><span>{{ tripToSave?.licensePlate || '-' }}</span></div>
+                <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Hora inicio:</span><span>{{ tripToSave?.startTime || '-' }}</span></div>
+                <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Hora final:</span><span>{{ tripToSave?.endTime || '-' }}</span></div>
+                <div class="flex gap-1 col-span-2"><span class="font-semibold text-gray-500 shrink-0">Destino:</span><span>{{ tripToSaveDestinationName || '-' }}</span></div>
+                <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Estado:</span><span>{{ tripToSave?.status === 'COMPLETED' ? 'Completado' : 'En transcurso' }}</span></div>
+                <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Km inicio:</span><span>{{ tripToSave?.startKm ?? '-' }}</span></div>
+                <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Km final:</span><span>{{ tripToSave?.endKm ?? '-' }}</span></div>
+                <div class="flex gap-1 col-span-2"><span class="font-semibold text-gray-500 shrink-0">Conductor:</span><span>{{ tripToSaveDriverName || '-' }}</span></div>
+                <div class="flex gap-1 col-span-2"><span class="font-semibold text-gray-500 shrink-0">Funcionario:</span><span>{{ tripToSave?.official || '-' }}</span></div>
+              </div>
+            </div>
+            <div class="flex justify-center gap-6 font-titles font-bold tracking-wide">
+              <button @click="confirmSaveTrip" class="px-6 py-2.5 bg-[#A61919] text-white text-xs rounded-xl shadow-sm hover:bg-red-800 transition-all flex-1 max-w-[140px]">Confirmar</button>
+              <button @click="cancelSaveTrip" class="px-6 py-2.5 bg-[#215179] text-white text-xs rounded-xl shadow-sm hover:bg-blue-900 transition-all flex-1 max-w-[140px]">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div v-if="isDeleteModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden border border-gray-200">
+          <div class="relative p-6 pt-8 pb-8">
+            <button @click="cancelDeleteTrip" class="absolute right-4 top-4 text-gray-400 hover:text-gray-700 border border-gray-200 rounded p-0.5 outline-none transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <div class="flex justify-center mb-4"><div class="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg></div></div>
+            <h3 class="text-xl font-titles font-bold text-gray-900 mb-2 text-center">Eliminar registro</h3>
+            <p class="text-base text-gray-600 mb-1 text-center">¿Está seguro de que desea eliminar este registro?</p>
+            <p class="text-base text-red-600 font-semibold mb-5 text-center">Esta acción es irreversible.</p>
+            <div class="bg-red-50 rounded-2xl border border-red-100 p-4 mb-6 text-lg flex flex-col gap-1.5">
+              <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Fecha:</span><span>{{ tripToDelete?.date || '-' }}</span></div>
+              <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Patente:</span><span>{{ tripToDelete?.licensePlate || '-' }}</span></div>
+              <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Destino:</span><span>{{ tripToDelete?.destination || '-' }}</span></div>
+              <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Conductor:</span><span>{{ tripToDelete?.driver || '-' }}</span></div>
+            </div>
+            <div class="flex justify-center gap-6 font-titles font-bold tracking-wide">
+              <button @click="confirmDeleteTrip" class="px-6 py-2.5 bg-[#A61919] text-white text-sm rounded-xl shadow-sm hover:bg-red-800 transition-all flex-1 max-w-[140px]">Confirmar</button>
+              <button @click="cancelDeleteTrip" class="px-6 py-2.5 bg-[#215179] text-white text-sm rounded-xl shadow-sm hover:bg-blue-900 transition-all flex-1 max-w-[140px]">Cancelar</button>
             </div>
           </div>
         </div>
@@ -1074,57 +1136,18 @@ watch(currentPage, () => {
 </template>
 
 <style scoped>
-.slide-enter-active,
-.slide-leave-active {
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.slide-enter-from,
-.slide-leave-to {
-  transform: translateX(100%);
-  opacity: 0;
-  width: 0;
-  margin-left: 0;
-  padding-left: 0;
-  padding-right: 0;
-}
+.slide-enter-active, .slide-leave-active { transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+.slide-enter-from, .slide-leave-to { transform: translateX(100%); opacity: 0; }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 
+.table-scroll::-webkit-scrollbar { height: 10px; }
+.table-scroll::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); }
+.table-scroll::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.25); border-radius: 9999px; }
 
-
-.table-scroll::-webkit-scrollbar {
-  height: 10px;
-}
-
-.table-scroll::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.table-scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 9999px;
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator {
-  opacity: 0;
-  cursor: pointer;
-  z-index: 10;
-  position: absolute;
-  right: 8px;
-  width: 24px;
-  height: 24px;
-}
-
-.overflow-auto::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-.overflow-auto::-webkit-scrollbar-track {
-  background: transparent;
-}
-.overflow-auto::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
-}
-.overflow-auto::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
-}
+input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0; cursor: pointer; z-index: 10; position: absolute; right: 8px; width: 24px; height: 24px; }
+.overflow-auto::-webkit-scrollbar { width: 8px; height: 8px; }
+.overflow-auto::-webkit-scrollbar-track { background: transparent; }
+.overflow-auto::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); border-radius: 4px; }
+.overflow-auto::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.2); }
 </style>

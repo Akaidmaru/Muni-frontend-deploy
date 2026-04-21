@@ -125,9 +125,6 @@ onMounted(loadReport)
               <h1 class="text-[32px] font-bold text-[#111827]">
                 Detalles del reporte {{ formatId(report.id) }}
               </h1>
-              <div class="text-[#1B2A4A]">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-              </div>
             </div>
 
             <!-- Report Info Row Box -->
@@ -247,15 +244,7 @@ onMounted(loadReport)
 
           </div><!-- /detail-card -->
 
-          <!-- Navigation footer -->
-          <div class="mt-8 flex items-center justify-between">
-            <button @click="goBack" class="p-2 text-[#1B2A4A] hover:bg-gray-100 rounded-lg transition-colors">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <button class="p-2 text-[#1B2A4A] hover:bg-gray-100 rounded-lg transition-colors">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
+
         </div>
       </main>
     </div>

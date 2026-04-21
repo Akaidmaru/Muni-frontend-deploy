@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watchEffect } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import registroIcon from '@/assets/images/Registro.png'
@@ -10,6 +10,7 @@ import repairIcon from '@/assets/images/admin/repair.png'
 import anadirGrupoIcon from '@/assets/images/Images admin nabvar left/anadir-grupo.png'
 import camionIcon from '@/assets/images/Images admin nabvar left/camion.png'
 import destinoIcon from '@/assets/images/Images admin nabvar left/destino.png'
+import funcionarioIcon from '@/assets/images/Images admin nabvar left/funcionario.png'
 import viajesIcon from '@/assets/images/Images admin nabvar left/agencia-de-viajes.png'
 import dailyMaintenanceIcon from '@/assets/images/admin/tareas-diarias.png'
 import monthlyMaintenanceIcon from '@/assets/images/admin/calendario.png'
@@ -20,7 +21,7 @@ const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 
-const open = ref(false)
+const open = ref(auth.userRole === 'ADMIN')
 
 const allNavItems = {
   DRIVER: [
@@ -38,9 +39,10 @@ const allNavItems = {
       alt: 'Registro',
       path: '/admin/registro',
       subItems: [
-        { label: 'Usuarios',  path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Usuarios'  },
-        { label: 'Veh\xEDculos', path: '/admin/vehiculos',    icon: camionIcon,       alt: 'Veh\xEDculos' },
-        { label: 'Destinos',  path: '/admin/destinos',         icon: destinoIcon,      alt: 'Destinos'  },
+        { label: 'Usuarios',    path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Usuarios'      },
+        { label: 'Vehículos',   path: '/admin/vehiculos',         icon: camionIcon,       alt: 'Vehículos'    },
+        { label: 'Destinos',    path: '/admin/destinos',          icon: destinoIcon,      alt: 'Destinos'      },
+        { label: 'Funcionario', path: '/admin/funcionarios',      icon: funcionarioIcon,  alt: 'Funcionario'   },
       ],
     },
     {
@@ -51,9 +53,9 @@ const allNavItems = {
       subItems: [
         { label: 'Diario',        path: '/admin/mantencion-vehicular/diario',           icon: dailyMaintenanceIcon,   alt: 'Mantenimiento diario'   },
         { label: 'Mensual',       path: '/admin/mantencion-vehicular/historial-mensual', icon: monthlyMaintenanceIcon, alt: 'Mantenimiento mensual'  },
-        { label: 'Estadísticas',  path: '/admin/mantencion-vehicular/estadisticas',      icon: estadisticasIcon,       alt: 'Estadísticas'           },
       ],
     },
+    { label: 'Estadísticas', path: '/admin/mantencion-vehicular/estadisticas', icon: estadisticasIcon, alt: 'Estadísticas' },
     { label: 'Historial de\nviajes', path: '/historial-viajes-admin', icon: historialIcon, alt: 'Historial de viajes' },
     { label: 'Reportes', path: '/admin/reportes', icon: warningIcon, alt: 'Reportes' },
   ],
@@ -70,6 +72,17 @@ const openDropdowns = ref({
   'Mantenimiento\nvehicular': false,
 })
 
+watchEffect(() => {
+  for (const item of navItems) {
+    if (item.subItems) {
+      const hasActiveChild = item.subItems.some(sub => route.path === sub.path || route.path.startsWith(sub.path + '/'))
+      if (hasActiveChild) {
+        openDropdowns.value[item.label] = true
+      }
+    }
+  }
+})
+
 const openNestedDropdowns = ref({
   usuarios: true,
 })
@@ -84,7 +97,6 @@ const toggleNestedDropdown = (key) => {
 
 const navigate = (path) => {
   router.push(path)
-  open.value = false
 }
 
 const navigateParent = (path, label) => {
