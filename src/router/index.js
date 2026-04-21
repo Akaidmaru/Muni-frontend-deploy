@@ -28,6 +28,7 @@ import DashboardPacienteView from '../views/DashboardPacienteView.vue'
 import AdminRegistrationHubView from '../views/AdminRegistrationHubView.vue'
 import AdminMaintenanceHubView from '../views/AdminMaintenanceHubView.vue'
 import AdminMaintenanceStatsView from '../views/AdminMaintenanceStatsView.vue'
+import AdminFuncionarioView from '../views/AdminFuncionarioView.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -205,6 +206,13 @@ const router = createRouter({
             component: AdminDestinyView,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
+        {
+            path: '/admin/funcionarios',
+            name: 'admin-funcionarios',
+            component: AdminFuncionarioView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+
         // ── Rutas del paciente ────────────────────────────────
         {
             path: '/dashboard-paciente',

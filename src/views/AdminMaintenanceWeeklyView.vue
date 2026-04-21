@@ -6,6 +6,14 @@ import UserMenu from '@/components/UserMenu.vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/axios'
 
+const alertModal = ref({ open: false, title: '', message: '', isError: false })
+const closeAlertModal = () => {
+  alertModal.value.open = false
+  if (!alertModal.value.isError) {
+    router.push('/admin/mantencion-vehicular/historial-mensual')
+  }
+}
+
 const router = useRouter()
 const route = useRoute()
 
@@ -288,6 +296,15 @@ const loadTruckData = async (truckId) => {
         observacion: item?.notes || '',
       }
     })
+    monthlyRecord.monthlyMaintenanceItems.forEach((dbItem) => {
+      if (dbItem.itemName === 'Sanitización') {
+        const rowIdx = (dbItem.weekIndex || 1) - 1
+        if (registros.value.sanitizacion[rowIdx]) {
+          registros.value.sanitizacion[rowIdx].fecha = dbItem.status || ''
+          registros.value.sanitizacion[rowIdx].observacion = dbItem.notes || ''
+        }
+      }
+    })
     registros.value.sanitizacion = sanitizationRows
 
   } catch (err) {
@@ -317,7 +334,7 @@ const onTruckSelect = async () => {
 // --- 10. ACCIONES ---
 const guardarFormulario = async () => {
   if (!selectedTruckId.value) {
-    alert('Debe seleccionar un camión antes de guardar.')
+    alertModal.value = { open: true, title: 'Atención', message: 'Debe seleccionar un camión antes de guardar.', isError: true }
     return
   }
 
@@ -363,6 +380,18 @@ const guardarFormulario = async () => {
       notes: observacion,
     })
   })
+  registros.value.sanitizacion.forEach((row, idx) => {
+    if (row.fecha || row.observacion) {
+      monthlyMaintenanceItems.push({
+        weekIndex: idx + 1,
+        itemCode: 'sanitizacion',
+        itemName: 'Sanitización',
+        category: 'Sanitización',
+        status: row.fecha || '',
+        notes: row.observacion || '',
+      })
+    }
+  })
 
   try {
     await api.post('/monthly-maintenance-records/admin', {
@@ -370,12 +399,11 @@ const guardarFormulario = async () => {
       monthKey: currentDateStr.value,
       monthlyMaintenanceItems,
     })
-    alert('¡Cambios guardados con éxito!')
-    router.push('/admin/mantencion-vehicular/historial-mensual')
+    alertModal.value = { open: true, title: 'Éxito', message: '¡Cambios guardados con éxito!', isError: false }
   } catch (err) {
     const msg = err?.response?.data?.message
     const detail = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo guardar el mantenimiento mensual.'
-    alert(detail)
+    alertModal.value = { open: true, title: 'Error', message: detail, isError: true }
   }
 };
 
@@ -632,6 +660,29 @@ onMounted(async () => {
         </div>
       </main>
     </div>
+
+    <!-- Alert Modal -->
+    <Teleport to="body">
+      <div v-if="alertModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200">
+          <div class="p-6 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4" :class="alertModal.isError ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'">
+              <svg v-if="!alertModal.isError" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+              </svg>
+              <svg v-else class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-2">{{ alertModal.title }}</h3>
+            <p class="text-sm text-slate-500 mb-6">{{ alertModal.message }}</p>
+            <button @click="closeAlertModal" class="w-full inline-flex justify-center rounded-xl border border-transparent px-4 py-2 font-bold text-white shadow-sm focus:outline-none transition-colors" :class="alertModal.isError ? 'bg-red-600 hover:bg-red-700' : 'bg-[#1b2e4b] hover:bg-[#2a4365]'">
+              Aceptar
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 

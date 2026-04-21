@@ -211,9 +211,19 @@ const saveUser = async () => {
       phone: editForm.value.phone.trim() || undefined,
       email: editForm.value.email.trim() || undefined,
     }
-    const { data } = await api.patch(`/users/${editForm.value.id}`, payload)
-    const updated = mapUserFromApi({ ...selectedUser.value, ...data })
-    users.value = users.value.map((u) => (u.id === updated.id ? updated : u))
+    await api.patch(`/users/${editForm.value.id}`, payload)
+    const userIndex = users.value.findIndex(u => u.id === editForm.value.id)
+    if (userIndex !== -1) {
+      users.value[userIndex] = {
+        ...users.value[userIndex],
+        id: editForm.value.id,
+        name: editForm.value.name.trim() || 'Sin nombre',
+        rut: editForm.value.rut || '',
+        role: editForm.value.role,
+        phone: editForm.value.phone.trim() || '',
+        email: editForm.value.email.trim() || '',
+      }
+    }
     saveSuccess.value = 'Cambios guardados correctamente.'
     setTimeout(() => closeEditModal(), 800)
   } catch (error) {
@@ -295,10 +305,13 @@ onMounted(() => { loadUsers() })
           </div>
           <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col overflow-hidden flex-1">
 
-            <!-- ── Barra superior ── -->
-            <div class="px-4 sm:px-6 lg:px-10 pt-6 lg:pt-8 pb-4 flex flex-wrap items-center justify-end gap-3">
+            <!-- ── Título ── -->
+            <div class="px-4 sm:px-6 lg:px-10 pt-6 lg:pt-8 pb-2">
+              <h1 class="text-2xl md:text-3xl lg:text-4xl font-titles font-extrabold text-slate-900 text-center">Administración de Usuarios</h1>
+            </div>
 
-
+            <!-- ── Filtros ── -->
+            <div class="px-4 sm:px-6 lg:px-10 pt-2 pb-4 flex flex-wrap items-center justify-end gap-3">
               <div class="flex flex-wrap items-center gap-3">
                 <!-- Filtro rol -->
                 <div class="relative">
@@ -337,11 +350,6 @@ onMounted(() => { loadUsers() })
                   </svg>
                 </div>
               </div>
-            </div>
-
-            <!-- ── Título ── -->
-            <div class="px-4 sm:px-6 lg:px-10 pt-1 pb-5">
-              <h1 class="text-2xl md:text-3xl lg:text-4xl font-titles font-extrabold text-slate-900 text-center">Administración de Usuarios</h1>
             </div>
 
             <!-- ── Tabla ── -->
@@ -517,10 +525,10 @@ onMounted(() => { loadUsers() })
     <Teleport to="body">
       <div
         v-if="isViewModalOpen"
-        class="fixed inset-0 z-[60] bg-black/35 flex items-center justify-center px-4"
+        class="fixed inset-0 z-[60] bg-black/35 flex items-center justify-center px-4 py-4"
         @click.self="closeViewModal"
       >
-        <div class="w-full max-w-lg rounded-[1.75rem] bg-white shadow-2xl border border-slate-200 overflow-hidden">
+        <div class="w-full max-w-lg rounded-[1.75rem] bg-white shadow-2xl border border-slate-200 overflow-y-auto max-h-[90vh]">
           <!-- Cabecera -->
           <div class="px-8 pt-7 pb-5 flex items-start justify-between gap-4">
             <div>
@@ -607,10 +615,10 @@ onMounted(() => { loadUsers() })
     <Teleport to="body">
       <div
         v-if="isEditModalOpen"
-        class="fixed inset-0 z-[60] bg-black/35 flex items-center justify-center px-4"
+        class="fixed inset-0 z-[60] bg-black/35 flex items-center justify-center px-4 py-4"
         @click.self="closeEditModal"
       >
-        <div class="w-full max-w-2xl rounded-[1.75rem] bg-white shadow-2xl border border-slate-200 overflow-hidden relative">
+        <div class="w-full max-w-2xl rounded-[1.75rem] bg-white shadow-2xl border border-slate-200 overflow-y-auto max-h-[90vh] relative">
           <div class="px-8 pt-7 pb-5 flex items-start justify-between gap-4">
             <div>
               <h2 class="text-2xl font-titles font-bold text-slate-900">Editar usuario</h2>
@@ -671,11 +679,12 @@ onMounted(() => { loadUsers() })
               </div>
             </div>
 
-            <div class="mt-7 flex justify-between items-center gap-3">
+            <div class="mt-7 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+              <!-- En mobile: aparece abajo (order-2). En desktop: izquierda (order-1) -->
               <button
                 @click="isDeleteConfirmOpen = true"
                 type="button"
-                class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors"
+                class="order-2 sm:order-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors text-sm"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
@@ -683,9 +692,10 @@ onMounted(() => { loadUsers() })
                 </svg>
                 Eliminar usuario
               </button>
-              <div class="flex gap-3">
-                <button @click="closeEditModal" type="button" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors">Cancelar</button>
-                <button @click="saveUser" type="button" :disabled="isSaving" class="px-5 py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2">
+              <!-- En mobile: aparece arriba (order-1). En desktop: derecha (order-2) -->
+              <div class="order-1 sm:order-2 flex gap-3">
+                <button @click="closeEditModal" type="button" class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors text-sm">Cancelar</button>
+                <button @click="saveUser" type="button" :disabled="isSaving" class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm">
                   <svg v-if="isSaving" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
                   {{ isSaving ? 'Guardando...' : 'Guardar cambios' }}
                 </button>
@@ -726,10 +736,10 @@ onMounted(() => { loadUsers() })
     <Teleport to="body">
       <div
         v-if="isPasswordModalOpen"
-        class="fixed inset-0 z-[60] bg-black/35 flex items-center justify-center px-4"
+        class="fixed inset-0 z-[60] bg-black/35 flex items-center justify-center px-4 py-4"
         @click.self="closePasswordModal"
       >
-        <div class="w-full max-w-md rounded-[1.75rem] bg-white shadow-2xl border border-slate-200 overflow-hidden">
+        <div class="w-full max-w-md rounded-[1.75rem] bg-white shadow-2xl border border-slate-200 overflow-y-auto max-h-[90vh]">
           <div class="px-8 pt-7 pb-5 flex items-start justify-between gap-4">
             <div>
               <h2 class="text-2xl font-titles font-bold text-slate-900">Cambiar contraseña</h2>

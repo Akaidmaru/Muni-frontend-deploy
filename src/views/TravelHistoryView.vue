@@ -81,8 +81,8 @@ const loadTravels = async () => {
           startTime: travel.startTime || '--:--',
           endTime: travel.endTime || '--:--',
           destination: travel.destination?.name || 'Sin destino',
-          startKm: travel.startKm ?? null,
-          endKm: travel.endKm ?? null,
+          startKm: travel.startKm != null ? Math.floor(Number(travel.startKm)) : null,
+          endKm: travel.endKm != null ? Math.floor(Number(travel.endKm)) : null,
           official: travel.employee?.name || travel.employee?.email || 'Sin funcionario',
           signature: Boolean(travel.signatureKey),
           signatureUrl: travel.signatureUrl || null,
@@ -159,6 +159,26 @@ const clearFilters = () => {
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
   loadTravels()
+}
+
+const activeFilterChips = computed(() => {
+  const chips = []
+  if (filters.value.from) chips.push({ label: 'Desde', value: filters.value.from, field: 'from' })
+  if (filters.value.to) chips.push({ label: 'Hasta', value: filters.value.to, field: 'to' })
+  if (filters.value.searchValue) {
+    const label = filters.value.searchBy === 'destination' ? 'Destino' : 'Funcionario'
+    chips.push({ label, value: filters.value.searchValue, field: 'searchValue' })
+  }
+  if (filters.value.license) chips.push({ label: 'Patente', value: filters.value.license, field: 'license' })
+  return chips
+})
+
+const removeFilter = (field) => {
+  if (field === 'from') filters.value.from = ''
+  else if (field === 'to') filters.value.to = ''
+  else if (field === 'searchValue') filters.value.searchValue = ''
+  else if (field === 'license') filters.value.license = ''
+  applyFilters()
 }
 
 onMounted(() => {
@@ -339,10 +359,10 @@ watch(currentPage, () => {
 
           <!-- Filter Panel -->
           <Transition name="slide">
-            <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[88px] z-50 sm:static sm:z-20 sm:w-[22rem] sm:h-full bg-[#EBEBEB] sm:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 sm:shrink-0 overflow-y-auto relative">
+            <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[88px] z-50 sm:relative sm:z-20 sm:w-[22rem] sm:h-full bg-[#EBEBEB] sm:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 sm:shrink-0 overflow-y-auto">
               
               <!-- Filter icon top right inside panel (serves as close button also) -->
-              <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent">
+              <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent sm:hidden">
                 <!-- Icon as requested in design -->
                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                    <line x1="8" y1="5" x2="8" y2="19"></line>
@@ -352,19 +372,31 @@ watch(currentPage, () => {
                  </svg>
               </button>
 
-              <div class="flex justify-center items-center mb-6 mt-2">
-                <h2 class="text-xl font-titles font-bold text-[#1b2533]">Filtros</h2>
-              </div>
+               <div class="flex flex-col gap-4 mb-6 mt-2 relative">
+                 <div class="flex justify-center items-center">
+                   <h2 class="text-2xl font-titles font-extrabold text-[#1b2533]">Filtros</h2>
+                 </div>
+
+                 <!-- Chips de Filtros Activos -->
+                 <div v-if="activeFilterChips.length > 0" class="flex flex-wrap items-center gap-2 bg-gray-100/50 p-3 rounded-[1.5rem] border border-gray-200">
+                   <div v-for="chip in activeFilterChips" :key="chip.field" class="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full text-[10px] font-bold text-gray-600 shadow-sm border border-gray-100">
+                      <span class="text-gray-400 font-medium">{{ chip.label }}:</span> {{ chip.value }}
+                      <button @click="removeFilter(chip.field)" class="ml-1 hover:text-red-500 transition-colors">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                      </button>
+                    </div>
+                    <button @click="clearFilters" class="ml-auto text-[#A61919] hover:text-red-800 font-bold text-[11px] px-3 py-1.5 bg-white border border-gray-200 rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-1.5">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                      Limpiar Todo
+                    </button>
+                 </div>
+               </div>
 
               <!-- Filter Form -->
               <div class="flex flex-col gap-5 flex-1 mt-2">
-                <div class="flex justify-end relative z-10 w-full mb-2">
-                  <button @click="clearFilters" class="px-5 py-1.5 bg-transparent border border-[#b2b2b2] rounded-3xl text-[11px] font-bold text-[#5c5c5c] hover:bg-gray-200 transition-colors flex items-center justify-center gap-1.5 w-28">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" class="stroke-current" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                    Limpiar
-                  </button>
-                </div>
-
                 <div class="grid grid-cols-2 gap-4">
                   <div class="flex flex-col relative">
                     <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Desde</label>

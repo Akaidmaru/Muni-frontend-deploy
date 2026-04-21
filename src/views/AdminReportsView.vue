@@ -186,7 +186,7 @@ const truncate = (str, n = 38) => str?.length > n ? str.slice(0, n) + '…' : (s
                   <select
                     v-model="statusFilter"
                     @change="resetPage"
-                    class="appearance-none border border-gray-300 rounded-lg pl-3 pr-9 py-2 text-sm bg-white outline-none focus:border-primary focus:ring-1 focus:ring-primary text-gray-700 cursor-pointer min-w-[140px] font-body"
+                    class="appearance-none w-full border border-gray-300 rounded-lg pl-3 pr-9 py-2 text-sm bg-white outline-none focus:border-primary focus:ring-1 focus:ring-primary text-gray-700 cursor-pointer min-w-[140px] font-body"
                   >
                     <option value="ALL">Estado</option>
                     <option value="OPEN">Nuevo</option>

@@ -353,7 +353,7 @@ const populateMaintenanceFormFromRecord = (record) => {
   form.inspectionTime = record?.inspectionTime || getCurrentTime();
   form.kilometraje =
     record?.currentMileage !== null && record?.currentMileage !== undefined
-      ? String(record.currentMileage)
+      ? String(Math.floor(Number(record.currentMileage)))
       : "";
   form.items = form.items.map((item) => {
     if (item.type === "section") return item;
@@ -439,7 +439,7 @@ const loadMaintenanceRecordById = async (recordId) => {
   selectedPlateStable.value = selectedPlate.value;
   suggestedMileage.value =
     data?.currentMileage !== null && data?.currentMileage !== undefined
-      ? Number(data.currentMileage)
+      ? Math.floor(Number(data.currentMileage))
       : 0;
 
   populateMaintenanceFormFromRecord(data);
@@ -481,7 +481,7 @@ const loadMileageSuggestionByPlate = async (plate) => {
 
   try {
     const { data } = await api.get(`/daily-maintenance-records/mileage-suggestion/plate/${encodeURIComponent(plate)}`);
-    suggestedMileage.value = data.suggestedMileage || 0;
+    suggestedMileage.value = data.suggestedMileage != null ? Math.floor(Number(data.suggestedMileage)) : 0;
     selectedTruckId.value = data.truckId || fallbackTruckId;
     selectedTruckFallback.value = data?.truck || foundTruck || null;
     if (maintenanceForm.value) {

@@ -351,10 +351,10 @@ onMounted(() => { loadUsers() })
     <Teleport to="body">
       <div
         v-if="isRoleModalOpen"
-        class="fixed inset-0 z-[60] bg-black/35 flex items-center justify-center px-4"
+        class="fixed inset-0 z-[60] bg-black/35 flex items-center justify-center px-4 py-4"
         @click.self="closeRoleModal"
       >
-        <div class="w-full max-w-lg rounded-[1.75rem] bg-white shadow-2xl border border-slate-200 overflow-hidden">
+        <div class="w-full max-w-lg rounded-[1.75rem] bg-white shadow-2xl border border-slate-200 overflow-y-auto max-h-[90vh]">
           <!-- Cabecera del modal -->
           <div class="px-8 pt-7 pb-5 flex items-start justify-between gap-4">
             <div>
