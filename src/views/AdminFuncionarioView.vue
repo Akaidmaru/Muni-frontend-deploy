@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
@@ -52,11 +52,17 @@ const loadFuncionarios = async () => {
   isLoading.value = true
   loadError.value = ''
   try {
-    const { data } = await api.get('/users', { params: { page: 1, pageSize: 300 } })
-    const payload = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : []
-    funcionarios.value = payload
-      .filter((u) => u.role === 'EMPLOYEE')
-      .map(mapUserFromApi)
+    const { data } = await api.get('/employees/all')
+    const payload = Array.isArray(data) ? data : []
+    funcionarios.value = payload.map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: '',
+      phone: '',
+      role: 'EMPLOYEE',
+      verified: true,
+      active: u.active,
+    }))
   } catch (error) {
     const msg = error.response?.data?.message
     if (error.response?.status === 401) loadError.value = 'Tu sesión ya no es válida.'
@@ -119,14 +125,18 @@ const saveFuncionario = async () => {
   addError.value = ''
   addSuccess.value = ''
   try {
-    const tempPassword = 'Funcionario2024!'
-    const { data } = await api.post('/users', {
+    const { data } = await api.post('/employees', {
       name: addForm.value.name.trim(),
-      role: 'EMPLOYEE',
-      email: `funcionario_${Date.now()}@municipalidad.cl`,
-      password: tempPassword,
     })
-    funcionarios.value.push(mapUserFromApi(data))
+    funcionarios.value.push({
+      id: data.id,
+      name: data.name,
+      email: '',
+      phone: '',
+      role: 'EMPLOYEE',
+      verified: true,
+      active: data.active,
+    })
     addSuccess.value = 'Funcionario añadido correctamente.'
     setTimeout(() => closeAddModal(), 900)
   } catch (error) {
@@ -163,10 +173,18 @@ const saveEdit = async () => {
   editError.value = ''
   editSuccess.value = ''
   try {
-    const { data } = await api.patch(`/users/${editForm.value.id}`, {
+    const { data } = await api.patch(`/employees/${editForm.value.id}`, {
       name: editForm.value.name.trim(),
     })
-    const updated = mapUserFromApi({ ...selectedFuncionario.value, ...data })
+    const updated = {
+      id: data.id,
+      name: data.name,
+      email: '',
+      phone: '',
+      role: 'EMPLOYEE',
+      verified: true,
+      active: data.active,
+    }
     funcionarios.value = funcionarios.value.map((f) => (f.id === updated.id ? updated : f))
     editSuccess.value = 'Funcionario actualizado correctamente.'
     setTimeout(() => closeEditModal(), 900)
@@ -196,13 +214,13 @@ const confirmDelete = async () => {
   isDeleting.value = true
   deleteError.value = ''
   try {
-    await api.delete(`/users/${selectedFuncionario.value.id}`)
+    await api.delete(`/employees/${selectedFuncionario.value.id}`)
     funcionarios.value = funcionarios.value.filter((f) => f.id !== selectedFuncionario.value.id)
-    closeDeleteConfirm()
   } catch (error) {
     const msg = error.response?.data?.message
     deleteError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo eliminar el funcionario.'
   } finally {
+    closeDeleteConfirm()
     isDeleting.value = false
   }
 }
@@ -225,11 +243,11 @@ onMounted(() => { loadFuncionarios() })
     <div class="flex flex-1 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 py-6 px-4 md:px-8 overflow-y-auto flex flex-col">
+      <main class="flex-1 py-6 pl-14 pr-4 md:pr-8 overflow-y-auto flex flex-col">
         <div class="w-full flex flex-col flex-1">
 
           <!-- Botón Volver (mismo patrón que otros apartados) -->
-          <div class="mb-4 pl-10 sm:pl-12">
+          <div class="mb-4 pl-10 pr-10 sm:pl-12 sm:pr-12">
             <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
               <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
               Volver
@@ -239,12 +257,12 @@ onMounted(() => { loadFuncionarios() })
           <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col overflow-hidden flex-1">
 
             <!-- ── Barra superior: título + botón añadir ── -->
-            <div class="px-4 sm:px-6 lg:px-10 pt-6 lg:pt-8 pb-4">
-              <div class="relative flex flex-col items-center gap-3 sm:block">
-                <h1 class="text-2xl md:text-3xl lg:text-4xl font-titles font-extrabold text-slate-900 text-center sm:py-2">
+            <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-6 lg:pt-8 pb-4">
+              <div class="flex flex-col items-center gap-4">
+                <h1 class="text-2xl md:text-3xl lg:text-4xl font-titles font-extrabold text-slate-900 text-center">
                   Administración de Funcionarios
                 </h1>
-                <div class="flex items-center gap-3 sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2">
+                <div class="flex items-center gap-3 w-full justify-end">
                   <!-- Buscador -->
                   <div class="relative w-[200px] hidden sm:block">
                     <input
@@ -285,7 +303,7 @@ onMounted(() => { loadFuncionarios() })
             </div>
 
             <!-- ── Tabla ── -->
-            <div class="flex-1 px-4 sm:px-6 lg:px-10 min-h-0 overflow-auto">
+            <div class="flex-1 px-4 sm:px-6 lg:px-10 md:pr-10 min-h-0 overflow-auto">
               <p v-if="loadError" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ loadError }}</p>
 
               <div v-if="isLoading" class="flex items-center justify-center py-24 gap-3">
@@ -349,7 +367,7 @@ onMounted(() => { loadFuncionarios() })
             </div>
 
             <!-- ── Pie paginación ── -->
-            <div class="px-4 sm:px-6 lg:px-10 py-5 mt-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+            <div class="px-4 sm:px-6 lg:px-10 md:pr-10 py-5 mt-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
               <div class="flex items-center gap-2">
                 <span>Filas por páginas</span>
                 <div class="relative">

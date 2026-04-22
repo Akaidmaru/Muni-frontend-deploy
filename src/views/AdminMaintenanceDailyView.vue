@@ -1,6 +1,6 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
@@ -10,8 +10,10 @@ import autoTable from 'jspdf-autotable'
 import JSZip from 'jszip'
 
 const router = useRouter()
+const route = useRoute()
 const alertsModal = ref(false)
 const allRecords = ref([])
+const checklistSavedModal = ref({ open: false })
 const outOfServiceAlerts = ref([])
 
 const CATEGORY_LABELS = {
@@ -285,6 +287,7 @@ const isLoadingKpis = ref(false)
 // ═══════════════════════════════════════════════════════════
 const deleteModal = ref({ open: false, record: null })
 const isDeleting = ref(false)
+const deleteResultModal = ref({ open: false, success: false, message: '' })
 
 const openDeleteModal = (record) => {
   deleteModal.value = { open: true, record }
@@ -298,14 +301,24 @@ const closeDeleteModal = () => {
 
 const confirmDeleteRecord = async () => {
   if (!deleteModal.value.record) return
+  const recordId = deleteModal.value.record.id
   isDeleting.value = true
+  deleteModal.value = { open: false, record: null }
   try {
-    await api.delete(`/daily-maintenance-records/${deleteModal.value.record.id}`)
+    await api.delete(`/daily-maintenance-records/${recordId}`)
     await loadRecords()
-    closeDeleteModal()
+    deleteResultModal.value = {
+      open: true,
+      success: true,
+      message: 'El registro ha sido eliminado exitosamente y no podrá ser recuperado desde la base de datos.'
+    }
   } catch (err) {
     console.error('[AdminMaintenanceDaily] Error al eliminar registro:', err)
-    alert('No se pudo eliminar el registro diario.')
+    deleteResultModal.value = {
+      open: true,
+      success: false,
+      message: 'El registro no pudo ser eliminado. Por favor, intente nuevamente.'
+    }
   } finally {
     isDeleting.value = false
   }
@@ -495,6 +508,11 @@ const onTableMouseMove = (e) => {
 const onTableMouseUp = () => { isTableDragging.value = false }
 
 onMounted(() => {
+  console.log('[AdminMaintenanceDaily] Route query:', route.query)
+  if (route.query.saved === 'true') {
+    checklistSavedModal.value.open = true
+    router.replace({ query: {} })
+  }
   loadRecords()
   loadOutOfServiceAlerts()
   window.addEventListener('mousemove', onTableMouseMove)
@@ -579,11 +597,11 @@ const viewRecord = async (record) => {
       record: {
         ...normalized,
         licMunicipal: normalized.municipalLicense || '—',
-        kilometraje:
-          normalized.currentMileage !== undefined &&
-          normalized.currentMileage !== null
-            ? `${Math.floor(Number(normalized.currentMileage))} km`
-            : '—',
+kilometraje:
+            normalized.currentMileage !== undefined &&
+            normalized.currentMileage !== null
+              ? `${Math.floor(Number(normalized.currentMileage))} km`
+              : '—',
         items: groupItemsByCategory(normalized.dailyMaintenanceItems),
         annex: {
           revisionTecnica: toAnnexStatusLabel(data?.truck?.technicalReviewExpiresAt),
@@ -918,7 +936,7 @@ const exportChecklistPDF = async (record) => {
     <div class="flex flex-1 overflow-hidden min-w-0">
       <DashboardSidebar />
 
-      <main class="flex-1 pt-4 pb-10 px-3 overflow-hidden flex flex-col items-center min-w-0">
+      <main class="flex-1 pt-4 pb-10 pl-14 pr-3 overflow-hidden flex flex-col min-w-0">
         <div class="w-full mb-3 pl-10 sm:pl-12 shrink-0">
           <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -928,7 +946,7 @@ const exportChecklistPDF = async (record) => {
         <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden w-full">
 
           <!-- Título -->
-          <div class="px-4 sm:px-6 lg:px-10 pt-6 pb-6 flex flex-col lg:flex-row items-start justify-between gap-6">
+          <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-6 pb-6 flex flex-col lg:flex-row items-start justify-between gap-6">
   <h1 class="text-2xl md:text-3xl font-titles font-extrabold text-slate-900 leading-tight shrink-0">
     Historial de mantenimiento<br />vehicular diario
   </h1>
@@ -992,7 +1010,7 @@ const exportChecklistPDF = async (record) => {
       </div>
     </div>
 
-    <Teleport to="body">
+<Teleport to="body">
       <div v-if="deleteModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200">
           <div class="p-6 text-center">
@@ -1019,6 +1037,60 @@ const exportChecklistPDF = async (record) => {
       </div>
     </Teleport>
 
+    <!-- ═══════════ MODAL RESULTADO ELIMINAR ═══════════ -->
+    <Teleport to="body">
+      <div v-if="deleteResultModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200">
+          <div class="p-6 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4" :class="deleteResultModal.success ? 'bg-green-100' : 'bg-red-100'">
+              <svg v-if="deleteResultModal.success" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+              </svg>
+              <svg v-else class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-2">
+              {{ deleteResultModal.success ? 'Eliminado con éxito' : 'Error al eliminar' }}
+            </h3>
+            <p class="text-sm text-slate-500 mb-6">
+              {{ deleteResultModal.message }}
+            </p>
+            <div class="flex flex-col gap-2">
+              <button @click="deleteResultModal.open = false" class="w-full inline-flex justify-center rounded-xl px-4 py-2 font-bold transition-colors"
+                      :class="deleteResultModal.success ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-slate-600 hover:bg-slate-700 text-white'">
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ═══════════ MODAL CHECKLIST GUARDADO ═══════════ -->
+    <Teleport to="body">
+      <div v-if="checklistSavedModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200">
+          <div class="p-6 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4 bg-green-100">
+              <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-2">Cambios guardados con éxito</h3>
+            <p class="text-sm text-slate-500 mb-6">
+              El checklist del conductor ha sido modificado correctamente.
+            </p>
+            <div class="flex flex-col gap-2">
+              <button @click="checklistSavedModal.open = false" class="w-full inline-flex justify-center rounded-xl px-4 py-2 font-bold bg-green-600 hover:bg-green-700 text-white transition-colors">
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
   </div>
 </div>
 
@@ -1028,7 +1100,7 @@ const exportChecklistPDF = async (record) => {
           </div>
 
           <!-- Barra de filtros -->
-          <div class="px-4 sm:px-6 lg:px-10 pb-4 flex flex-wrap items-center gap-3">
+          <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pb-4 flex flex-wrap items-center gap-3">
             <span class="text-sm font-medium text-slate-500 shrink-0">Filtrar por:</span>
 
             <!-- Patente -->
@@ -1070,7 +1142,7 @@ const exportChecklistPDF = async (record) => {
           <!-- Tabla -->
           <div
             ref="tableScrollRef"
-            class="flex-1 min-h-0 overflow-x-auto overflow-y-auto px-4 sm:px-6 lg:px-10 cursor-grab active:cursor-grabbing"
+            class="flex-1 min-h-0 overflow-x-auto overflow-y-auto px-4 sm:px-6 lg:px-10 md:pr-10 cursor-grab active:cursor-grabbing"
             @mousedown="onTableMouseDown"
           >
             <table class="w-full text-sm" style="border-collapse: collapse;">
@@ -1119,7 +1191,7 @@ const exportChecklistPDF = async (record) => {
                     </span>
                   </td>
                   <td class="py-4 px-5 text-center border border-gray-300">
-                    <div v-if="record.status" class="flex flex-col items-center gap-2">
+                    <div class="flex flex-col items-center gap-2">
                       <div class="flex items-center gap-2">
                         <!-- Ver: disponible para todos los registros con estado -->
                         <button
@@ -1142,23 +1214,6 @@ const exportChecklistPDF = async (record) => {
                         </button>
                       </div>
                       <button
-                        @click="viewRecord(record)"
-                        class="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-primary transition-colors">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                        </svg>
-                        Ver
-                      </button>
-                      <button
-                        @click="editRecord(record)"
-                        class="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-primary transition-colors">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                        </svg>
-                        Editar
-                      </button>
-                      <button
                         @click="exportChecklistPDF(record)"
                         class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-primary transition-colors bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200 shadow-sm"
                       >
@@ -1176,7 +1231,7 @@ const exportChecklistPDF = async (record) => {
           </div>
 
           <!-- Footer paginación -->
-          <div class="px-4 sm:px-6 lg:px-10 py-4 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
+          <div class="px-4 sm:px-6 lg:px-10 md:pr-10 py-4 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
             <div class="flex items-center gap-2">
               <span>Filas por páginas</span>
               <div class="relative">

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import jsPDF from 'jspdf'
@@ -838,7 +838,7 @@ watch(currentPage, () => {
       <DashboardSidebar />
 
       <!-- Main content -->
-      <main class="flex-1 pt-4 pb-10 px-2 sm:px-3 overflow-hidden flex flex-col items-center min-w-0 relative">
+      <main class="flex-1 pt-4 pb-10 pl-14 pr-2 sm:pr-3 overflow-hidden flex flex-col min-w-0 relative">
         <div class="w-full mb-3 pl-10 sm:pl-12 shrink-0">
           <button
             @click="selectedTripForMap ? selectedTripForMap = null : goBack()"
@@ -882,7 +882,7 @@ watch(currentPage, () => {
 
             <div
               ref="tableScrollRef"
-              class="table-scroll flex-1 min-h-0 w-full overflow-x-auto overflow-y-auto px-3 sm:px-8 md:px-12 lg:px-16 relative mt-4 sm:mt-6 pb-6 min-w-0 cursor-grab active:cursor-grabbing"
+              class="table-scroll flex-1 min-h-0 w-full overflow-x-auto overflow-y-auto px-3 sm:px-8 md:px-12 lg:px-16 md:pr-10 relative mt-4 sm:mt-6 pb-6 min-w-0 cursor-grab active:cursor-grabbing"
               @mousedown="onTableMouseDown"
             >
                 <TripHistoryTable 
@@ -901,7 +901,7 @@ watch(currentPage, () => {
                 />
             </div>
 
-            <div class="px-3 sm:px-8 md:px-12 lg:px-16 py-4 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
+            <div class="px-3 sm:px-8 md:px-12 lg:px-16 md:pr-10 py-4 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
               <div class="flex items-center gap-2">
                 <span>Filas por paginas</span>
                 <div class="relative">

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
@@ -292,10 +292,10 @@ onMounted(() => { loadUsers() })
       </div>
     </div>
 
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex h-screen overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 py-6 px-4 md:px-8 overflow-y-auto flex flex-col">
+      <main class="flex-1 py-6 pl-14 pr-4 md:pr-8 overflow-y-auto flex flex-col">
         <div class="w-full flex flex-col flex-1">
           <div class="mb-4 pl-10 sm:pl-12">
             <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
@@ -306,7 +306,7 @@ onMounted(() => { loadUsers() })
           <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col overflow-hidden flex-1">
 
             <!-- ── Título ── -->
-            <div class="px-4 sm:px-6 lg:px-10 pt-6 lg:pt-8 pb-2">
+            <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-6 lg:pt-8 pb-2">
               <h1 class="text-2xl md:text-3xl lg:text-4xl font-titles font-extrabold text-slate-900 text-center">Administración de Usuarios</h1>
             </div>
 
@@ -353,7 +353,7 @@ onMounted(() => { loadUsers() })
             </div>
 
             <!-- ── Tabla ── -->
-            <div class="flex-1 px-4 sm:px-6 lg:px-10 min-h-0 overflow-auto">
+            <div class="flex-1 px-4 sm:px-6 lg:px-10 md:pr-10 min-h-0 overflow-auto">
               <p v-if="loadError" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ loadError }}</p>
 
               <div v-if="isLoading" class="flex items-center justify-center py-24 gap-3">
@@ -488,7 +488,7 @@ onMounted(() => { loadUsers() })
             </div>
 
             <!-- ── Pie paginación ── -->
-            <div class="px-4 sm:px-6 lg:px-10 py-5 mt-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+            <div class="px-4 sm:px-6 lg:px-10 md:pr-10 py-5 mt-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
               <div class="flex items-center gap-2">
                 <span>Filas por páginas</span>
                 <div class="relative">

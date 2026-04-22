@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
@@ -245,7 +245,7 @@ onMounted(loadDestinations)
     <div class="flex flex-1 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 px-4 pt-4 pb-8 overflow-hidden flex flex-col items-center min-w-0">
+      <main class="flex-1 pl-14 pr-4 pt-4 pb-8 overflow-hidden flex flex-col min-w-0">
         <!-- Volver -->
         <div v-if="!selectedLocationForMap" class="w-full max-w-full mb-3 pl-10 sm:pl-12 shrink-0">
           <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
@@ -261,7 +261,7 @@ onMounted(loadDestinations)
             isFilterOpen ? 'sm:max-w-[calc(100%-24rem)]' : 'w-full'
           ]">
             <!-- Header Tabla -->
-            <div class="shrink-0 px-4 sm:px-8 pt-5 pb-4 sm:pb-6">
+            <div class="shrink-0 px-4 sm:px-8 md:pr-10 pt-5 pb-4 sm:pb-6">
               <div class="relative flex flex-col items-center gap-3 sm:block">
                 <h1 class="text-2xl sm:text-3xl font-titles font-bold text-text-title text-center sm:py-2">Administración de Destinos</h1>
                 <div class="flex items-center gap-3 sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2">
@@ -472,8 +472,8 @@ onMounted(loadDestinations)
               </div>
 
               <!-- Estado -->
-              <div class="flex flex-col mt-2 relative">
-                <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Estado</label>
+              <div class="flex flex-col mt-5 relative">
+                <label class="text-xs text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Estado</label>
                 <div class="relative">
                   <select v-model="statusFilter" class="px-3 py-2.5 pr-8 text-[11px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-500 outline-none hover:border-gray-500 focus:border-primary transition-colors focus:ring-1 focus:ring-primary appearance-none cursor-pointer">
                     <option value="ALL">Todos los estados</option>

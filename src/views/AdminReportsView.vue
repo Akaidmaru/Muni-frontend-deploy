@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
@@ -162,7 +162,7 @@ const truncate = (str, n = 38) => str?.length > n ? str.slice(0, n) + '…' : (s
           <div class="bg-white rounded-3xl border-2 border-slate-200 shadow-sm flex flex-col overflow-hidden">
 
             <!-- Card header -->
-            <div class="px-4 sm:px-6 lg:px-8 pt-5 lg:pt-7 pb-5">
+            <div class="px-4 sm:px-6 lg:px-8 md:pr-10 pt-5 lg:pt-7 pb-5">
               <h1 class="text-2xl font-titles font-bold text-text-title mb-5">Lista de reportes</h1>
 
               <!-- Search + filter row -->
@@ -199,7 +199,7 @@ const truncate = (str, n = 38) => str?.length > n ? str.slice(0, n) + '…' : (s
             </div>
 
             <!-- ── Table ─────────────────────────────────────────────────── -->
-            <div class="flex-1 px-4 sm:px-6 lg:px-8 pb-4 overflow-x-auto">
+            <div class="flex-1 px-4 sm:px-6 lg:px-8 md:pr-10 pb-4 overflow-x-auto">
 
               <!-- Loading -->
               <div v-if="isLoading" class="flex items-center justify-center py-20 gap-3">
@@ -275,7 +275,7 @@ const truncate = (str, n = 38) => str?.length > n ? str.slice(0, n) + '…' : (s
             </div>
 
             <!-- ── Pagination footer ─────────────────────────────────────── -->
-            <div class="px-4 sm:px-6 lg:px-8 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500 font-medium">
+            <div class="px-4 sm:px-6 lg:px-8 md:pr-10 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500 font-medium">
               <!-- Rows per page -->
               <div class="flex items-center gap-2">
                 <span>Filas por páginas</span>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watchEffect } from 'vue'
+import { ref, watchEffect, defineExpose } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import registroIcon from '@/assets/images/Registro.png'
@@ -21,7 +21,9 @@ const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 
-const open = ref(auth.userRole === 'ADMIN')
+const open = ref(false)
+
+defineExpose({ isOpen: open })
 
 const allNavItems = {
   DRIVER: [
@@ -32,17 +34,18 @@ const allNavItems = {
     { label: 'Registro\ndiario', path: '/registro-diario-funcionario', icon: registroIcon, alt: 'Registro diario' },
     { label: 'Historial de\nviajes', path: '/historial-viajes-funcionario', icon: historialIcon, alt: 'Historial de viajes' },
   ],
-  ADMIN: [
+ADMIN: [
     {
       label: 'Registro',
       icon: tableIcon,
       alt: 'Registro',
       path: '/admin/registro',
+      id: 'registro',
       subItems: [
         { label: 'Usuarios',    path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Usuarios'      },
         { label: 'Vehículos',   path: '/admin/vehiculos',         icon: camionIcon,       alt: 'Vehículos'    },
         { label: 'Destinos',    path: '/admin/destinos',          icon: destinoIcon,      alt: 'Destinos'      },
-        { label: 'Funcionario', path: '/admin/funcionarios',      icon: funcionarioIcon,  alt: 'Funcionario'   },
+        { label: 'Funcionario', path: '/admin/funcionarios',      icon: funcionarioIcon,  alt: 'Funcionario'   }
       ],
     },
     {
@@ -50,6 +53,7 @@ const allNavItems = {
       icon: repairIcon,
       alt: 'Mantenimiento vehicular',
       path: '/admin/mantencion-vehicular',
+      id: 'mantenimiento',
       subItems: [
         { label: 'Diario',        path: '/admin/mantencion-vehicular/diario',           icon: dailyMaintenanceIcon,   alt: 'Mantenimiento diario'   },
         { label: 'Mensual',       path: '/admin/mantencion-vehicular/historial-mensual', icon: monthlyMaintenanceIcon, alt: 'Mantenimiento mensual'  },
@@ -68,13 +72,13 @@ const isNestedSubItemActive = (subItem) =>
   Array.isArray(subItem.children) && subItem.children.some((child) => route.path === child.path)
 
 const openDropdowns = ref({
-  Registro: false,
+  'Registro': false,
   'Mantenimiento\nvehicular': false,
 })
 
 watchEffect(() => {
   for (const item of navItems) {
-    if (item.subItems) {
+    if (item.subItems && item.label) {
       const hasActiveChild = item.subItems.some(sub => route.path === sub.path || route.path.startsWith(sub.path + '/'))
       if (hasActiveChild) {
         openDropdowns.value[item.label] = true
@@ -100,8 +104,16 @@ const navigate = (path) => {
 }
 
 const navigateParent = (path, label) => {
-  toggleDropdown(label)
+  if (label) {
+    openDropdowns.value[label] = !openDropdowns.value[label]
+  }
   if (path) router.push(path)
+}
+
+const toggleOnly = (label) => {
+  if (label) {
+    openDropdowns.value[label] = !openDropdowns.value[label]
+  }
 }
 
 const isReportModalOpen = ref(false)
@@ -113,65 +125,83 @@ const reportProblem = () => {
 </script>
 
 <template>
-  <div class="w-0 h-0 overflow-visible" style="position: static">
+  <div
+    class="fixed md:relative h-screen transition-all duration-300 ease-in-out flex-shrink-0 flex flex-col z-50"
+    :class="open ? 'w-48 bg-white border-r border-gray-200 shadow-xl' : 'w-0'"
+  >
+    <!-- Overlay solo en móvil -->
+    <Teleport to="body">
+      <div
+        v-if="open"
+        class="fixed inset-0 bg-black/30 z-40 md:hidden"
+        @click="open = false"
+      />
+    </Teleport>
     <button
       v-if="!open"
       @click="open = true"
-      aria-label="Abrir men\xFA"
-      class="fixed top-[104px] left-3 z-40 flex flex-col justify-center items-center gap-[5px] w-9 h-9 rounded-md border border-gray-300 bg-white shadow-sm hover:border-primary hover:bg-gray-50 transition-all duration-150"
+      aria-label="Abrir menú"
+      class="absolute top-4 -right-12 z-50 flex flex-col justify-center items-center gap-[5px] w-9 h-9 rounded-md border border-gray-300 bg-white shadow-sm hover:border-primary transition-all"
     >
       <span v-for="i in 3" :key="i" class="block w-4 h-[2px] bg-gray-600 rounded-full" />
     </button>
 
-    <transition
-      enter-active-class="transition-all duration-200 ease-out"
-      enter-from-class="opacity-0 -translate-x-3"
-      enter-to-class="opacity-100 translate-x-0"
-      leave-active-class="transition-all duration-150 ease-in"
-      leave-from-class="opacity-100 translate-x-0"
-      leave-to-class="opacity-0 -translate-x-3"
-    >
-      <div
-        v-if="open"
-        class="fixed top-[96px] left-0 bottom-0 w-48 bg-white border-r border-gray-200 shadow-md flex flex-col z-40"
-      >
-        <div class="flex justify-end px-2 pt-2">
-          <button
-            @click="open = false"
-            aria-label="Cerrar men\xFA"
-            class="w-6 h-6 rounded border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-all active:scale-95"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-        </div>
+    <div class="w-full h-full overflow-hidden">
+    <div class="flex flex-col h-full w-48 flex-shrink-0">
+      <div class="flex justify-end px-2 pt-2">
+        <button
+          @click="open = false"
+          aria-label="Cerrar men\xFA"
+          class="w-6 h-6 rounded border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-all active:scale-95"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+      </div>
 
-        <nav class="flex flex-col flex-1 overflow-y-auto">
-          <template v-for="item in navItems" :key="item.label">
+      <nav class="flex flex-col flex-1 overflow-y-auto">
+          <template v-for="item in navItems">
             <div
-              v-if="item.subItems"
+              v-if="item && item.subItems"
               class="bg-gray-50 border-b border-gray-200"
             >
-              <button
-                @click="navigateParent(item.path, item.label)"
-                class="flex items-center gap-2 px-3 py-3 w-full text-left group hover:bg-gray-100 transition-colors"
-              >
+              <div class="flex items-center px-3 py-3 w-full group hover:bg-gray-100 transition-colors">
                 <img
                   v-if="item.icon"
                   :src="item.icon"
                   :alt="item.alt"
                   class="w-8 h-8 shrink-0 object-contain"
                 />
-                <span class="text-base font-titles font-bold leading-tight whitespace-pre-line flex-1 transition-colors"
-                      :class="item.path && isActive(item.path) ? 'text-primary' : 'text-slate-800 group-hover:text-primary'">
-                  {{ item.label }}
-                </span>
-              </button>
+                <button
+                  @click="navigateParent(item.path, item.label)"
+                  class="flex-1 text-left"
+                >
+                  <span class="text-base font-titles font-bold leading-tight whitespace-pre-line transition-colors"
+                        :class="item.path && isActive(item.path) ? 'text-primary' : 'text-slate-800 group-hover:text-primary'">
+                    {{ item.label }}
+                  </span>
+                </button>
+                <button
+                  @click="toggleOnly(item.label)"
+                  class="p-1 rounded hover:bg-gray-200 transition-colors"
+                >
+                  <svg
+                    class="w-4 h-4 text-slate-400 transition-transform duration-150 transform"
+                    :class="openDropdowns[item.label] ? 'rotate-90' : '-rotate-90'"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <polyline points="9 6 15 12 9 18" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <div
-              v-if="item.subItems && (openDropdowns[item.label] ?? true)"
+              v-if="item && item.subItems && openDropdowns[item.label]"
               class="relative flex flex-col py-1 bg-white"
             >
               <template v-for="(sub, idx) in item.subItems" :key="sub.path || sub.label">
@@ -286,10 +316,8 @@ const reportProblem = () => {
             <span class="text-xs font-titles font-semibold">Reportar un problema</span>
           </button>
         </div>
-      </div>
-    </transition>
-
-    <div v-if="open" class="fixed inset-0 z-[39]" @click="open = false" />
+    </div>
+    </div>
 
     <Teleport to="body">
       <ReportProblemModal

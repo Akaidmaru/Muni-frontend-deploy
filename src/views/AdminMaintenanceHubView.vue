@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
@@ -22,10 +22,10 @@ const cards = [
       <UserMenu />
     </header>
 
-    <div class="flex flex-1">
+    <div class="flex h-screen overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 flex flex-col px-6 pt-8 pb-10">
+      <main class="flex-1 flex flex-col pl-14 pr-6 pt-8 pb-10">
         <div class="pl-10 sm:pl-12 mb-6">
           <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors py-1">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>

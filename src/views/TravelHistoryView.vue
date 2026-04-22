@@ -1,11 +1,13 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/axios'
 
+const router = useRouter()
 const auth = useAuthStore()
 
 const travels = ref([])
@@ -214,37 +216,42 @@ watch(currentPage, () => {
       <DashboardSidebar />
 
       <!-- Main content -->
-      <main class="flex-1 pt-8 sm:pt-16 pb-10 px-3 overflow-hidden flex items-start justify-center min-w-0">
+      <main class="flex-1 pt-4 pb-10 pl-14 pr-3 overflow-hidden flex flex-col min-w-0">
+        <div class="w-full mb-3 shrink-0">
+          <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Volver
+          </button>
+        </div>
         <div class="flex gap-6 w-full h-full min-h-0 min-w-0">
 
           <!-- Main Card (Table) -->
           <div :class="[
             'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative min-w-0',
-            isFilterOpen ? 'sm:max-w-[calc(100%-24rem)]' : 'w-full'
+            isFilterOpen ? 'md:max-w-[calc(100%-24rem)]' : 'w-full'
           ]">
-            <!-- Top section: Title and Filter Button -->
-            <div class="flex items-center justify-between p-4 sm:p-8 pb-4 sm:pb-6 relative min-h-[4rem] sm:min-h-[5rem]">
-               <!-- Botón Volver -->
-
-
-               <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-bold text-text-title text-center m-0 absolute left-1/2 -translate-x-1/2">Historial de viajes</h1>
+<!-- Top section: Title and Filter Button -->
+            <div class="flex items-center justify-between p-4 md:p-8 pb-4 md:pb-6 relative min-h-[4rem] md:min-h-[5rem]">
                
-               <button
-                       @click="isFilterOpen = !isFilterOpen"
-                       class="absolute right-6 top-6 p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors outline-none focus:ring-2 focus:ring-primary z-10 border border-gray-300"
-                       :title="isFilterOpen ? 'Cerrar filtros' : 'Abrir filtros'">
-                 <!-- Icon as requested in design -->
-                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                   <line x1="8" y1="5" x2="8" y2="19"></line>
-                   <line x1="16" y1="5" x2="16" y2="19"></line>
-                   <line x1="5" y1="10" x2="11" y2="10"></line>
-                   <line x1="13" y1="14" x2="19" y2="14"></line>
-                 </svg>
-               </button>
+               <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center order-1 md:absolute md:left-1/2 md:-translate-x-1/2">Historial de viajes</h1>
+               
+               <div class="order-2 flex items-center gap-2 md:absolute md:right-4 md:top-6 lg:right-8">
+                 <button
+                        @click="isFilterOpen = !isFilterOpen"
+                        class="p-2 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors outline-none focus:ring-2 focus:ring-primary border border-gray-300"
+                        :title="isFilterOpen ? 'Cerrar filtros' : 'Abrir filtros'">
+                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                     <line x1="8" y1="5" x2="8" y2="19"></line>
+                     <line x1="16" y1="5" x2="16" y2="19"></line>
+                     <line x1="5" y1="10" x2="11" y2="10"></line>
+                     <line x1="13" y1="14" x2="19" y2="14"></line>
+                   </svg>
+                 </button>
+               </div>
             </div>
 
             <!-- Table Container -->
-            <div class="flex-1 overflow-auto px-3 sm:px-8 md:px-12 lg:px-16 relative mt-4 sm:mt-6 pb-6 min-w-0">
+            <div class="flex-1 overflow-auto px-3 md:px-10 relative mt-4 md:mt-6 pb-6 min-w-0 custom-scrollbar">
               <div class="min-w-[900px]">
                 <table class="history-table w-full text-sm text-center" style="border-collapse: separate; border-spacing: 0;">
                   <thead class="text-[13px] text-text-title font-bold sticky top-0 bg-white z-10">
@@ -314,7 +321,7 @@ watch(currentPage, () => {
             </div>
 
             <!-- Footer Pagination -->
-            <div class="px-3 sm:px-8 md:px-12 lg:px-16 py-4 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
+            <div class="px-3 sm:px-8 md:px-12 lg:px-16 md:pr-10 py-4 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">
               <div class="flex items-center gap-2">
                 <span>Filas por páginas</span>
                 <div class="relative">
@@ -355,14 +362,14 @@ watch(currentPage, () => {
           </div>
 
           <!-- Backdrop móvil -->
-          <div v-if="isFilterOpen" class="fixed inset-0 bg-black/30 z-40 sm:hidden" @click="isFilterOpen = false" />
+          <div v-if="isFilterOpen" class="fixed inset-0 bg-black/30 z-40 md:hidden" @click="isFilterOpen = false" />
 
           <!-- Filter Panel -->
           <Transition name="slide">
-            <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[88px] z-50 sm:relative sm:z-20 sm:w-[22rem] sm:h-full bg-[#EBEBEB] sm:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 sm:shrink-0 overflow-y-auto">
+            <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[88px] z-50 md:relative md:inset-x-auto md:bottom-auto md:top-0 md:z-20 md:w-[22rem] md:self-start md:mt-0 md:max-h-[calc(100vh-220px)] bg-[#EBEBEB] md:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 md:shrink-0 overflow-y-auto md:ml-auto">
               
               <!-- Filter icon top right inside panel (serves as close button also) -->
-              <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent sm:hidden">
+              <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent md:hidden">
                 <!-- Icon as requested in design -->
                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                    <line x1="8" y1="5" x2="8" y2="19"></line>

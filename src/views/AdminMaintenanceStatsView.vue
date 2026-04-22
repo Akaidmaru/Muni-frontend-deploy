@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import Chart from 'chart.js/auto'
@@ -394,7 +394,7 @@ onBeforeUnmount(() => {
     <div class="flex flex-1 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
+      <main class="flex-1 overflow-y-auto pl-14 pr-4 sm:pr-6 py-6">
 
         <!-- Volver + Título -->
         <div class="mb-2 pl-10 sm:pl-12">

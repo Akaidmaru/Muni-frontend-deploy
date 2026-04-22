@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, nextTick, onMounted } from "vue";
 import logoCompleto from "@/assets/images/Logo-completo.png";
 import DashboardSidebar from "@/components/DashboardSidebar.vue";
