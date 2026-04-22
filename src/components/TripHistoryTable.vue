@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
 
 const props = defineProps({
   trips: {
@@ -84,6 +84,18 @@ const cancelEditing = () => {
   editingTripId.value = null;
   editingTripData.value = {};
 };
+
+const tableRef = ref(null);
+
+const onDocumentMouseDown = (e) => {
+  if (!editingTripId.value) return;
+  if (tableRef.value && !tableRef.value.contains(e.target)) {
+    cancelEditing();
+  }
+};
+
+onMounted(() => document.addEventListener('mousedown', onDocumentMouseDown));
+onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentMouseDown));
 
 const saveEditing = () => {
   if (!isAdminEditComplete.value) return;
@@ -171,7 +183,7 @@ const isAdminEditComplete = computed(() => {
   <!-- Empty datalist suppresses browser autocomplete suggestions in Firefox & Chrome -->
   <datalist id="trip-no-suggestions"></datalist>
 
-  <table class="history-table w-full text-sm font-body text-center" style="border-collapse: separate; border-spacing: 0;">
+  <table ref="tableRef" class="history-table w-full text-sm font-body text-center" style="border-collapse: separate; border-spacing: 0;">
     <!-- HEADERS -->
     <thead class="text-[13px] text-text-title font-bold sticky top-0 bg-white z-10">
       <!-- Admin Header Row -->

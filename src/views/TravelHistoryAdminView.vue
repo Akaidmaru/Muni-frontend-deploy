@@ -145,13 +145,19 @@ const loadAdminEditCatalogs = async () => {
       name: destination.name,
     }))
 
+    const { data: unassignedData } = await api.get('/trucks/unassigned')
+    const unassignedTrucks = Array.isArray(unassignedData)
+      ? unassignedData.map((truck) => ({ id: truck.id, plate: truck.plate }))
+      : []
+
     const trucksEntries = await Promise.all(
       adminDrivers.value.map(async (driver) => {
         const { data } = await api.get(`/users/${driver.id}/trucks`)
-        const trucks = Array.isArray(data)
+        const assignedTrucks = Array.isArray(data)
           ? data.map((truck) => ({ id: truck.id, plate: truck.plate }))
           : []
-        return [driver.id, trucks]
+
+        return [driver.id, assignedTrucks.length > 0 ? assignedTrucks : unassignedTrucks]
       }),
     )
 
