@@ -23,10 +23,8 @@ const auth = useAuthStore()
         >
           Servicios
         </router-link>
-        
-        <!-- Logged out -->
         <router-link 
-          v-if="!auth.isAuthenticated && !['/clientes', '/registro', '/VerifyEmail'].includes($route.path)"
+          v-if="!auth.isAuthenticated && !['/clientes', '/registro', '/verificar-correo', '/restablecer-contrasena'].includes($route.path)"
           to="/clientes" 
           class="bg-primary hover:bg-primary-hover text-white font-button text-xs md:text-btn font-bold px-2 md:px-6 py-2 rounded-lg transition-all duration-200 text-center flex-1 md:flex-none md:min-w-[120px] hover:shadow-[0_4px_14px_0_rgba(0,0,0,0.39)] hover:-translate-y-1 active:scale-95 transform whitespace-nowrap"
         >
