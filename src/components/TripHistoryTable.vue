@@ -40,6 +40,10 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  adminEmployees: {
+    type: Array,
+    default: () => []
+  },
   adminTrucksByDriver: {
     type: Object,
     default: () => ({})
@@ -148,6 +152,13 @@ const onAdminDestinationChange = () => {
   editingTripData.value.destination = selectedDestination?.name || '';
 };
 
+const onAdminEmployeeChange = () => {
+  const selected = props.adminEmployees.find(
+    (e) => e.id === editingTripData.value.employeeId,
+  );
+  editingTripData.value.official = selected?.name || selected?.email || '';
+};
+
 const hasValue = (value) => {
   if (value === null || value === undefined) return false;
   if (typeof value === 'string') {
@@ -163,20 +174,41 @@ const isValidNumberField = (value) => {
   return Number.isFinite(parsedValue);
 };
 
+const timeFieldOk = (t) => hasValue(t) && t !== '--:--';
+
+const endKmSatisfied = (status, endKm) => {
+  if (status === 'COMPLETED') return isValidNumberField(endKm);
+  if (endKm === null || endKm === undefined || endKm === '') return true;
+  return isValidNumberField(endKm);
+};
+
+const hasEmployeeId = (value) =>
+  value != null && value !== '' && Number.isFinite(Number(value)) && Number(value) > 0;
+
 const isAdminEditComplete = computed(() => {
   const current = editingTripData.value;
+  const endTimeOk =
+    current.status === 'COMPLETED' ? timeFieldOk(current.endTime) : true;
+
   return (
     hasValue(current.date) &&
     hasValue(current.driverId) &&
     hasValue(current.truckId) &&
     hasValue(current.destinationId) &&
-    hasValue(current.startTime) &&
-    hasValue(current.endTime) &&
+    timeFieldOk(current.startTime) &&
+    endTimeOk &&
     hasValue(current.status) &&
     isValidNumberField(current.startKm) &&
-    isValidNumberField(current.endKm)
+    endKmSatisfied(current.status, current.endKm) &&
+    hasEmployeeId(current.employeeId)
   );
 });
+
+const adminStatusLabel = (status) => {
+  if (status === 'COMPLETED') return 'Completado';
+  if (status === 'EMPLOYEE_SIGNED') return 'Firmado (func.)';
+  return 'En transcurso';
+};
 </script>
 
 <template>
@@ -247,7 +279,8 @@ const isAdminEditComplete = computed(() => {
               <button
                 @click="saveEditing"
                 :disabled="!isAdminEditComplete"
-                class="transition-colors focus:outline-none"
+                type="button"
+                class="p-1.5 min-h-[2.5rem] min-w-[2.5rem] inline-flex items-center justify-center rounded transition-colors focus:outline-none"
                 :class="isAdminEditComplete ? 'text-green-600 hover:text-green-700' : 'text-green-300 cursor-not-allowed'"
                 :title="isAdminEditComplete ? 'Guardar cambios' : 'Completa todos los campos para guardar'"
               >
@@ -255,14 +288,14 @@ const isAdminEditComplete = computed(() => {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                 </svg>
               </button>
-              <button @click="$emit('delete-trip', trip)" class="text-red-400 hover:text-red-600 transition-colors focus:outline-none" title="Eliminar viaje">
+              <button type="button" @click="$emit('delete-trip', trip)" class="p-1.5 min-h-[2.5rem] min-w-[2.5rem] inline-flex items-center justify-center rounded text-red-400 hover:text-red-600 transition-colors focus:outline-none" title="Eliminar viaje">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
             </div>
             <div v-else class="flex items-center justify-center">
-              <button @click="startEditing(trip)" class="hover:text-primary transition-colors focus:outline-none" title="Editar viaje">
+              <button type="button" @click="startEditing(trip)" class="p-1.5 min-h-[2.5rem] min-w-[2.5rem] inline-flex items-center justify-center rounded hover:text-primary transition-colors focus:outline-none" title="Editar viaje">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
@@ -318,6 +351,7 @@ const isAdminEditComplete = computed(() => {
             <td class="px-2 py-5 text-gray-700 text-xs">
               <select v-model="editingTripData.status" class="w-full border border-gray-300 rounded px-1 py-1 text-[11px] outline-none focus:border-primary bg-white cursor-pointer">
                 <option value="DRIVER_FILLING">En transcurso</option>
+                <option value="EMPLOYEE_SIGNED">Firmado (func.)</option>
                 <option value="COMPLETED">Completado</option>
               </select>
             </td>
@@ -344,7 +378,26 @@ const isAdminEditComplete = computed(() => {
               </select>
             </td>
             <td class="px-4 py-5 text-gray-700 text-xs">
-              <input list="trip-no-suggestions" type="text" v-model="editingTripData.official" readonly @focus="makeEditable" autocomplete="off" class="w-full min-w-[120px] text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary">
+              <select
+                v-model.number="editingTripData.employeeId"
+                @change="onAdminEmployeeChange"
+                class="w-full min-w-[120px] text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary bg-white cursor-pointer"
+              >
+                <option :value="null" disabled>Selecciona funcionario...</option>
+                <option
+                  v-if="editingTripData.employeeId && !adminEmployees.some((e) => e.id === editingTripData.employeeId)"
+                  :value="editingTripData.employeeId"
+                >
+                  {{ editingTripData.official || 'Funcionario (act.)' }}
+                </option>
+                <option
+                  v-for="emp in adminEmployees"
+                  :key="emp.id"
+                  :value="emp.id"
+                >
+                  {{ emp.name || emp.email }}
+                </option>
+              </select>
             </td>
           </template>
           
@@ -357,7 +410,7 @@ const isAdminEditComplete = computed(() => {
             
             <!-- ESTADO -->
             <td class="px-2 py-5 text-gray-700 text-xs">
-              {{ trip.status === 'COMPLETED' ? 'Completado' : 'En transcurso' }}
+              {{ adminStatusLabel(trip.status) }}
             </td>
 
             <td class="px-2 py-5 font-medium">{{ trip.startKm != null ? Math.floor(trip.startKm) : '-' }}</td>

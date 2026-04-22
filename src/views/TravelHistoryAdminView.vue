@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import jsPDF from 'jspdf'
@@ -18,6 +18,7 @@ const travelsError = ref('')
 const totalItems = ref(0)
 const totalPages = ref(1)
 const adminDrivers = ref([])
+const adminEmployees = ref([])
 const adminDestinations = ref([])
 const adminTrucksByDriver = ref({})
 
@@ -39,9 +40,9 @@ const formatDate = (value) => {
   const parsedDate = new Date(value)
   if (Number.isNaN(parsedDate.getTime())) return ''
 
-  const day = String(parsedDate.getDate()).padStart(2, '0')
-  const month = String(parsedDate.getMonth() + 1).padStart(2, '0')
-  const year = parsedDate.getFullYear()
+  const day = String(parsedDate.getUTCDate()).padStart(2, '0')
+  const month = String(parsedDate.getUTCMonth() + 1).padStart(2, '0')
+  const year = parsedDate.getUTCFullYear()
   return `${day}/${month}/${year}`
 }
 
@@ -49,9 +50,9 @@ const formatDateIso = (value) => {
   const parsedDate = new Date(value)
   if (Number.isNaN(parsedDate.getTime())) return ''
 
-  const year = parsedDate.getFullYear()
-  const month = String(parsedDate.getMonth() + 1).padStart(2, '0')
-  const day = String(parsedDate.getDate()).padStart(2, '0')
+  const year = parsedDate.getUTCFullYear()
+  const month = String(parsedDate.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(parsedDate.getUTCDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
 
@@ -60,6 +61,7 @@ const mapTravelFromApi = (travel) => ({
   truckId: travel.truck?.id ?? null,
   destinationId: travel.destination?.id ?? null,
   driverId: travel.driver?.id ?? null,
+  employeeId: travel.employee?.id ?? null,
   status: travel.status || 'DRIVER_FILLING',
   date: formatDate(travel.date),
   dateIso: formatDateIso(travel.date),
@@ -117,27 +119,44 @@ const buildUpdateTripPayload = (editedTrip) => {
     payload.destinationId = Number(editedTrip.destinationId)
   }
 
+  if (editedTrip.driverId != null && editedTrip.driverId !== '' && !Number.isNaN(Number(editedTrip.driverId))) {
+    payload.driverId = Number(editedTrip.driverId)
+  }
+
+  if (editedTrip.employeeId != null && editedTrip.employeeId !== '' && !Number.isNaN(Number(editedTrip.employeeId))) {
+    payload.employeeId = Number(editedTrip.employeeId)
+  }
+
   return payload
 }
 
 const loadAdminEditCatalogs = async () => {
   try {
-    const [driversRes, destinationsRes] = await Promise.all([
+    const [driversRes, destinationsRes, employeesRes] = await Promise.all([
       api.get('/users/by-roles', {
         params: {
           roles: 'DRIVER',
         },
       }),
       api.get('/destinations'),
+      // TripHistory.employeeId apunta a la tabla Employee (no a User/rol EMPLOYEE)
+      api.get('/employees/all'),
     ])
 
     const driversPayload = Array.isArray(driversRes?.data) ? driversRes.data : []
     const destinationsPayload = Array.isArray(destinationsRes?.data) ? destinationsRes.data : []
+    const employeesPayload = Array.isArray(employeesRes?.data) ? employeesRes.data : []
 
     adminDrivers.value = driversPayload.map((driver) => ({
       id: driver.id,
       name: driver.name || '',
       email: driver.email || '',
+    }))
+
+    adminEmployees.value = employeesPayload.map((e) => ({
+      id: e.id,
+      name: e.name || '',
+      email: e.email || '',
     }))
 
     adminDestinations.value = destinationsPayload.map((destination) => ({
@@ -238,6 +257,12 @@ const lastVisibleRow = computed(() => {
   if (totalItems.value === 0) return 0
   return Math.min(currentPage.value * Number(itemsPerPage.value), totalItems.value)
 })
+
+const tripStatusLabel = (status) => {
+  if (status === 'COMPLETED') return 'Completado'
+  if (status === 'EMPLOYEE_SIGNED') return 'Firmado (func.)'
+  return 'En transcurso'
+}
 
 const goToPreviousPage = () => {
   if (currentPage.value <= 1 || isLoadingTravels.value) return
@@ -570,7 +595,7 @@ const buildPdfDocument = (signatureImages = new Map()) => {
       travel.startTime  ?? '-',
       travel.endTime    ?? '-',
       travel.destination,
-      travel.status === 'COMPLETED' ? 'Completado' : 'En transcurso',
+      tripStatusLabel(travel.status),
       travel.startKm != null ? Math.floor(travel.startKm) : '-',
       travel.endKm   != null ? Math.floor(travel.endKm)   : '-',
       travel.driver,
@@ -714,7 +739,7 @@ const exportToExcel = async () => {
       startTime: travel.startTime,
       endTime: travel.endTime,
       destination: travel.destination,
-      status: travel.status === 'COMPLETED' ? 'Completado' : 'En transcurso',
+      status: tripStatusLabel(travel.status),
       startKm: travel.startKm != null ? Math.floor(travel.startKm) : '-',
       endKm: travel.endKm   != null ? Math.floor(travel.endKm)   : '-',
       driver: travel.driver,
@@ -774,6 +799,7 @@ let dragStartX = 0
 let dragStartScrollLeft = 0
 
 const onTableMouseDown = (event) => {
+  if (event.button !== 0) return
   const el = tableScrollRef.value
   if (!el) return
 
@@ -781,7 +807,7 @@ const onTableMouseDown = (event) => {
   if (
     target &&
     target.closest &&
-    target.closest('a,button,input,select,textarea,label')
+    target.closest('a,button,input,select,textarea,label,th')
   ) {
     return
   }
@@ -899,6 +925,7 @@ watch(currentPage, () => {
                   :error="travelsError"
                   :adminDrivers="adminDrivers"
                   :adminDestinations="adminDestinations"
+                  :adminEmployees="adminEmployees"
                   :adminTrucksByDriver="adminTrucksByDriver"
                   @edit-trip="handleEditTrip"
                   @delete-trip="handleDeleteTrip"
@@ -1097,7 +1124,7 @@ watch(currentPage, () => {
                 <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Hora inicio:</span><span>{{ tripToSave?.startTime || '-' }}</span></div>
                 <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Hora final:</span><span>{{ tripToSave?.endTime || '-' }}</span></div>
                 <div class="flex gap-1 col-span-2"><span class="font-semibold text-gray-500 shrink-0">Destino:</span><span>{{ tripToSaveDestinationName || '-' }}</span></div>
-                <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Estado:</span><span>{{ tripToSave?.status === 'COMPLETED' ? 'Completado' : 'En transcurso' }}</span></div>
+                <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Estado:</span><span>{{ tripToSave ? tripStatusLabel(tripToSave.status) : '' }}</span></div>
                 <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Km inicio:</span><span>{{ tripToSave?.startKm ?? '-' }}</span></div>
                 <div class="flex gap-1"><span class="font-semibold text-gray-500 shrink-0">Km final:</span><span>{{ tripToSave?.endKm ?? '-' }}</span></div>
                 <div class="flex gap-1 col-span-2"><span class="font-semibold text-gray-500 shrink-0">Conductor:</span><span>{{ tripToSaveDriverName || '-' }}</span></div>
