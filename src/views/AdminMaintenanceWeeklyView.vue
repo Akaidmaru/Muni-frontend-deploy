@@ -127,6 +127,7 @@ const resetWeeklyTables = () => {
   inicializarSeccion(itemsMecanica, 'mecanica')
   inicializarSeccion(itemsAccesorios, 'accesorios')
   registros.value.sanitizacion = createEmptySanitizationRows()
+  weekendDates.value = { Semana_1: '', Semana_2: '', Semana_3: '', Semana_4: '', Semana_5: '' }
 }
 
 inicializarSeccion(itemsLuces, 'luces');
@@ -267,7 +268,7 @@ const loadTruckData = async (truckId) => {
 
           const dayName = `Semana_${weekIndex}`
           if (registros.value[section][itemName] && dayName in registros.value[section][itemName]) {
-            registros.value[section][itemName][dayName] = dbItem.status || '-'
+            registros.value[section][itemName][dayName] = dbItem.status || ''
             registros.value[section][itemName].observacion = dbItem.notes || ''
           }
         })
@@ -277,6 +278,13 @@ const loadTruckData = async (truckId) => {
     populateSection(itemsLuces, 'luces')
     populateSection(itemsMecanica, 'mecanica')
     populateSection(itemsAccesorios, 'accesorios')
+
+    monthlyRecord.monthlyMaintenanceItems.forEach((item) => {
+      if (item?.category !== 'weekendDate') return
+      const weekIndex = Number(item?.weekIndex)
+      if (!Number.isInteger(weekIndex) || weekIndex < 1 || weekIndex > 5) return
+      weekendDates.value[`Semana_${weekIndex}`] = item.status || ''
+    })
 
     const sanitizationRows = createEmptySanitizationRows()
     ;(monthlyRecord.monthlyMaintenanceItems || []).forEach((item) => {
@@ -395,6 +403,19 @@ const guardarFormulario = async () => {
         notes: row.observacion || '',
       })
     }
+  })
+
+  Object.entries(weekendDates.value).forEach(([semana, fecha]) => {
+    if (!fecha) return
+    const weekIndex = Number(semana.replace('Semana_', ''))
+    monthlyMaintenanceItems.push({
+      weekIndex,
+      itemCode: `weekend_date_${weekIndex}`,
+      itemName: `FechaSemana_${weekIndex}`,
+      category: 'weekendDate',
+      status: fecha,
+      notes: '',
+    })
   })
 
   try {
