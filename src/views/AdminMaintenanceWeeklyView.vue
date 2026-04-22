@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
@@ -54,10 +54,40 @@ const createEmptySanitizationRows = () =>
 const SANITIZATION_ITEM_CODE_PREFIX = 'sanitization_row_'
 const SANITIZATION_CATEGORY = 'systemSanitization'
 
-const tituloMesPrincipal = computed(() => {
-  const [year, month] = currentDateStr.value.split('-').map(Number);
-  return `CHECK LIST MANTENCIONES INTERNAS ${mesesAnio[month - 1].toUpperCase()} ${year}`;
-});
+const tituloMesPrincipal = 'CHECK LIST MANTENCIONES INTERNAS'
+
+const mesesCortos = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
+const pickerOpen = ref(false)
+const pickerYear = ref(new Date().getFullYear())
+const pickerRef = ref(null)
+
+const pickerMonthLabel = computed(() => {
+  const [year, month] = currentDateStr.value.split('-').map(Number)
+  return `${mesesAnio[month - 1]} ${year}`
+})
+
+const isPickerSelected = (month) => {
+  const [year, m] = currentDateStr.value.split('-').map(Number)
+  return pickerYear.value === year && month === m
+}
+
+const openPicker = () => {
+  const [year] = currentDateStr.value.split('-').map(Number)
+  pickerYear.value = year
+  pickerOpen.value = !pickerOpen.value
+}
+
+const selectPickerMonth = (month) => {
+  currentDateStr.value = `${pickerYear.value}-${String(month).padStart(2, '0')}`
+  pickerOpen.value = false
+}
+
+const onPickerOutside = (e) => {
+  if (pickerRef.value && !pickerRef.value.contains(e.target)) {
+    pickerOpen.value = false
+  }
+}
 
 const formatDateSafe = (value) => {
   if (!value) return 'N/D'
@@ -467,6 +497,12 @@ onMounted(async () => {
     selectedTruckId.value = Number(truckId)
     await loadTruckData(Number(truckId))
   }
+
+  document.addEventListener('mousedown', onPickerOutside)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', onPickerOutside)
 })
 </script>
 
@@ -489,7 +525,50 @@ onMounted(async () => {
         </div>
         <div class="max-w-6xl mx-auto bg-white rounded-2xl sm:rounded-3xl border border-slate-300 shadow-sm p-4 sm:p-10 overflow-x-hidden">
 
-          <h1 class="text-2xl font-bold text-center text-slate-900 mb-4 uppercase tracking-wide">{{ tituloMesPrincipal }}</h1>
+          <div class="relative mb-6">
+            <h1 class="text-2xl font-bold text-center text-slate-900 uppercase tracking-wide">{{ tituloMesPrincipal }}</h1>
+
+            <!-- Month picker -->
+            <div ref="pickerRef" class="absolute top-1/2 -translate-y-1/2 right-0">
+              <button
+                @click="openPicker"
+                :disabled="isReadOnly"
+                class="flex items-center gap-2 border border-slate-300 rounded-xl px-3 py-1.5 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg class="w-4 h-4 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <span>{{ pickerMonthLabel }}</span>
+                <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+
+              <!-- Dropdown -->
+              <div v-if="pickerOpen" class="absolute right-0 top-full mt-1 z-20 bg-white rounded-2xl shadow-xl border border-slate-200 w-52 overflow-hidden">
+                <!-- Year nav -->
+                <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                  <button @click="pickerYear--" class="w-6 h-6 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-500 transition-colors">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                  </button>
+                  <span class="font-bold text-slate-800 text-sm">{{ pickerYear }}</span>
+                  <button @click="pickerYear++" class="w-6 h-6 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-500 transition-colors">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                  </button>
+                </div>
+                <!-- Months grid -->
+                <div class="grid grid-cols-3 gap-1 p-3">
+                  <button
+                    v-for="(mes, idx) in mesesCortos"
+                    :key="idx"
+                    @click="selectPickerMonth(idx + 1)"
+                    :class="isPickerSelected(idx + 1) ? 'bg-slate-700 text-white' : 'text-slate-700 hover:bg-slate-100'"
+                    class="rounded-lg py-1.5 text-xs font-semibold transition-colors"
+                  >
+                    {{ mes }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <!-- Recordatorio mobile -->
           <div class="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:hidden">
