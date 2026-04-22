@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import JSZip from 'jszip'
@@ -10,6 +10,8 @@ import UserMenu from '@/components/UserMenu.vue'
 import api from '@/services/axios'
 
 const router = useRouter()
+const route = useRoute()
+const checklistSavedModal = ref({ open: false })
 
 const filterPatente = ref('')
 const filterFecha = ref('')
@@ -100,6 +102,28 @@ const buildFaultSummary = (maintenanceItems = []) => {
   const lines = []
   if (badCount > 0) lines.push(pluralize(badCount, 'Item Malo', 'Items Malos'))
   if (regularCount > 0) lines.push(pluralize(regularCount, 'Regular', 'Regulares'))
+}
+
+const getObservacion = (pivot, itemName, weekNum) => {
+  if (!pivot || !itemName) return '—'
+  const item = pivot[itemName]
+  if (!item) return '—'
+  const obs = item.observaciones
+  if (!obs) return '—'
+  const val = obs[weekNum]
+  return val && val.trim() ? val : '—'
+}
+
+const formatAllObservaciones = (obsObj) => {
+  if (!obsObj) return '—'
+  const lines = []
+  for (let w = 1; w <= 5; w++) {
+    const val = obsObj[w]
+    if (val && val.trim()) {
+      lines.push(`S${w}: ${val}`)
+    }
+  }
+  return lines.length > 0 ? lines.join(', ') : '—'
 
   return lines.join('\n') || 'Sin fallos'
 }
@@ -215,7 +239,7 @@ const mapRecordFromApi = (record) => {
 
   return {
     id: record.id,
-    date: `01-${record.monthKey?.split('-')?.[1] || '00'}-${record.monthKey?.split('-')?.[0] || '0000'}`,
+    date: record.createdAt ? new Date(record.createdAt).toLocaleDateString('es-CL') : new Date().toLocaleDateString('es-CL'),
     monthKey: record.monthKey || formatMonthKey(record.inspectionDate),
     plate: record.truck?.plate || 'Sin patente',
     driver: record.truck?.brand || record.truck?.model || 'CamiÃ³n mensual',
@@ -442,7 +466,11 @@ const viewRecord = (record) => {
     const pivot = {}
     items.forEach((name) => {
       pivot[name] = {}
-      weekIndices.forEach(w => pivot[name][w] = '')
+      pivot[name].observaciones = {}
+      weekIndices.forEach(w => {
+        pivot[name][w] = ''
+        pivot[name].observaciones[w] = ''
+      })
     })
 
     itemsArray.forEach((item) => {
@@ -450,6 +478,8 @@ const viewRecord = (record) => {
       if (items.includes(name)) {
         const week = Number(item.weekIndex ?? item.week ?? 1)
         pivot[name][week] = item.status || ''
+        if (!pivot[name].observaciones) pivot[name].observaciones = {}
+        pivot[name].observaciones[week] = item.notes || ''
       }
     })
 
@@ -524,9 +554,11 @@ const buildMonthlyChecklistPdfBlob = async (record) => {
   const labelX2 = 105
   const valX2 = 143
 
+  const createdDate = record.createdAt ? new Date(record.createdAt).toLocaleDateString('es-CL') : ''
   const headerRows = [
     { y: 40, l1: 'Mes:', v1: formatMonthLabel(record.monthKey), l2: 'Patente:', v2: record.plate || '—' },
     { y: 47, l1: 'Marca:', v1: record.driver || '—', l2: 'Estado:', v2: record.status || '—' },
+    { y: 54, l1: 'Fecha:', v1: createdDate, l2: '', v2: '' },
   ]
 
   headerRows.forEach(({ y, l1, v1, l2, v2 }) => {
@@ -544,7 +576,7 @@ const buildMonthlyChecklistPdfBlob = async (record) => {
 
   // Helper: convert a status string into styled cell content for PDF
   const renderStatusCell = (status) => {
-    if (!status) return { content: 'X', styles: { textColor: [220, 38, 38], fontStyle: 'bold', halign: 'center', fontSize: 10 } }
+    if (!status || status === '') return { content: 'X', styles: { textColor: [220, 38, 38], fontStyle: 'bold', halign: 'center', fontSize: 10 } }
     if (status === 'Si') return { content: '\u2713', styles: { textColor: [22, 163, 74], fontStyle: 'bold', halign: 'center', fontSize: 11 } }
     if (status === 'Bueno') return { content: 'Bueno', styles: { textColor: [22, 163, 74], fontStyle: 'bold', halign: 'center' } }
     if (status === 'Regular') return { content: 'Regular', styles: { textColor: [217, 119, 6], fontStyle: 'bold', halign: 'center' } }
@@ -555,6 +587,7 @@ const buildMonthlyChecklistPdfBlob = async (record) => {
   const tableBody = []
   const weekIndices = [1, 2, 3, 4, 5]
   const colCount = 6
+  const allDocumentObservations = []
 
   for (const { section, items: sectionItems } of CHECKLIST_SECTIONS) {
     // Section header spanning all columns
@@ -564,11 +597,11 @@ const buildMonthlyChecklistPdfBlob = async (record) => {
       styles: { fillColor: [27, 46, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } },
     }])
 
-    // Sub-header row: Descripcion + one "Sab/Dom" per week
+    // Sub-header row: Descripcion + one "Fecha" per week
     tableBody.push([
       { content: 'Descripción', styles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', halign: 'left' } },
       ...weekIndices.map((w) => ({
-        content: `Sab/Dom_${w}`,
+        content: `Semana ${w}`,
         styles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', halign: 'center' },
       })),
     ])
@@ -585,6 +618,14 @@ const buildMonthlyChecklistPdfBlob = async (record) => {
       if (sectionItems.includes(name)) {
         const week = Number(item.weekIndex ?? item.week ?? 1)
         pivot[name][week] = item.status || ''
+        if (item.notes && item.notes.trim()) {
+          const existing = allDocumentObservations.find(o => o.section === section && o.item === name)
+          if (existing) {
+            existing.notes += ` / ${item.notes.trim()}`
+          } else {
+            allDocumentObservations.push({ section, item: name, notes: item.notes.trim() })
+          }
+        }
       }
     })
 
@@ -598,7 +639,7 @@ const buildMonthlyChecklistPdfBlob = async (record) => {
   }
 
   autoTable(doc, {
-    startY: 54,
+    startY: 64,
     head: [],
     body: tableBody,
     styles: { fontSize: 7, cellPadding: 2.5, lineColor: [209, 209, 209], lineWidth: 0.3, textColor: [33, 33, 33] },
@@ -630,6 +671,42 @@ const buildMonthlyChecklistPdfBlob = async (record) => {
       styles: { fontSize: 7, cellPadding: 2.5, lineColor: [209, 209, 209], lineWidth: 0.3, textColor: [33, 33, 33] },
       alternateRowStyles: { fillColor: [247, 248, 250] },
       columnStyles: { 0: { cellWidth: 35 } },
+      tableWidth: 'auto',
+    })
+  }
+
+  if (allDocumentObservations.length > 0) {
+    const obsBody = [
+      [{
+        content: 'Observaciones del Checklist',
+        colSpan: 3,
+        styles: { fillColor: [27, 46, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } },
+      }],
+      [
+        { content: 'Sección', styles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', halign: 'left' } },
+        { content: 'Ítem', styles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', halign: 'left' } },
+        { content: 'Observación', styles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', halign: 'left' } },
+      ],
+    ]
+
+    allDocumentObservations.forEach((obs) => {
+      obsBody.push([
+        { content: obs.section, styles: { textColor: [51, 65, 85] } },
+        { content: obs.item, styles: { textColor: [51, 65, 85], fontStyle: 'bold' } },
+        { content: obs.notes, styles: { textColor: [51, 65, 85], fontStyle: 'italic' } },
+      ])
+    })
+
+    autoTable(doc, {
+      startY: doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 54,
+      head: [],
+      body: obsBody,
+      styles: { fontSize: 7, cellPadding: 2.5, lineColor: [209, 209, 209], lineWidth: 0.3, textColor: [33, 33, 33] },
+      alternateRowStyles: { fillColor: [247, 248, 250] },
+      columnStyles: {
+        0: { cellWidth: 55 },
+        1: { cellWidth: 55 },
+      },
       tableWidth: 'auto',
     })
   }
@@ -747,6 +824,10 @@ watch([filterPatente, filterFecha, searchQuery], () => {
 })
 
 onMounted(() => {
+  if (route.query.saved === 'true') {
+    checklistSavedModal.value = { open: true }
+    router.replace({ query: {} })
+  }
   loadRecords()
 })
 
@@ -755,6 +836,7 @@ onMounted(() => {
 // ═══════════════════════════════════════════════════════════
 const deleteModal = ref({ open: false, record: null })
 const isDeleting = ref(false)
+const deleteResultModal = ref({ open: false, success: false, message: '' })
 
 const openDeleteModal = (record) => {
   deleteModal.value = { open: true, record }
@@ -768,14 +850,24 @@ const closeDeleteModal = () => {
 
 const confirmDeleteRecord = async () => {
   if (!deleteModal.value.record) return
+  const recordId = deleteModal.value.record.id
   isDeleting.value = true
+  deleteModal.value = { open: false, record: null }
   try {
-    await api.delete(`/monthly-maintenance-records/admin/${deleteModal.value.record.id}`)
+    await api.delete(`/monthly-maintenance-records/admin/${recordId}`)
     await loadRecords()
-    closeDeleteModal()
+    deleteResultModal.value = {
+      open: true,
+      success: true,
+      message: 'El registro ha sido eliminado exitosamente y no podrá ser recuperado desde la base de datos.'
+    }
   } catch (err) {
     console.error('[AdminMaintenanceMonthlyHistory] Error al eliminar registro:', err)
-    alert('No se pudo eliminar el registro.')
+    deleteResultModal.value = {
+      open: true,
+      success: false,
+      message: 'El registro no pudo ser eliminado. Por favor, intente nuevamente.'
+    }
   } finally {
     isDeleting.value = false
   }
@@ -796,15 +888,15 @@ const confirmDeleteRecord = async () => {
     <div class="flex flex-1 overflow-hidden min-w-0">
       <DashboardSidebar />
 
-      <main class="flex-1 pt-4 pb-10 px-6 overflow-hidden flex flex-col items-center min-w-0">
-        <div class="w-full max-w-7xl mb-3 pl-10 sm:pl-12 shrink-0">
+      <main class="flex-1 pt-4 pb-10 pl-14 pr-4 overflow-hidden flex flex-col min-w-0">
+        <div class="w-full mb-3 shrink-0">
           <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Volver
           </button>
         </div>
-        <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden w-full max-w-7xl">
-            <div class="px-4 sm:px-6 lg:px-10 pt-6 lg:pt-10 pb-6 flex flex-col lg:flex-row items-start justify-between gap-6">
+        <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden w-full">
+            <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-6 lg:pt-10 pb-6 flex flex-col lg:flex-row items-start justify-between gap-6">
     <h1 class="text-2xl md:text-3xl font-titles font-extrabold text-slate-900 leading-tight">
       Historial de mantenimiento<br />vehicular mensual
     </h1>
@@ -854,7 +946,7 @@ const confirmDeleteRecord = async () => {
     </div>
   </div>
 
-          <div class="px-4 sm:px-6 lg:px-10 pb-6 flex flex-col lg:flex-row items-start lg:items-end gap-6 justify-between">
+          <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pb-6 flex flex-col lg:flex-row items-start lg:items-end gap-6 justify-between">
             <div class="flex items-start sm:items-end gap-3 flex-wrap">
               <div class="mb-2 text-sm text-slate-500 font-semibold mr-1">Filtrar por:</div>
 
@@ -902,7 +994,7 @@ const confirmDeleteRecord = async () => {
             </button>
           </div>
 
-          <div class="flex-1 min-h-0 overflow-x-auto overflow-y-auto px-4 sm:px-6 lg:px-10 pt-4">
+          <div class="flex-1 min-h-0 overflow-x-auto overflow-y-auto px-4 sm:px-6 lg:px-10 md:pr-10 pt-4">
             <p v-if="loadError" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {{ loadError }}
             </p>
@@ -968,7 +1060,7 @@ const confirmDeleteRecord = async () => {
             </table>
           </div>
 
-          <div class="px-4 sm:px-6 lg:px-10 py-5 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-semibold text-slate-500 mt-auto rounded-b-3xl">
+          <div class="px-4 sm:px-6 lg:px-10 md:pr-10 py-5 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-semibold text-slate-500 mt-auto rounded-b-3xl">
             <div class="flex items-center gap-3">
               <span>Filas por páginas</span>
               <div class="relative">
@@ -1054,42 +1146,33 @@ const confirmDeleteRecord = async () => {
                           :key="week"
                           class="text-center px-3 py-2 border border-slate-200 font-semibold min-w-[90px]"
                         >
-                          Sab/Dom
+                          Fecha
                         </th>
+                        <th class="text-left px-3 py-2 border border-slate-200 font-semibold min-w-[120px]">Observación</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr v-for="itemName in section.itemNames" :key="itemName" class="hover:bg-slate-50">
                         <td class="px-3 py-2 border border-slate-200 text-slate-700 font-medium">{{ itemName }}</td>
                         <td
-                          v-for="week in section.weekIndices"
-                          :key="week"
+                          v-for="w in section.weekIndices"
+                          :key="w"
                           class="px-2 py-2 border border-slate-200 text-center"
                         >
-                          <!-- status === 'Si' → green check -->
                           <span
-                            v-if="section.pivot[itemName]?.[week] === 'Si'"
+                            v-if="section.pivot[itemName]?.[w] === 'Si'"
                             class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500 text-white"
                           >
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                           </span>
-                          <!-- status === 'Bueno' → green badge -->
-                          <span
-                            v-else-if="section.pivot[itemName]?.[week] === 'Bueno'"
-                            class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700"
-                          >Bueno</span>
-                          <!-- status === 'Regular' → amber badge -->
-                          <span
-                            v-else-if="section.pivot[itemName]?.[week] === 'Regular'"
-                            class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700"
-                          >Regular</span>
-                          <!-- status === 'Malo' → red badge -->
-                          <span
-                            v-else-if="section.pivot[itemName]?.[week] === 'Malo'"
-                            class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700"
-                          >Malo</span>
-                          <!-- no data -->
-                          <span v-else class="inline-flex items-center justify-center w-6 h-6 rounded-lg text-red-600 font-bold bg-red-50 text-[10px]">X</span>
+                          <span v-else-if="section.pivot[itemName]?.[w] === 'Bueno'" class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">Bueno</span>
+                          <span v-else-if="section.pivot[itemName]?.[w] === 'Regular'" class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">Regular</span>
+                          <span v-else-if="section.pivot[itemName]?.[w] === 'Malo'" class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">Malo</span>
+                          <span v-else-if="section.pivot[itemName]?.[w] === ''" class="inline-flex items-center justify-center w-6 h-6 rounded-lg text-red-600 font-bold bg-red-50 text-[10px]">X</span>
+                          <span v-else class="inline-flex items-center justify-center w-6 h-6 rounded-lg text-gray-400 font-bold bg-gray-50 text-[10px]">-</span>
+                        </td>
+                        <td class="px-2 py-2 border border-slate-200 text-left text-slate-500 italic text-[10px]">
+                          {{ section.pivot[itemName]?.observaciones?.[1] || section.pivot[itemName]?.observaciones?.[2] || section.pivot[itemName]?.observaciones?.[3] || section.pivot[itemName]?.observaciones?.[4] || section.pivot[itemName]?.observaciones?.[5] || '—' }}
                         </td>
                       </tr>
                     </tbody>
@@ -1358,6 +1441,60 @@ const confirmDeleteRecord = async () => {
               </button>
               <button @click="closeDeleteModal" :disabled="isDeleting" class="w-full inline-flex justify-center rounded-xl bg-slate-100 px-4 py-2 font-bold text-slate-700 shadow-sm hover:bg-slate-200 focus:outline-none transition-colors">
                 Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ═══════════ MODAL RESULTADO ELIMINAR ═══════════ -->
+    <Teleport to="body">
+      <div v-if="deleteResultModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200">
+          <div class="p-6 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4" :class="deleteResultModal.success ? 'bg-green-100' : 'bg-red-100'">
+              <svg v-if="deleteResultModal.success" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+              </svg>
+              <svg v-else class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-2">
+              {{ deleteResultModal.success ? 'Eliminado con éxito' : 'Error al eliminar' }}
+            </h3>
+            <p class="text-sm text-slate-500 mb-6">
+              {{ deleteResultModal.message }}
+            </p>
+            <div class="flex flex-col gap-2">
+              <button @click="deleteResultModal.open = false" class="w-full inline-flex justify-center rounded-xl px-4 py-2 font-bold transition-colors"
+                      :class="deleteResultModal.success ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-slate-600 hover:bg-slate-700 text-white'">
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ═══════════ MODAL CHECKLIST GUARDADO ═══════════ -->
+    <Teleport to="body">
+      <div v-if="checklistSavedModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200">
+          <div class="p-6 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4 bg-green-100">
+              <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-2">Cambios guardados con éxito</h3>
+            <p class="text-sm text-slate-500 mb-6">
+              El checklist del conductor ha sido modificado correctamente.
+            </p>
+            <div class="flex flex-col gap-2">
+              <button @click="checklistSavedModal.open = false" class="w-full inline-flex justify-center rounded-xl px-4 py-2 font-bold bg-green-600 hover:bg-green-700 text-white transition-colors">
+                Aceptar
               </button>
             </div>
           </div>

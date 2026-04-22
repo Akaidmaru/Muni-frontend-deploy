@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
@@ -27,25 +27,23 @@ const mesesAnio = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio
 
 const currentDateStr = ref(new Date().toISOString().slice(0, 7)); // YYYY-MM
 
-const getWeekendColumnCount = (monthStr) => {
-  const [year, month] = String(monthStr || '').split('-').map(Number)
-  if (!year || !month) return 5
-
-  const daysInMonth = new Date(year, month, 0).getDate()
-  let saturdayCount = 0
-
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    const weekday = new Date(year, month - 1, day).getDay()
-    if (weekday === 6) saturdayCount += 1
-  }
-
-  // Un mes tendrá 4 o 5 pares Sab/Dom.
-  return Math.max(5, Math.min(4, saturdayCount))
-}
+const getWeekendColumnCount = (monthStr) => 5
 
 const weekendColumns = computed(() =>
-  Array.from({ length: getWeekendColumnCount(currentDateStr.value) }, (_, idx) => `Sab/Dom_${idx + 1}`),
+  Array.from({ length: getWeekendColumnCount(currentDateStr.value) }, (_, idx) => `Semana_${idx + 1}`),
 )
+
+const weekendDates = ref({
+  Semana_1: '',
+  Semana_2: '',
+  Semana_3: '',
+  Semana_4: '',
+  Semana_5: '',
+})
+
+const updateWeekendDate = (col, value) => {
+  weekendDates.value[col] = value
+}
 
 const createEmptySanitizationRows = () =>
   Array.from({ length: weekendColumns.value.length }, () => ({
@@ -267,9 +265,10 @@ const loadTruckData = async (truckId) => {
           const dbItem = byWeekAndCode.get(keyMonthly) || (keyLegacy ? byWeekAndCode.get(keyLegacy) : null)
           if (!dbItem) return
 
-          const dayName = `Sab/Dom_${weekIndex}`
+          const dayName = `Semana_${weekIndex}`
           if (registros.value[section][itemName] && dayName in registros.value[section][itemName]) {
             registros.value[section][itemName][dayName] = dbItem.status || '-'
+            registros.value[section][itemName].observacion = dbItem.notes || ''
           }
         })
       })
@@ -342,21 +341,26 @@ const guardarFormulario = async () => {
   const pushSectionItems = (items, section) => {
     items.forEach((itemName) => {
       const code = getMonthlyItemCode(itemName)
+      const observacion = registros.value[section]?.[itemName]?.observacion || ''
 
       weekendColumns.value.forEach((_, idx) => {
         const weekIndex = idx + 1
-        const dayName = `Sab/Dom_${weekIndex}`
+        const dayName = `Semana_${weekIndex}`
         const status = registros.value[section]?.[itemName]?.[dayName]
-        if (!status) return
+
+        if (!status && !observacion) return
 
         monthlyMaintenanceItems.push({
           weekIndex,
           itemCode: code,
           itemName,
           category: resolveCategoryByItemName(itemName),
-          status,
-          notes: registros.value[section]?.[itemName]?.observacion || '',
+          status: status || '',
+          notes: observacion,
         })
+        if (observacion) {
+          console.log('Saving obs:', weekIndex, itemName, observacion)
+        }
       })
     })
   }
@@ -455,7 +459,7 @@ onMounted(async () => {
     <div class="flex flex-1 overflow-hidden">
       <DashboardSidebar />
       
-      <main class="flex-1 py-4 px-4 sm:pt-6 sm:pb-10 sm:px-6 overflow-y-auto overflow-x-hidden bg-slate-50 min-w-0">
+      <main class="flex-1 py-4 pl-14 pr-4 sm:pt-6 sm:pb-10 sm:pr-6 overflow-y-auto overflow-x-hidden bg-slate-50 min-w-0">
         <div class="max-w-6xl mx-auto mb-3 pl-10 sm:pl-12">
           <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -557,8 +561,15 @@ onMounted(async () => {
                 <thead class="bg-slate-50 border-b border-slate-300 text-slate-700 font-bold">
                   <tr>
                     <th class="p-3 border-r border-slate-300 w-1/4">Descripción</th>
-                    <th v-for="dia in weekendColumns" :key="dia" class="p-3 border-r border-slate-300 w-[10%]">{{ dia.split('_')[0] }}</th>
-                    <th class="p-3 w-1/4">Observación</th>
+                    <th v-for="dia in weekendColumns" :key="dia" class="p-2 border-r border-slate-300 w-[15%]">
+                        <input 
+                          type="date"
+                          v-model="weekendDates[dia]"
+                          class="w-full text-center text-xs bg-transparent border-none focus:ring-0 font-bold"
+                          :disabled="isReadOnly"
+                        />
+                      </th>
+                      <th class="p-3 w-1/4">Observación</th>
                   </tr>
                 </thead>
                 <tbody class="text-slate-600 bg-white">

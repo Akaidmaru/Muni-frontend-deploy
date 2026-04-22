@@ -33,7 +33,7 @@ const navigateTo = (route) => {
     </div>
 
     <!-- Main Wrapper -->
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex h-screen overflow-hidden">
       <DashboardSidebar />
 
       <!-- Main Content -->

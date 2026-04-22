@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import logoCompleto from "@/assets/images/Logo-completo.png";
@@ -463,11 +463,11 @@ const resetPlateSelectionState = () => {
 
 const goBackFromMaintenance = () => {
   if (sourceFromRoute.value === "admin-maintenance-monthly-history") {
-    router.push({ name: "admin-maintenance-monthly-history" });
+    router.push({ name: "admin-maintenance-monthly-history", query: { saved: 'true' } });
     return;
   }
   if (sourceFromRoute.value === "admin-maintenance-daily") {
-    router.push({ name: "admin-maintenance-daily" });
+    router.push({ name: "admin-maintenance-daily", query: { saved: 'true' } });
     return;
   }
 
@@ -732,9 +732,9 @@ const saveMaintenanceForm = async () => {
       ? "Formulario de mantenimiento actualizado correctamente."
       : "Formulario de mantenimiento guardado correctamente.";
     if (sourceFromRoute.value === "admin-maintenance-monthly-history") {
-      router.push({ name: "admin-maintenance-monthly-history" });
+      router.push({ name: "admin-maintenance-monthly-history", query: { saved: 'true' } });
     } else if (sourceFromRoute.value === "admin-maintenance-daily") {
-      router.push({ name: "admin-maintenance-daily" });
+      router.push({ name: "admin-maintenance-daily", query: { saved: 'true' } });
     } else {
       router.push({
         name: 'daily-registration-driver',

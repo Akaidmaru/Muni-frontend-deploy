@@ -98,7 +98,7 @@ onMounted(loadReport)
 
     <div class="flex flex-1 min-h-0 overflow-hidden relative justify-center">
       <!-- Main Content Area -->
-      <main class="flex-1 p-6 overflow-y-auto">
+      <main class="flex-1 p-6 md:ml-4 overflow-y-auto">
         <div class="mb-4 pl-10 sm:pl-12">
           <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>

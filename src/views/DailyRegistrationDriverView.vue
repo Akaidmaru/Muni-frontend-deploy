@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import logoCompleto from "@/assets/images/Logo-completo.png";
@@ -61,7 +61,7 @@ const loadEmployees = async () => {
   employeesError.value = "";
 
   try {
-    const { data } = await api.get("/employees");
+    const { data } = await api.get("/users", { params: { role: 'employee' } });
 
     employees.value = Array.isArray(data)
       ? data

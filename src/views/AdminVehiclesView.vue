@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
@@ -343,7 +343,7 @@ onMounted(() => {
     <div class="flex flex-1 overflow-hidden min-w-0">
       <DashboardSidebar />
 
-      <main class="flex-1 pt-4 pb-10 px-3 sm:px-6 lg:px-8 overflow-hidden flex flex-col min-w-0">
+      <main class="flex-1 pt-4 pb-10 pl-14 pr-3 sm:pr-6 lg:pr-8 overflow-hidden flex flex-col min-w-0">
         <div class="mb-3 pl-10 sm:pl-12 shrink-0">
           <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -379,7 +379,7 @@ onMounted(() => {
                </div>
             </div>
 
-            <div class="flex-1 w-full overflow-x-auto overflow-y-auto px-3 sm:px-6 md:px-10 relative pb-6 min-w-0 custom-scrollbar">
+            <div class="flex-1 w-full overflow-x-auto overflow-y-auto px-3 sm:px-6 md:px-10 md:pr-10 relative pb-6 min-w-0 custom-scrollbar">
               <table class="w-full text-sm border-collapse min-w-[1000px]">
                 <thead class="bg-white sticky top-0 z-10 shadow-sm border-b border-gray-100">
                   <tr>
@@ -509,7 +509,7 @@ onMounted(() => {
               </table>
             </div>
 
-            <div class="px-3 sm:px-6 md:px-10 py-4 sm:py-5 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-semibold text-slate-500 border-t border-gray-100 mt-auto rounded-b-3xl">
+            <div class="px-3 sm:px-6 md:px-10 md:pr-10 py-4 sm:py-5 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-semibold text-slate-500 border-t border-gray-100 mt-auto rounded-b-3xl">
               <div class="flex items-center gap-3">
                 <span>Filas por páginas</span>
                 <div class="relative">
@@ -537,15 +537,13 @@ onMounted(() => {
           <div v-if="isFilterOpen" class="fixed inset-0 bg-black/30 z-40 sm:hidden" @click="isFilterOpen = false" />
 
           <Transition name="slide">
-            <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[88px] z-50 sm:fixed md:relative md:inset-x-auto md:bottom-auto md:top-0 md:z-20 md:w-[22rem] md:self-start md:mt-0 md:max-h-[calc(100vh-220px)] bg-[#EBEBEB] md:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 md:shrink-0 overflow-y-auto">
-              <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent sm:hidden">
-                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                   <line x1="8" y1="5" x2="8" y2="19"></line>
-                   <line x1="16" y1="5" x2="16" y2="19"></line>
-                   <line x1="5" y1="10" x2="11" y2="10"></line>
-                   <line x1="13" y1="14" x2="19" y2="14"></line>
-                 </svg>
-              </button>
+            <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-auto top-[88px] max-h-[calc(100vh-120px)] z-50 sm:fixed md:relative md:inset-x-auto md:bottom-auto md:top-0 md:z-20 md:w-[22rem] md:self-start md:mt-0 md:max-h-[calc(100vh-220px)] bg-[#EBEBEB] md:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 md:shrink-0 overflow-y-auto">
+<button @click="isFilterOpen = false" class="absolute right-4 top-4 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent sm:hidden z-10">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+               </button>
   
               <div class="flex flex-col gap-4 mb-6 mt-2 relative">
                 <div class="flex justify-center items-center">
@@ -677,6 +675,7 @@ onMounted(() => {
                 <select v-model="formEdit.circulationPermitStatus" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary cursor-pointer hover:border-gray-400">
                   <option value="No tiene">No tiene</option>
                   <option value="Vigente">Vigente</option>
+                  <option value="Por vencer">Por vencer</option>
                   <option value="Vencido">Vencido</option>
                 </select>
                 <div class="relative w-full overflow-hidden transition-all duration-300" :class="formEdit.circulationPermitStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
@@ -689,6 +688,7 @@ onMounted(() => {
                 <select v-model="formEdit.technicalReviewStatus" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary cursor-pointer hover:border-gray-400">
                   <option value="No tiene">No tiene</option>
                   <option value="Vigente">Vigente</option>
+                  <option value="Por vencer">Por vencer</option>
                   <option value="Vencido">Vencido</option>
                 </select>
                 <div class="relative w-full overflow-hidden transition-all duration-300" :class="formEdit.technicalReviewStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
@@ -701,6 +701,7 @@ onMounted(() => {
                 <select v-model="formEdit.emissionsStatus" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary cursor-pointer hover:border-gray-400">
                   <option value="No tiene">No tiene</option>
                   <option value="Vigente">Vigente</option>
+                  <option value="Por vencer">Por vencer</option>
                   <option value="Vencido">Vencido</option>
                 </select>
                 <div class="relative w-full overflow-hidden transition-all duration-300" :class="formEdit.emissionsStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
@@ -713,6 +714,7 @@ onMounted(() => {
                 <select v-model="formEdit.insuranceStatus" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary cursor-pointer hover:border-gray-400">
                   <option value="No tiene">No tiene</option>
                   <option value="Vigente">Vigente</option>
+                  <option value="Por vencer">Por vencer</option>
                   <option value="Vencido">Vencido</option>
                 </select>
                 <div class="relative w-full overflow-hidden transition-all duration-300" :class="formEdit.insuranceStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
@@ -797,6 +799,7 @@ onMounted(() => {
                 <select v-model="formAdd.circulationPermitStatus" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 cursor-pointer hover:border-gray-400">
                   <option value="No tiene">No tiene</option>
                   <option value="Vigente">Vigente</option>
+                  <option value="Por vencer">Por vencer</option>
                   <option value="Vencido">Vencido</option>
                 </select>
                 <div class="relative w-full overflow-hidden transition-all duration-300" :class="formAdd.circulationPermitStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
@@ -808,6 +811,7 @@ onMounted(() => {
                 <select v-model="formAdd.technicalReviewStatus" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 cursor-pointer hover:border-gray-400">
                   <option value="No tiene">No tiene</option>
                   <option value="Vigente">Vigente</option>
+                  <option value="Por vencer">Por vencer</option>
                   <option value="Vencido">Vencido</option>
                 </select>
                 <div class="relative w-full overflow-hidden transition-all duration-300" :class="formAdd.technicalReviewStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
@@ -819,6 +823,7 @@ onMounted(() => {
                 <select v-model="formAdd.emissionsStatus" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 cursor-pointer hover:border-gray-400">
                   <option value="No tiene">No tiene</option>
                   <option value="Vigente">Vigente</option>
+                  <option value="Por vencer">Por vencer</option>
                   <option value="Vencido">Vencido</option>
                 </select>
                 <div class="relative w-full overflow-hidden transition-all duration-300" :class="formAdd.emissionsStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
@@ -830,6 +835,7 @@ onMounted(() => {
                 <select v-model="formAdd.insuranceStatus" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 cursor-pointer hover:border-gray-400">
                   <option value="No tiene">No tiene</option>
                   <option value="Vigente">Vigente</option>
+                  <option value="Por vencer">Por vencer</option>
                   <option value="Vencido">Vencido</option>
                 </select>
                 <div class="relative w-full overflow-hidden transition-all duration-300" :class="formAdd.insuranceStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">

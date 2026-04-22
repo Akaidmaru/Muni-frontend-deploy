@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
