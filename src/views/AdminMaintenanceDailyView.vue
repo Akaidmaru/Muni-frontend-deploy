@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
@@ -922,9 +922,9 @@ const exportChecklistPDF = async (record) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
+  <div class="h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden bg-background flex flex-col">
     <!-- Navbar -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
+    <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
@@ -933,17 +933,17 @@ const exportChecklistPDF = async (record) => {
       </div>
     </div>
 
-    <div class="flex flex-1 overflow-hidden min-w-0">
+    <div class="flex flex-1 min-h-0 overflow-hidden min-w-0">
       <DashboardSidebar />
 
-      <main class="flex-1 pt-4 pb-10 pl-14 pr-3 overflow-hidden flex flex-col min-w-0">
-        <div class="w-full mb-3 pl-10 sm:pl-12 shrink-0">
+      <main class="flex-1 min-h-0 min-w-0 pt-4 pb-10 pl-4 pr-3 overflow-y-auto overscroll-y-contain flex flex-col [-webkit-overflow-scrolling:touch]">
+        <div class="w-full mb-3 pl-0 shrink-0">
           <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Volver
           </button>
         </div>
-        <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden w-full">
+        <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm w-full flex min-h-0 flex-1 flex-col overflow-hidden max-md:flex-none max-md:overflow-visible">
 
           <!-- Título -->
           <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-6 pb-6 flex flex-col lg:flex-row items-start justify-between gap-6">
@@ -1009,6 +1009,8 @@ const exportChecklistPDF = async (record) => {
         <p class="text-[11px] text-slate-600 leading-snug">Registros sin revisar</p>
       </div>
     </div>
+    </div>
+  </div>
 
 <Teleport to="body">
       <div v-if="deleteModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
@@ -1091,9 +1093,6 @@ const exportChecklistPDF = async (record) => {
       </div>
     </Teleport>
 
-  </div>
-</div>
-
           <!-- Error de carga -->
           <div v-if="recordsError" class="mx-4 sm:mx-6 lg:mx-10 mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
             {{ recordsError }}
@@ -1142,7 +1141,7 @@ const exportChecklistPDF = async (record) => {
           <!-- Tabla -->
           <div
             ref="tableScrollRef"
-            class="flex-1 min-h-0 overflow-x-auto overflow-y-auto px-4 sm:px-6 lg:px-10 md:pr-10 cursor-grab active:cursor-grabbing"
+            class="custom-scrollbar min-h-0 flex-1 overflow-x-auto overflow-y-auto max-md:min-h-0 max-md:flex-none max-md:overflow-y-visible px-4 sm:px-6 lg:px-10 md:pr-10 cursor-grab active:cursor-grabbing"
             @mousedown="onTableMouseDown"
           >
             <table class="w-full text-sm" style="border-collapse: collapse;">
@@ -1597,3 +1596,20 @@ const exportChecklistPDF = async (record) => {
   </Teleport>
 
 </template>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+</style>

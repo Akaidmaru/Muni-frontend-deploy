@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
@@ -165,9 +165,9 @@ onMounted(() => { loadUsers() })
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
+  <div class="h-screen min-h-0 overflow-hidden bg-background flex flex-col">
     <!-- ── Encabezado ── -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
+    <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
@@ -176,12 +176,12 @@ onMounted(() => { loadUsers() })
       </div>
     </div>
 
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 py-6 px-4 md:px-8 overflow-y-auto flex items-start justify-center">
+      <main class="flex-1 min-h-0 py-6 pl-3 pr-4 md:pl-4 md:pr-8 overflow-y-auto flex items-start justify-center">
         <div class="w-full max-w-6xl">
-          <div class="mb-4 pl-10 sm:pl-12">
+          <div class="mb-4 pl-0">
             <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
               <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
               Volver

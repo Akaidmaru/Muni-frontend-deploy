@@ -875,8 +875,8 @@ const confirmDeleteRecord = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
-    <div class="bg-white shadow-sm border-b border-gray-200">
+  <div class="h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden bg-background flex flex-col">
+    <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
@@ -885,17 +885,17 @@ const confirmDeleteRecord = async () => {
       </div>
     </div>
 
-    <div class="flex flex-1 overflow-hidden min-w-0">
+    <div class="flex flex-1 min-h-0 overflow-hidden min-w-0">
       <DashboardSidebar />
 
-      <main class="flex-1 pt-4 pb-10 pl-14 pr-4 overflow-hidden flex flex-col min-w-0">
+      <main class="flex-1 min-h-0 min-w-0 pt-4 pb-10 pl-4 pr-4 overflow-y-auto overscroll-y-contain flex flex-col [-webkit-overflow-scrolling:touch]">
         <div class="w-full mb-3 shrink-0">
           <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Volver
           </button>
         </div>
-        <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden w-full">
+        <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm w-full flex min-h-0 flex-1 flex-col overflow-hidden max-md:flex-none max-md:overflow-visible">
             <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-6 lg:pt-10 pb-6 flex flex-col lg:flex-row items-start justify-between gap-6">
     <h1 class="text-2xl md:text-3xl font-titles font-extrabold text-slate-900 leading-tight">
       Historial de mantenimiento<br />vehicular mensual
@@ -994,7 +994,7 @@ const confirmDeleteRecord = async () => {
             </button>
           </div>
 
-          <div class="flex-1 min-h-0 overflow-x-auto overflow-y-auto px-4 sm:px-6 lg:px-10 md:pr-10 pt-4">
+          <div class="custom-scrollbar min-h-0 flex-1 overflow-x-auto overflow-y-auto max-md:min-h-0 max-md:flex-none max-md:overflow-y-visible px-4 sm:px-6 lg:px-10 md:pr-10 pt-4">
             <p v-if="loadError" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {{ loadError }}
             </p>
@@ -1509,5 +1509,21 @@ const confirmDeleteRecord = async () => {
 main::-webkit-scrollbar { width: 6px; }
 main::-webkit-scrollbar-track { background: transparent; }
 main::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+/* Misma pista que en Registro (Vehículos) para la tabla */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
 </style>
 

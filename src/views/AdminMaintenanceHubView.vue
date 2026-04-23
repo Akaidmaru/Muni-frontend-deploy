@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
@@ -10,23 +10,23 @@ import estadisticasIcon from '@/assets/images/Images admin nabvar left/stadistic
 const router = useRouter()
 
 const cards = [
-  { label: 'Mantenimiento vehicular diario',   icon: dailyMaintenanceIcon,   path: '/admin/mantencion-vehicular/diario'           },
-  { label: 'Mantenimiento vehicular mensual',  icon: monthlyMaintenanceIcon, path: '/admin/mantencion-vehicular/historial-mensual' },
+  { label: 'Mantenciones diarias', icon: dailyMaintenanceIcon, path: '/admin/mantencion-vehicular/diario' },
+  { label: 'Mantenciones mensuales', icon: monthlyMaintenanceIcon, path: '/admin/mantencion-vehicular/historial-mensual' },
 ]
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-100 flex flex-col">
-    <header class="bg-white shadow-sm border-b border-gray-200 px-4 py-4 flex items-center justify-between sticky top-0 z-40">
+  <div class="h-screen min-h-0 overflow-hidden bg-gray-100 flex flex-col">
+    <header class="shrink-0 bg-white shadow-sm border-b border-gray-200 px-4 py-4 flex items-center justify-between z-40">
       <router-link to="/"><img :src="logoCompleto" alt="Logo" class="h-16 w-auto object-contain" /></router-link>
       <UserMenu />
     </header>
 
-    <div class="flex h-screen overflow-hidden">
+    <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 flex flex-col pl-14 pr-6 pt-8 pb-10">
-        <div class="pl-10 sm:pl-12 mb-6">
+      <main class="flex-1 min-h-0 flex flex-col pl-4 pr-6 pt-8 pb-10 overflow-y-auto">
+        <div class="pl-0 mb-6">
           <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors py-1">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Volver

@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, onMounted, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import logoCompleto from "@/assets/images/Logo-completo.png";
@@ -1098,9 +1098,9 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
+  <div class="h-screen min-h-0 overflow-hidden bg-background flex flex-col">
     <!-- Header -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
+    <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
           <img
@@ -1115,10 +1115,10 @@ onMounted(async () => {
     </div>
 
     <!-- Body -->
-    <div class="flex flex-1">
+    <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 py-6 px-4 sm:py-10 sm:px-6 overflow-y-auto overflow-x-hidden flex items-start justify-center">
+      <main class="flex-1 min-h-0 py-6 pl-3 pr-4 sm:py-10 sm:pl-3 sm:pr-6 overflow-y-auto overflow-x-hidden flex items-start justify-center">
 
         <!-- PASO 1 â€“ Seleccionar patente        -->
 

@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, nextTick, onMounted } from "vue";
 import logoCompleto from "@/assets/images/Logo-completo.png";
 import DashboardSidebar from "@/components/DashboardSidebar.vue";
@@ -359,9 +359,9 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
+  <div class="h-screen min-h-0 overflow-hidden bg-background flex flex-col">
     <!-- Header -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
+    <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
           <img
@@ -376,10 +376,10 @@ onMounted(() => {
     </div>
 
     <!-- Body -->
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 py-10 px-6 overflow-hidden flex items-start justify-center">
+      <main class="flex-1 min-h-0 py-10 pl-3 pr-6 overflow-y-auto flex items-start justify-center">
         <div class="flex gap-6 w-full max-w-5xl h-full min-h-0">
           <div
             class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm overflow-hidden flex-1 flex flex-col"

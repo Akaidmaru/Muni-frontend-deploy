@@ -1,6 +1,7 @@
-﻿<script setup>
-import { ref, computed, onMounted } from 'vue'
+<script setup>
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useSidebarStore } from '@/stores/sidebar'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
@@ -14,6 +15,13 @@ const searchQuery = ref('')
 const filterPatente = ref('')
 const filterModelo = ref('')
 const isFilterOpen = ref(false)
+const sidebarStore = useSidebarStore()
+watch(isFilterOpen, (v) => {
+  sidebarStore.setMobileFiltersOverlayOpen(!!v)
+}, { immediate: true })
+onUnmounted(() => {
+  sidebarStore.setMobileFiltersOverlayOpen(false)
+})
 
 const itemsPerPage = ref(100)
 const currentPage = ref(1)
@@ -330,8 +338,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col font-sans">
-    <div class="bg-white shadow-sm border-b border-gray-200">
+  <div class="h-screen min-h-0 overflow-hidden bg-background flex flex-col font-sans">
+    <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
@@ -340,11 +348,11 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="flex flex-1 overflow-hidden min-w-0">
+    <div class="flex flex-1 min-h-0 overflow-hidden min-w-0">
       <DashboardSidebar />
 
-      <main class="flex-1 pt-4 pb-10 pl-14 pr-3 sm:pr-6 lg:pr-8 overflow-hidden flex flex-col min-w-0">
-        <div class="mb-3 pl-10 sm:pl-12 shrink-0">
+      <main class="flex-1 min-h-0 pt-4 pb-10 pl-4 pr-3 sm:pr-6 lg:pr-8 overflow-y-auto flex flex-col min-w-0">
+        <div class="mb-3 pl-0 shrink-0">
           <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Volver
@@ -361,8 +369,14 @@ onMounted(() => {
                <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center order-1 md:absolute md:left-1/2 md:-translate-x-1/2">Administración de Vehículos</h1>
 
                <div class="order-2 flex items-center gap-2 md:absolute md:right-4 md:top-6 lg:right-8">
-                 <button @click="openAddModal" class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow transition-colors">
-                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                 <button
+                   @click="openAddModal"
+                   class="flex items-center gap-2 bg-[#0B2545] hover:bg-[#133A6D] text-white text-xs font-bold px-4 py-2.5 rounded-lg transition-all hover:-translate-y-0.5 active:scale-95 shadow-sm"
+                 >
+                   <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                     <line x1="12" y1="5" x2="12" y2="19"></line>
+                     <line x1="5" y1="12" x2="19" y2="12"></line>
+                   </svg>
                    Añadir patente
                  </button>
                  <button
@@ -414,8 +428,8 @@ onMounted(() => {
                         <div class="flex -space-x-2">
                           <template v-if="vehicle.users && vehicle.users.length > 0">
                             <div v-for="(assignment, i) in vehicle.users.slice(0, 3)" :key="assignment.userId" 
-                                 class="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold text-white bg-blue-500 z-10 hover:z-20 transition-all"
-                                 :class="i === 1 ? 'bg-cyan-500' : i === 2 ? 'bg-indigo-500' : ''"
+                                 class="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold text-white z-10 hover:z-20 transition-all"
+                                 :class="i === 0 ? 'bg-[#0B2545]' : i === 1 ? 'bg-[#133A6D]' : 'bg-[#1a4d80]'"
                                  :title="assignment.user?.name || assignment.user?.email">
                               {{ getInitials(assignment.user?.name, assignment.user?.email) }}
                             </div>
@@ -537,18 +551,27 @@ onMounted(() => {
           <div v-if="isFilterOpen" class="fixed inset-0 bg-black/30 z-40 sm:hidden" @click="isFilterOpen = false" />
 
           <Transition name="slide">
-            <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-auto top-[88px] max-h-[calc(100vh-120px)] z-50 sm:fixed md:relative md:inset-x-auto md:bottom-auto md:top-0 md:z-20 md:w-[22rem] md:self-start md:mt-0 md:max-h-[calc(100vh-220px)] bg-[#EBEBEB] md:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 md:shrink-0 overflow-y-auto">
-<button @click="isFilterOpen = false" class="absolute right-4 top-4 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent sm:hidden z-10">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
+            <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[88px] z-50 sm:fixed md:relative md:inset-x-auto md:bottom-auto md:top-0 md:max-h-[calc(100vh-220px)] md:w-[22rem] md:self-start md:mt-0 md:z-20 bg-[#EBEBEB] md:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 md:shrink-0 overflow-y-auto">
+              <div class="relative flex w-full min-h-[2.5rem] items-center mb-2">
+                <div class="w-10 shrink-0 sm:w-0 sm:min-w-0" aria-hidden="true" />
+                <h2 class="text-2xl font-titles font-extrabold text-[#1b2533] flex-1 text-center">Filtros</h2>
+                <button
+                  type="button"
+                  @click.stop="isFilterOpen = false"
+                  class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-700 sm:hidden touch-manipulation hover:bg-black/[0.06] active:bg-black/10"
+                  title="Cerrar filtros"
+                  aria-label="Cerrar filtros"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="8" y1="5" x2="8" y2="19"></line>
+                    <line x1="16" y1="5" x2="16" y2="19"></line>
+                    <line x1="5" y1="10" x2="11" y2="10"></line>
+                    <line x1="13" y1="14" x2="19" y2="14"></line>
                   </svg>
-               </button>
-  
-              <div class="flex flex-col gap-4 mb-6 mt-2 relative">
-                <div class="flex justify-center items-center">
-                  <h2 class="text-2xl font-titles font-extrabold text-[#1b2533]">Filtros</h2>
-                </div>
+                </button>
+              </div>
+
+              <div class="flex flex-col gap-4 mb-6 relative">
 
                 <!-- Chips de Filtros Activos -->
                 <div v-if="activeFilterChips.length > 0" class="flex flex-wrap items-center gap-2 bg-gray-100/50 p-3 rounded-[1.5rem] border border-gray-200">
@@ -574,14 +597,14 @@ onMounted(() => {
                 <div class="flex flex-col relative w-full">
                   <div class="z-10 bg-[#DADBDB] w-fit px-1 absolute -top-2 left-2 text-[10px] text-gray-500 font-bold ml-1 mb-0.5">Desde</div>
                   <div class="relative w-full">
-                    <input type="date" v-model="filterDesde" class="text-[11px] px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
+                    <input type="date" v-model="filterDesde" class="text-[11px] px-3 py-2.5 pr-10 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
                     <svg width="14" height="14" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                   </div>
                 </div>
                 <div class="flex flex-col relative w-full">
                   <div class="text-[10px] text-gray-500 font-bold ml-1 mb-0.5 z-10 bg-[#DADBDB] w-fit px-1 absolute -top-2 left-2">Hasta</div>
                   <div class="relative w-full">
-                    <input type="date" v-model="filterHasta" class="text-[11px] px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
+                    <input type="date" v-model="filterHasta" class="text-[11px] px-3 py-2.5 pr-10 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
                     <svg width="14" height="14" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                   </div>
                 </div>

@@ -1,6 +1,7 @@
-﻿<script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+<script setup>
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useSidebarStore } from '@/stores/sidebar'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
@@ -20,6 +21,13 @@ const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
 const isFilterOpen = ref(false)
+const sidebarStore = useSidebarStore()
+watch(isFilterOpen, (v) => {
+  sidebarStore.setMobileFiltersOverlayOpen(!!v)
+}, { immediate: true })
+onUnmounted(() => {
+  sidebarStore.setMobileFiltersOverlayOpen(false)
+})
 
 const clearFilters = () => {
   searchQuery.value = ''
@@ -235,19 +243,19 @@ onMounted(loadDestinations)
 </script>
 
 <template>
-  <div class="min-h-screen bg-background font-sans flex flex-col">
+  <div class="h-screen min-h-0 overflow-hidden bg-background font-sans flex flex-col">
     <!-- Header -->
-    <header class="bg-white shadow-sm border-b border-gray-200 px-4 py-4 flex items-center justify-between sticky top-0 z-40">
+    <header class="shrink-0 bg-white shadow-sm border-b border-gray-200 px-4 py-4 flex items-center justify-between z-40">
       <router-link to="/"><img :src="logoCompleto" alt="Logo" class="h-16 w-auto object-contain" /></router-link>
       <UserMenu />
     </header>
 
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 pl-14 pr-4 pt-4 pb-8 overflow-hidden flex flex-col min-w-0">
+      <main class="flex-1 min-h-0 pl-4 pr-4 pt-4 pb-8 overflow-y-auto flex flex-col min-w-0">
         <!-- Volver -->
-        <div v-if="!selectedLocationForMap" class="w-full max-w-full mb-3 pl-10 sm:pl-12 shrink-0">
+        <div v-if="!selectedLocationForMap" class="w-full max-w-full mb-3 pl-0 shrink-0">
           <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Volver
@@ -263,7 +271,7 @@ onMounted(loadDestinations)
             <!-- Header Tabla -->
             <div class="shrink-0 px-4 sm:px-8 md:pr-10 pt-5 pb-4 sm:pb-6">
               <div class="relative flex flex-col items-center gap-3 sm:block">
-                <h1 class="text-2xl sm:text-3xl font-titles font-bold text-text-title text-center sm:py-2">Administración de Destinos</h1>
+                <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center sm:py-2">Administración de Destinos</h1>
                 <div class="flex items-center gap-3 sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2">
                   <button
                     @click="openCreateModal"
@@ -424,19 +432,28 @@ onMounted(loadDestinations)
           <!-- Filtros -->
           <div v-if="isFilterOpen" class="fixed inset-0 bg-black/30 z-40 sm:hidden" @click="isFilterOpen = false" />
           <Transition name="slide">
-            <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[88px] z-50 sm:fixed md:relative md:inset-x-auto md:bottom-auto md:top-0 md:z-20 md:w-[22rem] md:self-start md:mt-0 md:max-h-[calc(100vh-220px)] bg-[#EBEBEB] md:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 md:shrink-0 overflow-y-auto">
-              <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent sm:hidden">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="8" y1="5" x2="8" y2="19"></line>
-                  <line x1="16" y1="5" x2="16" y2="19"></line>
-                  <line x1="5" y1="10" x2="11" y2="10"></line>
-                  <line x1="13" y1="14" x2="19" y2="14"></line>
-                </svg>
-              </button>
-
+            <div
+              v-show="isFilterOpen"
+              class="fixed inset-x-0 bottom-0 top-[88px] z-50 sm:fixed md:relative md:inset-x-auto md:bottom-auto md:top-0 md:z-20 md:w-[22rem] md:self-start md:mt-0 md:max-h-[calc(100vh-220px)] bg-[#EBEBEB] md:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 md:shrink-0 overflow-y-auto"
+            >
               <div class="flex flex-col gap-4 mb-6 mt-2 relative">
-                <div class="flex justify-center items-center">
-                  <h2 class="text-2xl font-titles font-extrabold text-[#1b2533]">Filtros</h2>
+                <div class="relative flex w-full min-h-[2.5rem] items-center">
+                  <div class="w-10 shrink-0 sm:w-0 sm:min-w-0" aria-hidden="true" />
+                  <h2 class="text-2xl font-titles font-extrabold text-[#1b2533] flex-1 text-center">Filtros</h2>
+                  <button
+                    type="button"
+                    @click.stop="isFilterOpen = false"
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-700 sm:hidden touch-manipulation hover:bg-black/[0.06] active:bg-black/10"
+                    title="Cerrar filtros"
+                    aria-label="Cerrar filtros"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <line x1="8" y1="5" x2="8" y2="19"></line>
+                      <line x1="16" y1="5" x2="16" y2="19"></line>
+                      <line x1="5" y1="10" x2="11" y2="10"></line>
+                      <line x1="13" y1="14" x2="19" y2="14"></line>
+                    </svg>
+                  </button>
                 </div>
                 <!-- Chips -->
                 <div v-if="activeFilterChips.length > 0" class="flex flex-wrap items-center gap-2 bg-gray-100/50 p-3 rounded-[1.5rem] border border-gray-200">

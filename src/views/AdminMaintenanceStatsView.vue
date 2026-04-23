@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import Chart from 'chart.js/auto'
@@ -384,20 +384,20 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-100 flex flex-col">
+  <div class="h-screen min-h-0 overflow-hidden bg-gray-100 flex flex-col">
     <!-- Header -->
-    <header class="bg-white shadow-sm border-b border-gray-200 px-4 py-4 flex items-center justify-between sticky top-0 z-40">
+    <header class="shrink-0 bg-white shadow-sm border-b border-gray-200 px-4 py-4 flex items-center justify-between z-40">
       <router-link to="/"><img :src="logoCompleto" alt="Logo" class="h-16 w-auto object-contain" /></router-link>
       <UserMenu />
     </header>
 
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 overflow-y-auto pl-14 pr-4 sm:pr-6 py-6">
+      <main class="flex-1 min-h-0 overflow-y-auto pl-4 pr-4 sm:pr-6 py-6">
 
         <!-- Volver + Título -->
-        <div class="mb-2 pl-10 sm:pl-12">
+        <div class="mb-2 pl-0">
           <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors py-1">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Volver

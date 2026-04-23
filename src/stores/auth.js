@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/services/axios'
+import { useSidebarStore } from '@/stores/sidebar'
 
 export const useAuthStore = defineStore('auth', () => {
     // ── State ──────────────────────────────────────────────────────────────
@@ -183,6 +184,7 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.removeItem('user')
         localStorage.removeItem('role')
         lastSessionSyncAt.value = 0
+        useSidebarStore().reset()
     }
 
     return {

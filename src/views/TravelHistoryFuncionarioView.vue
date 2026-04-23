@@ -1,5 +1,6 @@
-﻿<script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+<script setup>
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useSidebarStore } from '@/stores/sidebar'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
@@ -13,6 +14,13 @@ const totalPages = ref(1)
 
 // Filter state
 const isFilterOpen = ref(false)
+const sidebarStore = useSidebarStore()
+watch(isFilterOpen, (v) => {
+  sidebarStore.setMobileFiltersOverlayOpen(!!v)
+}, { immediate: true })
+onUnmounted(() => {
+  sidebarStore.setMobileFiltersOverlayOpen(false)
+})
 
 // Pagination state
 const itemsPerPage = ref(100)
@@ -160,9 +168,9 @@ watch(currentPage, () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
+  <div class="h-screen min-h-0 overflow-hidden bg-background flex flex-col">
     <!-- Header -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
+    <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
@@ -172,11 +180,11 @@ watch(currentPage, () => {
     </div>
 
     <!-- Body: sidebar + content -->
-    <div class="flex flex-1 overflow-hidden relative">
+    <div class="flex flex-1 min-h-0 overflow-hidden relative">
       <DashboardSidebar />
 
       <!-- Main content -->
-      <main class="flex-1 pt-12 pb-10 px-3 overflow-hidden flex items-start justify-center relative">
+      <main class="flex-1 min-h-0 pt-12 pb-10 pl-2 pr-3 overflow-y-auto flex items-start justify-center relative">
         <div class="flex gap-6 w-full max-w-5xl h-full min-h-0 relative">
           
           <!-- Main Card (Table) -->

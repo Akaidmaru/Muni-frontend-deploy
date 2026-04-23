@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useSidebarStore } from '@/stores/sidebar'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import ExcelJS from 'exceljs'
@@ -23,6 +24,14 @@ const adminDestinations = ref([])
 const adminTrucksByDriver = ref({})
 
 const isFilterOpen = ref(false)
+const sidebarStore = useSidebarStore()
+watch(isFilterOpen, (v) => {
+  sidebarStore.setMobileFiltersOverlayOpen(!!v)
+}, { immediate: true })
+onUnmounted(() => {
+  sidebarStore.setMobileFiltersOverlayOpen(false)
+})
+
 const itemsPerPage = ref(100)
 const currentPage = ref(1)
 
@@ -854,9 +863,9 @@ watch(currentPage, () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
+  <div class="h-screen min-h-0 overflow-hidden bg-background flex flex-col">
     <!-- Header -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
+    <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
@@ -866,12 +875,12 @@ watch(currentPage, () => {
     </div>
 
     <!-- Body -->
-    <div class="flex flex-1 overflow-hidden min-w-0 relative">
+    <div class="flex flex-1 min-h-0 overflow-hidden min-w-0 relative">
       <DashboardSidebar />
 
       <!-- Main content -->
-      <main class="flex-1 pt-4 pb-10 pl-14 pr-2 sm:pr-3 overflow-hidden flex flex-col min-w-0 relative">
-        <div class="w-full mb-3 pl-10 sm:pl-12 shrink-0">
+      <main class="flex-1 min-h-0 pt-4 pb-10 pl-4 pr-2 sm:pr-3 overflow-y-auto flex flex-col min-w-0 relative">
+        <div class="w-full mb-3 pl-0 shrink-0">
           <button
             @click="selectedTripForMap ? selectedTripForMap = null : goBack()"
             class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors"
@@ -914,7 +923,7 @@ watch(currentPage, () => {
 
             <div
               ref="tableScrollRef"
-              class="table-scroll flex-1 min-h-0 w-full overflow-x-auto overflow-y-auto px-3 sm:px-8 md:px-12 lg:px-16 md:pr-10 relative mt-4 sm:mt-6 pb-6 min-w-0 cursor-grab active:cursor-grabbing"
+              class="custom-scrollbar flex-1 min-h-0 w-full overflow-x-auto overflow-y-auto px-3 sm:px-8 md:px-12 lg:px-16 md:pr-10 relative mt-4 sm:mt-6 pb-6 min-w-0 cursor-grab active:cursor-grabbing"
               @mousedown="onTableMouseDown"
             >
                 <TripHistoryTable 
@@ -1002,21 +1011,25 @@ watch(currentPage, () => {
         <div v-if="isFilterOpen" class="fixed inset-0 bg-black/30 z-40 sm:hidden" @click="isFilterOpen = false" />
 
         <Transition name="slide">
-          <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[88px] z-50 sm:fixed md:relative md:inset-x-auto md:bottom-auto md:top-0 md:z-20 md:w-[22rem] md:self-start md:mt-0 md:max-h-[calc(100vh-220px)] bg-[#EBEBEB] md:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 md:shrink-0 overflow-y-auto">
-            
-            <!-- Filter icon top right inside panel (serves as close button also) -->
-            <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent sm:hidden">
-               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                 <line x1="8" y1="5" x2="8" y2="19"></line>
-                 <line x1="16" y1="5" x2="16" y2="19"></line>
-                 <line x1="5" y1="10" x2="11" y2="10"></line>
-                 <line x1="13" y1="14" x2="19" y2="14"></line>
-               </svg>
-            </button>
-
-              <div class="flex justify-center items-center mb-6 mt-2 relative">
-                <h2 class="text-2xl font-titles font-extrabold text-[#1b2533]">Filtros</h2>
-              </div>
+          <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[88px] z-50 sm:fixed md:relative md:inset-x-auto md:bottom-auto md:top-0 md:max-h-[calc(100vh-220px)] md:w-[22rem] md:self-start md:mt-0 md:z-20 bg-[#EBEBEB] md:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 md:shrink-0 overflow-y-auto">
+            <div class="flex w-full min-h-[2.5rem] items-center mb-6 mt-2">
+              <div class="w-10 shrink-0 sm:w-0 sm:min-w-0" aria-hidden="true" />
+              <h2 class="text-2xl font-titles font-extrabold text-[#1b2533] flex-1 text-center">Filtros</h2>
+              <button
+                type="button"
+                @click.stop="isFilterOpen = false"
+                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-700 sm:hidden touch-manipulation hover:bg-black/[0.06] active:bg-black/10"
+                title="Cerrar filtros"
+                aria-label="Cerrar filtros"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="8" y1="5" x2="8" y2="19"></line>
+                  <line x1="16" y1="5" x2="16" y2="19"></line>
+                  <line x1="5" y1="10" x2="11" y2="10"></line>
+                  <line x1="13" y1="14" x2="19" y2="14"></line>
+                </svg>
+              </button>
+            </div>
 
                <div class="flex flex-col gap-4 mb-6 mt-2 relative">
                  <!-- Chips de Filtros Activos -->
@@ -1043,13 +1056,15 @@ watch(currentPage, () => {
                     <div class="flex flex-col relative w-full">
                       <div class="z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2 text-[10px] text-gray-500 font-bold ml-1 mb-0.5">Desde</div>
                       <div class="relative w-full">
-                        <input type="date" v-model="filters.from" class="text-[11px] px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
+                        <input type="date" v-model="filters.from" class="text-[11px] px-3 py-2.5 pr-10 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
+                        <svg width="14" height="14" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
                       </div>
                     </div>
                     <div class="flex flex-col relative w-full">
                       <div class="text-[10px] text-gray-500 font-bold ml-1 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Hasta</div>
                       <div class="relative w-full">
-                        <input type="date" v-model="filters.to" class="text-[11px] px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
+                        <input type="date" v-model="filters.to" class="text-[11px] px-3 py-2.5 pr-10 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
+                        <svg width="14" height="14" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
                       </div>
                     </div>
                   </div>
@@ -1174,11 +1189,14 @@ watch(currentPage, () => {
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-.table-scroll::-webkit-scrollbar { height: 10px; }
-.table-scroll::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); }
-.table-scroll::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.25); border-radius: 9999px; }
-
 input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0; cursor: pointer; z-index: 10; position: absolute; right: 8px; width: 24px; height: 24px; }
+
+/* Misma barra que en Registro → Vehículos / tablas con overflow-auto en admin */
+.custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.3); }
+
 .overflow-auto::-webkit-scrollbar { width: 8px; height: 8px; }
 .overflow-auto::-webkit-scrollbar-track { background: transparent; }
 .overflow-auto::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); border-radius: 4px; }
