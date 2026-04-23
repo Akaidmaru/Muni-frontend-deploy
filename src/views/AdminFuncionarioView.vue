@@ -28,12 +28,13 @@ const addForm = ref({ name: '' })
 const addError = ref('')
 const addSuccess = ref('')
 
-const editForm = ref({ id: null, name: '' })
+const editForm = ref({ id: null, name: '', active: true })
 const editError = ref('')
 const editSuccess = ref('')
 
 const selectedFuncionario = ref(null)
 const deleteError = ref('')
+const isConflict = ref(false)
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const normalize = (v) =>
@@ -150,7 +151,7 @@ const { data } = await api.post('/employees', {
 // ── Modal EDITAR ─────────────────────────────────────────────────────────────
 const openEditModal = (func) => {
   selectedFuncionario.value = func
-  editForm.value = { id: func.id, name: func.name }
+  editForm.value = { id: func.id, name: func.name, active: func.active }
   editError.value = ''
   editSuccess.value = ''
   isEditModalOpen.value = true
@@ -175,8 +176,9 @@ const saveEdit = async () => {
   try {
     const { data } = await api.patch(`/employees/${editForm.value.id}`, {
       name: editForm.value.name.trim(),
+      active: editForm.value.active,
     })
-    const updated = mapUserFromApi({ ...selectedFuncionario.value, ...data })
+    const updated = { ...selectedFuncionario.value, name: data.name, active: data.active }
     funcionarios.value = funcionarios.value.map((f) => (f.id === updated.id ? updated : f))
     editSuccess.value = 'Funcionario actualizado correctamente.'
     setTimeout(() => closeEditModal(), 900)
@@ -198,6 +200,7 @@ const openDeleteConfirm = (func) => {
 const closeDeleteConfirm = () => {
   isDeleteConfirmOpen.value = false
   deleteError.value = ''
+  isConflict.value = false
   selectedFuncionario.value = null
 }
 
@@ -205,17 +208,43 @@ const confirmDelete = async () => {
   if (!selectedFuncionario.value?.id) return
   isDeleting.value = true
   deleteError.value = ''
+  isConflict.value = false
   try {
     await api.delete(`/employees/${selectedFuncionario.value.id}`)
     funcionarios.value = funcionarios.value.filter((f) => f.id !== selectedFuncionario.value.id)
-  } catch (error) {
-    const msg = error.response?.data?.message
-    deleteError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo eliminar el funcionario.'
-  } finally {
     closeDeleteConfirm()
+  } catch (error) {
+    const status = error.response?.status
+    const msg = error.response?.data?.message
+    if (status === 409) {
+      isConflict.value = true
+      deleteError.value = 'Este funcionario tiene viajes registrados y no puede eliminarse. Puedes desactivarlo en su lugar.'
+    } else {
+      deleteError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo eliminar el funcionario.'
+    }
+  } finally {
     isDeleting.value = false
   }
 }
+
+const deactivateFuncionario = async () => {
+  if (!selectedFuncionario.value?.id) return
+  isDeleting.value = true
+  deleteError.value = ''
+  try {
+    await api.patch(`/employees/${selectedFuncionario.value.id}`, { active: false })
+    funcionarios.value = funcionarios.value.map((f) =>
+      f.id === selectedFuncionario.value.id ? { ...f, active: false } : f
+    )
+    closeDeleteConfirm()
+  } catch (error) {
+    const msg = error.response?.data?.message
+    deleteError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo desactivar el funcionario.'
+  } finally {
+    isDeleting.value = false
+  }
+}
+
 
 onMounted(() => { loadFuncionarios() })
 </script>
@@ -310,12 +339,13 @@ onMounted(() => { loadFuncionarios() })
                 <thead>
                   <tr>
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Nombre</th>
-                    <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white w-52">Acción</th>
+                    <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white w-52">Estado</th>
+                    <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white w-72">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-if="pagedFuncionarios.length === 0">
-                    <td colspan="2" class="border border-[#D3DCE6] py-16 text-center text-slate-400 text-sm">
+                    <td colspan="3" class="border border-[#D3DCE6] py-16 text-center text-slate-400 text-sm">
                       No hay funcionarios para mostrar.
                     </td>
                   </tr>
@@ -327,6 +357,19 @@ onMounted(() => { loadFuncionarios() })
                     <!-- Nombre -->
                     <td class="border border-[#D3DCE6] py-4 px-4 text-slate-600 text-sm font-medium">
                       {{ func.name }}
+                    </td>
+                    <!-- Estado -->
+                    <td class="border border-[#D3DCE6] py-4 px-4 text-center">
+                      <span
+                        :class="[
+                          'inline-block rounded-full px-3 py-1 text-xs font-bold border',
+                          func.active
+                            ? 'bg-green-50 text-green-700 border-green-300'
+                            : 'bg-slate-100 text-slate-500 border-slate-300'
+                        ]"
+                      >
+                        {{ func.active ? 'Activo' : 'Inactivo' }}
+                      </span>
                     </td>
                     <!-- Acciones -->
                     <td class="border border-[#D3DCE6] py-4 px-4 text-center">
@@ -506,6 +549,18 @@ onMounted(() => { loadFuncionarios() })
                 />
               </div>
 
+              <!-- Campo Estado -->
+              <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 pl-1">Estado</label>
+                <select
+                  v-model="editForm.active"
+                  class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 outline-none focus:border-primary transition-colors bg-white"
+                >
+                  <option :value="true">Activo</option>
+                  <option :value="false">Inactivo</option>
+                </select>
+              </div>
+
               <div class="flex justify-end gap-3 pt-1">
                 <button @click="closeEditModal" type="button" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors text-sm">
                   Cancelar
@@ -582,6 +637,17 @@ onMounted(() => { loadFuncionarios() })
                 Cancelar
               </button>
               <button
+                v-if="isConflict"
+                @click="deactivateFuncionario"
+                :disabled="isDeleting"
+                type="button"
+                class="flex-1 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+              >
+                <svg v-if="isDeleting" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                {{ isDeleting ? 'Desactivando...' : 'Desactivar' }}
+              </button>
+              <button
+                v-else
                 @click="confirmDelete"
                 :disabled="isDeleting"
                 type="button"
