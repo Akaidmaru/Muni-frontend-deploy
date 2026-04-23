@@ -666,11 +666,13 @@ const saveMaintenanceForm = async () => {
   }
 
   if (!selectedTruckId.value) {
-    maintenanceFormError.value = "No se pudo identificar el camiÃ³n seleccionado.";
+    maintenanceFormError.value = "No se pudo identificar el camión seleccionado.";
     return;
   }
 
   const resolvedDriverId = editingDriverId.value || auth.user?.id;
+  console.log("resolvedDriverId", resolvedDriverId);
+  console.log("auth.user", auth.user);
 
   if (!resolvedDriverId) {
     maintenanceFormError.value = "No se pudo identificar el conductor autenticado.";

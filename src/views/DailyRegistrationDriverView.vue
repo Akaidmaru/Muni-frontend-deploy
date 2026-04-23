@@ -57,7 +57,7 @@ const loadEmployees = async () => {
   employeesError.value = "";
 
   try {
-    const { data } = await api.get("/users", { params: { role: 'employee' } });
+    const { data } = await api.get("/employees");
 
     employees.value = Array.isArray(data)
       ? data
