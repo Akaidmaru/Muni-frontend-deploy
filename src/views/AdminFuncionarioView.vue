@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
@@ -125,7 +125,7 @@ const saveFuncionario = async () => {
   addError.value = ''
   addSuccess.value = ''
   try {
-    const { data } = await api.post('/employees', {
+const { data } = await api.post('/employees', {
       name: addForm.value.name.trim(),
     })
     funcionarios.value.push({
@@ -176,15 +176,7 @@ const saveEdit = async () => {
     const { data } = await api.patch(`/employees/${editForm.value.id}`, {
       name: editForm.value.name.trim(),
     })
-    const updated = {
-      id: data.id,
-      name: data.name,
-      email: '',
-      phone: '',
-      role: 'EMPLOYEE',
-      verified: true,
-      active: data.active,
-    }
+    const updated = mapUserFromApi({ ...selectedFuncionario.value, ...data })
     funcionarios.value = funcionarios.value.map((f) => (f.id === updated.id ? updated : f))
     editSuccess.value = 'Funcionario actualizado correctamente.'
     setTimeout(() => closeEditModal(), 900)
@@ -243,7 +235,7 @@ onMounted(() => { loadFuncionarios() })
     <div class="flex flex-1 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 py-6 pl-14 pr-4 md:pr-8 overflow-y-auto flex flex-col">
+      <main class="flex-1 py-6 px-4 md:px-8 md:ml-4 overflow-y-auto flex flex-col">
         <div class="w-full flex flex-col flex-1">
 
           <!-- Botón Volver (mismo patrón que otros apartados) -->
