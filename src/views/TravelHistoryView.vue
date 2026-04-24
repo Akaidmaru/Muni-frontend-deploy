@@ -241,7 +241,7 @@ watch(currentPage, () => {
 <!-- Top section: Title and Filter Button -->
             <div class="flex items-center justify-between p-4 md:p-8 pb-4 md:pb-6 relative min-h-[4rem] md:min-h-[5rem]">
                
-               <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center order-1 md:absolute md:left-1/2 md:-translate-x-1/2">Historial de viajes</h1>
+               <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center order-1 md:absolute md:left-1/2 md:-translate-x-1/2">Historial de Viajes</h1>
                
                <div class="order-2 flex items-center gap-2 md:absolute md:right-4 md:top-6 lg:right-8">
                  <button

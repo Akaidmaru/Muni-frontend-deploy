@@ -17,6 +17,8 @@ import viajesIcon from '@/assets/images/Images admin nabvar left/agencia-de-viaj
 import dailyMaintenanceIcon from '@/assets/images/admin/tareas-diarias.png'
 import monthlyMaintenanceIcon from '@/assets/images/admin/calendario.png'
 import estadisticasIcon from '@/assets/images/Images admin nabvar left/stadistics.png'
+import documentosIcon from '@/assets/images/Images admin nabvar left/enviar-archivo.png'
+import combustibleIcon from '@/assets/images/Images admin nabvar left/combustible.png'
 import ReportProblemModal from './ReportProblemModal.vue'
 
 const router = useRouter()
@@ -31,11 +33,11 @@ defineExpose({ isOpen: open })
 const allNavItems = {
   DRIVER: [
     { label: 'Registro\ndiario', path: '/registro-diario', icon: registroIcon, alt: 'Registro diario' },
-    { label: 'Historial de\nviajes', path: '/historial-viajes', icon: historialIcon, alt: 'Historial de viajes' },
+    { label: 'Historial de\nViajes', path: '/historial-viajes', icon: historialIcon, alt: 'Historial de Viajes' },
   ],
   EMPLOYEE: [
     { label: 'Registro\ndiario', path: '/registro-diario-funcionario', icon: registroIcon, alt: 'Registro diario' },
-    { label: 'Historial de\nviajes', path: '/historial-viajes-funcionario', icon: historialIcon, alt: 'Historial de viajes' },
+    { label: 'Historial de\nViajes', path: '/historial-viajes-funcionario', icon: historialIcon, alt: 'Historial de Viajes' },
   ],
 ADMIN: [
     {
@@ -48,9 +50,11 @@ ADMIN: [
         { label: 'Usuarios',    path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Usuarios'      },
         { label: 'Vehículos',   path: '/admin/vehiculos',         icon: camionIcon,       alt: 'Vehículos'    },
         { label: 'Destinos',    path: '/admin/destinos',          icon: destinoIcon,      alt: 'Destinos'      },
-        { label: 'Funcionario', path: '/admin/funcionarios',      icon: funcionarioIcon,  alt: 'Funcionario'   }
+        { label: 'Funcionario', path: '/admin/funcionarios',      icon: funcionarioIcon,  alt: 'Funcionario'   },
+        { label: 'Documentos',  path: '/admin/documentos',        icon: documentosIcon,     alt: 'Documentos'    },
       ],
     },
+    { label: 'Historial de\nViajes', path: '/historial-viajes-admin', icon: historialIcon, alt: 'Historial de Viajes' },
     {
       label: 'Mantenciones',
       icon: repairIcon,
@@ -62,8 +66,8 @@ ADMIN: [
         { label: 'Mensuales', path: '/admin/mantencion-vehicular/historial-mensual', icon: monthlyMaintenanceIcon, alt: 'Mantención mensual' },
       ],
     },
+    { label: 'Combustible', path: '/admin/combustible', icon: combustibleIcon, alt: 'Combustible' },
     { label: 'Estadísticas', path: '/admin/mantencion-vehicular/estadisticas', icon: estadisticasIcon, alt: 'Estadísticas' },
-    { label: 'Historial de\nviajes', path: '/historial-viajes-admin', icon: historialIcon, alt: 'Historial de viajes' },
     { label: 'Reportes', path: '/admin/reportes', icon: warningIcon, alt: 'Reportes' },
   ],
 }

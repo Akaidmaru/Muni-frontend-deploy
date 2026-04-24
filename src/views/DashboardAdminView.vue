@@ -63,7 +63,7 @@ const goToAdminEstadisticas = () => {
             @click="goToAdminHistory"
             class="bg-white rounded-2xl shadow-lg border border-gray-100 p-5 sm:p-6 h-auto min-h-[140px] sm:h-52 flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
           >
-            <img :src="historialIcon" alt="Historial de viajes" class="w-9 sm:w-12 h-9 sm:h-12 object-contain mb-2 sm:mb-3" />
+            <img :src="historialIcon" alt="Historial de Viajes" class="w-9 sm:w-12 h-9 sm:h-12 object-contain mb-2 sm:mb-3" />
             <span class="text-base sm:text-xl font-titles font-semibold text-text-title">Historial de Viajes</span>
           </button>
 

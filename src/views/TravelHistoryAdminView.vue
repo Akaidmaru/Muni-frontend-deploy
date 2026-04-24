@@ -898,7 +898,7 @@ watch(currentPage, () => {
             isFilterOpen ? 'sm:max-w-[calc(100%-24rem)]' : 'w-full'
           ]">
             <div class="flex flex-col md:flex-row items-center justify-center p-4 sm:p-8 pb-4 sm:pb-6 relative min-h-[4rem] sm:min-h-[5rem] gap-4 md:gap-0">
-               <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-bold text-text-title text-center m-0 md:absolute md:left-1/2 md:-translate-x-1/2 md:top-6 order-1 md:order-none">Historial de viajes</h1>
+               <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-bold text-text-title text-center m-0 md:absolute md:left-1/2 md:-translate-x-1/2 md:top-6 order-1 md:order-none">Historial de Viajes</h1>
 
                <div class="flex justify-center items-center gap-3 z-10 w-full md:w-auto md:absolute md:right-6 md:top-6 order-2 md:order-none">
                  <button @click="exportToPDF" class="bg-[#A22026] hover:bg-red-800 text-white font-semibold py-2 px-5 rounded-xl shadow transition-colors outline-none focus:ring-2 focus:ring-red-500 text-sm">
