@@ -47,9 +47,9 @@ const formatDate = (value) => {
   const parsedDate = new Date(value)
   if (Number.isNaN(parsedDate.getTime())) return ''
 
-  const day = String(parsedDate.getDate()).padStart(2, '0')
-  const month = String(parsedDate.getMonth() + 1).padStart(2, '0')
-  const year = parsedDate.getFullYear()
+  const day = String(parsedDate.getUTCDate()).padStart(2, '0')
+  const month = String(parsedDate.getUTCMonth() + 1).padStart(2, '0')
+  const year = parsedDate.getUTCFullYear()
 
   return `${day}/${month}/${year}`
 }
@@ -58,9 +58,9 @@ const formatDateIso = (value) => {
   const parsedDate = new Date(value)
   if (Number.isNaN(parsedDate.getTime())) return ''
 
-  const year = parsedDate.getFullYear()
-  const month = String(parsedDate.getMonth() + 1).padStart(2, '0')
-  const day = String(parsedDate.getDate()).padStart(2, '0')
+  const year = parsedDate.getUTCFullYear()
+  const month = String(parsedDate.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(parsedDate.getUTCDate()).padStart(2, '0')
 
   return `${year}-${month}-${day}`
 }
@@ -76,6 +76,12 @@ const loadTravels = async () => {
         pageSize: Number(itemsPerPage.value),
         from: appliedFilters.value.from || undefined,
         to: appliedFilters.value.to || undefined,
+        ...(appliedFilters.value.searchValue
+          ? {
+              [appliedFilters.value.searchBy === 'official' ? 'name' : 'destination']:
+                appliedFilters.value.searchValue,
+            }
+          : {}),
         license: appliedFilters.value.license || undefined,
       },
     })
@@ -173,13 +179,13 @@ const clearFilters = () => {
 
 const activeFilterChips = computed(() => {
   const chips = []
-  if (filters.value.from) chips.push({ label: 'Desde', value: filters.value.from, field: 'from' })
-  if (filters.value.to) chips.push({ label: 'Hasta', value: filters.value.to, field: 'to' })
-  if (filters.value.searchValue) {
-    const label = filters.value.searchBy === 'destination' ? 'Destino' : 'Funcionario'
-    chips.push({ label, value: filters.value.searchValue, field: 'searchValue' })
+  if (appliedFilters.value.from) chips.push({ label: 'Desde', value: appliedFilters.value.from, field: 'from' })
+  if (appliedFilters.value.to) chips.push({ label: 'Hasta', value: appliedFilters.value.to, field: 'to' })
+  if (appliedFilters.value.searchValue) {
+    const label = appliedFilters.value.searchBy === 'destination' ? 'Destino' : 'Funcionario'
+    chips.push({ label, value: appliedFilters.value.searchValue, field: 'searchValue' })
   }
-  if (filters.value.license) chips.push({ label: 'Patente', value: filters.value.license, field: 'license' })
+  if (appliedFilters.value.license) chips.push({ label: 'Patente', value: appliedFilters.value.license, field: 'license' })
   return chips
 })
 
