@@ -358,7 +358,7 @@ onMounted(() => {
             Volver
           </button>
         </div>
-        <div class="flex gap-6 w-full h-full min-h-0 min-w-0">
+        <div class="flex gap-6 w-full min-w-0">
 
           <div :class="[
             'bg-white rounded-[2rem] border-2 border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative min-w-0',
@@ -393,7 +393,7 @@ onMounted(() => {
                </div>
             </div>
 
-            <div class="flex-1 w-full overflow-x-auto overflow-y-auto px-3 sm:px-6 md:px-10 md:pr-10 relative pb-6 min-w-0 custom-scrollbar">
+            <div class="w-full overflow-x-auto px-3 sm:px-6 md:px-10 md:pr-10 relative pb-6 min-w-0 custom-scrollbar">
               <table class="w-full text-sm border-collapse min-w-[1000px]">
                 <thead class="bg-white sticky top-0 z-10 shadow-sm border-b border-gray-100">
                   <tr>

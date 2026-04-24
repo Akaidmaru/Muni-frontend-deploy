@@ -802,54 +802,12 @@ const exportToExcel = async () => {
   window.URL.revokeObjectURL(downloadUrl)
 }
 
-const tableScrollRef = ref(null)
-const isTableDragging = ref(false)
-let dragStartX = 0
-let dragStartScrollLeft = 0
-
-const onTableMouseDown = (event) => {
-  if (event.button !== 0) return
-  const el = tableScrollRef.value
-  if (!el) return
-
-  const target = event.target
-  if (
-    target &&
-    target.closest &&
-    target.closest('a,button,input,select,textarea,label,th')
-  ) {
-    return
-  }
-
-  isTableDragging.value = true
-  dragStartX = event.clientX
-  dragStartScrollLeft = el.scrollLeft
-}
-
-const onTableMouseMove = (event) => {
-  if (!isTableDragging.value) return
-  const el = tableScrollRef.value
-  if (!el) return
-
-  const dx = event.clientX - dragStartX
-  el.scrollLeft = dragStartScrollLeft - dx
-}
-
-const onTableMouseUp = () => {
-  isTableDragging.value = false
-}
-
 onMounted(() => {
   void loadAdminEditCatalogs()
   loadTravels()
-
-  window.addEventListener('mousemove', onTableMouseMove)
-  window.addEventListener('mouseup', onTableMouseUp)
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('mousemove', onTableMouseMove)
-  window.removeEventListener('mouseup', onTableMouseUp)
 })
 
 watch(itemsPerPage, () => {
@@ -890,12 +848,12 @@ watch(currentPage, () => {
           </button>
         </div>
         
-        <div class="flex gap-6 w-full h-full min-h-0 min-w-0 relative">
+        <div class="flex gap-6 w-full min-w-0 relative">
 
           <!-- MAIN TABLE VIEW -->
           <div v-if="!selectedTripForMap" :class="[
             'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col transition-all duration-300 relative min-w-0 overflow-hidden',
-            isFilterOpen ? 'sm:max-w-[calc(100%-24rem)]' : 'w-full'
+            isFilterOpen ? 'md:max-w-[calc(100%-24rem)]' : 'w-full'
           ]">
             <div class="flex flex-col md:flex-row items-center justify-center p-4 sm:p-8 pb-4 sm:pb-6 relative min-h-[4rem] sm:min-h-[5rem] gap-4 md:gap-0">
                <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-bold text-text-title text-center m-0 md:absolute md:left-1/2 md:-translate-x-1/2 md:top-6 order-1 md:order-none">Historial de viajes</h1>
@@ -921,11 +879,8 @@ watch(currentPage, () => {
                </div>
             </div>
 
-            <div
-              ref="tableScrollRef"
-              class="custom-scrollbar flex-1 min-h-0 w-full overflow-x-auto overflow-y-auto px-3 sm:px-8 md:px-12 lg:px-16 md:pr-10 relative mt-4 sm:mt-6 pb-6 min-w-0 cursor-grab active:cursor-grabbing"
-              @mousedown="onTableMouseDown"
-            >
+            <div class="custom-scrollbar w-full overflow-x-auto px-3 sm:px-8 md:px-12 lg:px-16 md:pr-10 relative mt-4 sm:mt-6 pb-6 min-w-0">
+              <div class="min-w-[1200px]">
                 <TripHistoryTable 
                   ref="tripTable"
                   :trips="filteredTravels"
@@ -941,6 +896,7 @@ watch(currentPage, () => {
                   @request-save-trip="handleSaveTripRequest"
                   @view-map="handleViewMap"
                 />
+              </div>
             </div>
 
             <div class="px-3 sm:px-8 md:px-12 lg:px-16 md:pr-10 py-4 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-medium text-gray-500 border-t border-gray-200 mt-auto rounded-b-3xl">

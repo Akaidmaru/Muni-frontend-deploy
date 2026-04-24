@@ -296,14 +296,14 @@ onMounted(() => { loadUsers() })
       <DashboardSidebar />
 
       <main class="flex-1 py-6 pl-4 pr-4 md:pr-8 overflow-y-auto flex flex-col">
-        <div class="w-full flex flex-col flex-1">
+        <div class="w-full flex flex-col">
           <div class="mb-4 pl-0">
             <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
               <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
               Volver
             </button>
           </div>
-          <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col overflow-hidden flex-1">
+          <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col overflow-hidden">
 
             <!-- ── Título ── -->
             <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-6 lg:pt-8 pb-2">
@@ -353,7 +353,7 @@ onMounted(() => { loadUsers() })
             </div>
 
             <!-- ── Tabla ── -->
-            <div class="flex-1 px-4 sm:px-6 lg:px-10 md:pr-10 min-h-0 overflow-auto">
+            <div class="px-4 sm:px-6 lg:px-10 md:pr-10 overflow-x-auto">
               <p v-if="loadError" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ loadError }}</p>
 
               <div v-if="isLoading" class="flex items-center justify-center py-24 gap-3">

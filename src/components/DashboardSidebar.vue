@@ -224,7 +224,6 @@ const reportProblem = () => {
                   <div v-if="idx !== 0" class="absolute left-5 top-0 h-1/2 w-px bg-gray-300" />
                   <div v-if="idx !== item.subItems.length - 1" class="absolute left-5 top-1/2 bottom-0 w-px bg-gray-300" />
                   <span class="absolute left-5 top-1/2 h-px w-4 bg-gray-300 -translate-y-1/2" />
-
                   <div class="relative z-10 shrink-0 ml-4">
                     <img
                       v-if="sub.icon"
@@ -243,7 +242,6 @@ const reportProblem = () => {
                   <div v-if="idx !== 0" class="absolute left-5 top-0 h-1/2 w-px bg-gray-300" />
                   <div v-if="idx !== item.subItems.length - 1 || (openNestedDropdowns[sub.nestedKey] ?? false)" class="absolute left-5 top-1/2 bottom-0 w-px bg-gray-300" />
                   <span class="absolute left-5 top-6 h-px w-4 bg-gray-300" />
-
                   <button
                     @click="toggleNestedDropdown(sub.nestedKey)"
                     class="relative flex items-center gap-2 py-3 pl-6 pr-3 w-full text-left group"
@@ -263,15 +261,11 @@ const reportProblem = () => {
                     <svg
                       class="w-4 h-4 text-slate-400 transition-transform duration-150"
                       :class="(openNestedDropdowns[sub.nestedKey] ?? false) ? 'rotate-90' : ''"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
+                      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     >
                       <polyline points="9 6 15 12 9 18" />
                     </svg>
                   </button>
-
                   <div
                     v-if="openNestedDropdowns[sub.nestedKey] ?? false"
                     class="relative pb-1"
@@ -287,9 +281,7 @@ const reportProblem = () => {
                       <span
                         class="text-xs font-titles font-semibold transition-colors leading-tight"
                         :class="isActive(child.path) ? 'text-primary font-bold' : 'text-slate-600 group-hover:text-primary'"
-                      >
-                        {{ child.label }}
-                      </span>
+                      >{{ child.label }}</span>
                     </button>
                   </div>
                 </div>

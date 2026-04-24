@@ -224,18 +224,18 @@ watch(currentPage, () => {
       <DashboardSidebar />
 
       <!-- Main content -->
-      <main class="flex-1 min-h-0 pt-4 pb-10 pl-4 pr-3 overflow-y-auto flex flex-col min-w-0">
+      <main class="flex-1 pt-4 pb-10 pl-4 pr-3 overflow-y-auto flex flex-col min-w-0">
         <div class="w-full mb-3 shrink-0">
           <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Volver
           </button>
         </div>
-        <div class="flex gap-6 w-full h-full min-h-0 min-w-0">
+        <div class="flex gap-6 w-full min-w-0">
 
           <!-- Main Card (Table) -->
           <div :class="[
-            'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative min-w-0',
+            'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-visible transition-all duration-300 relative min-w-0',
             isFilterOpen ? 'md:max-w-[calc(100%-24rem)]' : 'w-full'
           ]">
 <!-- Top section: Title and Filter Button -->
@@ -259,7 +259,7 @@ watch(currentPage, () => {
             </div>
 
             <!-- Table Container -->
-            <div class="flex-1 overflow-auto px-3 md:px-10 relative mt-4 md:mt-6 pb-6 min-w-0 custom-scrollbar">
+            <div class="overflow-x-auto px-3 md:px-10 relative mt-4 md:mt-6 pb-6 min-w-0 custom-scrollbar">
               <div class="min-w-[900px]">
                 <table class="history-table w-full text-sm text-center" style="border-collapse: separate; border-spacing: 0;">
                   <thead class="text-[13px] text-text-title font-bold sticky top-0 bg-white z-10">

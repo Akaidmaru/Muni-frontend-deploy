@@ -265,7 +265,7 @@ onMounted(() => { loadFuncionarios() })
       <DashboardSidebar />
 
       <main class="flex-1 min-h-0 py-6 pl-4 pr-4 md:pr-8 overflow-y-auto flex flex-col">
-        <div class="w-full flex flex-col flex-1">
+        <div class="w-full flex flex-col">
 
           <!-- Botón Volver (mismo patrón que otros apartados) -->
           <div class="mb-4 pl-0 pr-4 md:pr-8">
@@ -275,7 +275,7 @@ onMounted(() => { loadFuncionarios() })
             </button>
           </div>
 
-          <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col overflow-hidden flex-1">
+          <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col overflow-hidden">
 
             <!-- ── Barra superior: título + botón añadir ── -->
             <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-6 lg:pt-8 pb-4">
@@ -324,7 +324,7 @@ onMounted(() => { loadFuncionarios() })
             </div>
 
             <!-- ── Tabla ── -->
-            <div class="flex-1 px-4 sm:px-6 lg:px-10 md:pr-10 min-h-0 overflow-auto">
+            <div class="px-4 sm:px-6 lg:px-10 md:pr-10 overflow-x-auto">
               <p v-if="loadError" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ loadError }}</p>
 
               <div v-if="isLoading" class="flex items-center justify-center py-24 gap-3">
