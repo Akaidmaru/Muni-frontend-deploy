@@ -7,6 +7,7 @@ import anadirGrupoIcon from '@/assets/images/Images admin nabvar left/anadir-gru
 import camionIcon from '@/assets/images/Images admin nabvar left/camion.png'
 import destinoIcon from '@/assets/images/Images admin nabvar left/destino.png'
 import funcionarioIcon from '@/assets/images/Images admin nabvar left/funcionario.png'
+import documentosIcon from '@/assets/images/Images admin nabvar left/enviar-archivo.png'
 
 const router = useRouter()
 
@@ -15,6 +16,7 @@ const cards = [
   { label: 'Vehículos',   icon: camionIcon,        path: '/admin/vehiculos'        },
   { label: 'Destinos',    icon: destinoIcon,       path: '/admin/destinos'         },
   { label: 'Funcionario', icon: funcionarioIcon,   path: '/admin/funcionarios'     },
+  { label: 'Documentos',  icon: documentosIcon,    path: '/admin/documentos'       },
 ]
 </script>
 

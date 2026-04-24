@@ -194,7 +194,7 @@ watch(currentPage, () => {
           ]">
             <!-- Top section: Title and Filter Button -->
             <div class="flex items-center justify-between p-8 pb-6 relative min-h-[5rem]">
-               <h1 class="text-3xl font-titles font-bold text-text-title text-center m-0 absolute left-1/2 -translate-x-1/2">Historial de viajes</h1>
+               <h1 class="text-3xl font-titles font-bold text-text-title text-center m-0 absolute left-1/2 -translate-x-1/2">Historial de Viajes</h1>
                
                <button
                        @click="isFilterOpen = !isFilterOpen"

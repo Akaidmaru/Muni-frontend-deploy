@@ -29,6 +29,8 @@ import AdminRegistrationHubView from '../views/AdminRegistrationHubView.vue'
 import AdminMaintenanceHubView from '../views/AdminMaintenanceHubView.vue'
 import AdminMaintenanceStatsView from '../views/AdminMaintenanceStatsView.vue'
 import AdminFuncionarioView from '../views/AdminFuncionarioView.vue'
+import AdminDocumentosView from '../views/AdminDocumentosView.vue'
+import AdminCombustibleView from '../views/AdminCombustibleView.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -210,6 +212,18 @@ const router = createRouter({
             path: '/admin/funcionarios',
             name: 'admin-funcionarios',
             component: AdminFuncionarioView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+        {
+            path: '/admin/documentos',
+            name: 'admin-documentos',
+            component: AdminDocumentosView,
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
+        },
+        {
+            path: '/admin/combustible',
+            name: 'admin-combustible',
+            component: AdminCombustibleView,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
 
