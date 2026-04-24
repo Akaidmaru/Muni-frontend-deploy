@@ -262,7 +262,7 @@ onMounted(loadDestinations)
           </button>
         </div>
 
-        <div class="flex gap-6 w-full h-full min-h-0 min-w-0 max-w-full">
+        <div class="flex gap-6 w-full min-w-0 max-w-full">
           <!-- MAIN TABLE VIEW -->
           <div v-if="!selectedLocationForMap" :class="[
             'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col transition-all duration-300 relative min-w-0 overflow-hidden',
@@ -304,7 +304,7 @@ onMounted(loadDestinations)
             </div>
 
             <!-- Tabla -->
-            <div class="flex-1 px-8 md:px-12 min-h-0 overflow-auto mb-4">
+            <div class="px-8 md:px-12 overflow-x-auto mb-4">
               <table class="w-full border-collapse min-w-[800px]">
                 <thead>
                   <tr>

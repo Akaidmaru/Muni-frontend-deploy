@@ -87,6 +87,17 @@ const formatMonthLabel = (monthKey) => {
   return formatted.charAt(0).toUpperCase() + formatted.slice(1)
 }
 
+const formatMonthDisplay = (monthKey) => {
+  if (!monthKey) return '—'
+  const parts = String(monthKey).split('-')
+  if (parts.length !== 2) return '—'
+
+  const [year, month] = parts
+  if (!year || !month) return '—'
+
+  return `${month.padStart(2, '0')}-${year}`
+}
+
 const pluralize = (count, singular, plural) =>
   `${count} ${count === 1 ? singular : plural}`
 
@@ -239,8 +250,8 @@ const mapRecordFromApi = (record) => {
 
   return {
     id: record.id,
-    date: record.createdAt ? new Date(record.createdAt).toLocaleDateString('es-CL') : new Date().toLocaleDateString('es-CL'),
     monthKey: record.monthKey || formatMonthKey(record.inspectionDate),
+    date: formatMonthDisplay(record.monthKey || formatMonthKey(record.inspectionDate)),
     plate: record.truck?.plate || 'Sin patente',
     driver: record.truck?.brand || record.truck?.model || 'CamiÃ³n mensual',
     faultSummary: buildFaultSummary(normalizedItems),
@@ -554,11 +565,10 @@ const buildMonthlyChecklistPdfBlob = async (record) => {
   const labelX2 = 105
   const valX2 = 143
 
-  const createdDate = record.createdAt ? new Date(record.createdAt).toLocaleDateString('es-CL') : ''
   const headerRows = [
     { y: 40, l1: 'Mes:', v1: formatMonthLabel(record.monthKey), l2: 'Patente:', v2: record.plate || '—' },
     { y: 47, l1: 'Marca:', v1: record.driver || '—', l2: 'Estado:', v2: record.status || '—' },
-    { y: 54, l1: 'Fecha:', v1: createdDate, l2: '', v2: '' },
+    { y: 54, l1: 'Fecha:', v1: formatMonthDisplay(record.monthKey), l2: '', v2: '' },
   ]
 
   headerRows.forEach(({ y, l1, v1, l2, v2 }) => {
@@ -875,7 +885,7 @@ const confirmDeleteRecord = async () => {
 </script>
 
 <template>
-  <div class="h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden bg-background flex flex-col">
+  <div class="h-screen min-h-0 overflow-hidden bg-background flex flex-col">
     <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
@@ -885,17 +895,17 @@ const confirmDeleteRecord = async () => {
       </div>
     </div>
 
-    <div class="flex flex-1 min-h-0 overflow-hidden min-w-0">
+    <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 min-h-0 min-w-0 pt-4 pb-10 pl-4 pr-4 overflow-y-auto overscroll-y-contain flex flex-col [-webkit-overflow-scrolling:touch]">
+      <main class="flex-1 min-w-0 pt-4 pb-10 pl-4 pr-4 overflow-y-auto flex flex-col">
         <div class="w-full mb-3 shrink-0">
           <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Volver
           </button>
         </div>
-        <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm w-full flex min-h-0 flex-1 flex-col overflow-hidden max-md:flex-none max-md:overflow-visible">
+        <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm w-full flex flex-col overflow-visible max-md:flex-none">
             <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-6 lg:pt-10 pb-6 flex flex-col lg:flex-row items-start justify-between gap-6">
     <h1 class="text-2xl md:text-3xl font-titles font-extrabold text-slate-900 leading-tight">
       Historial de mantenimiento<br />vehicular mensual
@@ -994,7 +1004,7 @@ const confirmDeleteRecord = async () => {
             </button>
           </div>
 
-          <div class="custom-scrollbar min-h-0 flex-1 overflow-x-auto overflow-y-auto max-md:min-h-0 max-md:flex-none max-md:overflow-y-visible px-4 sm:px-6 lg:px-10 md:pr-10 pt-4">
+          <div class="custom-scrollbar overflow-x-auto px-4 sm:px-6 lg:px-10 md:pr-10 pt-4">
             <p v-if="loadError" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {{ loadError }}
             </p>

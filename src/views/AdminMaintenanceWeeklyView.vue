@@ -507,23 +507,23 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="h-screen min-h-0 overflow-hidden bg-gray-100 flex flex-col font-sans">
+  <div class="min-h-screen bg-gray-100 flex flex-col font-sans">
     <header class="shrink-0 bg-white shadow-sm border-b border-gray-200 px-4 py-4 flex items-center justify-between z-40">
       <router-link to="/"><img :src="logoCompleto" alt="Logo" class="h-16 w-auto object-contain" /></router-link>
       <UserMenu />
     </header>
 
-    <div class="flex flex-1 min-h-0 overflow-hidden">
+    <div class="flex flex-1 min-w-0">
       <DashboardSidebar />
       
-      <main class="flex-1 min-h-0 py-4 pl-4 pr-4 sm:pt-6 sm:pb-10 sm:pr-6 overflow-y-auto overflow-x-hidden bg-slate-50 min-w-0">
+      <main class="flex-1 py-4 pl-4 pr-4 sm:pt-6 sm:pb-10 sm:pr-6 overflow-visible bg-slate-50 min-w-0">
         <div class="max-w-6xl mx-auto mb-3 pl-0">
           <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Volver
           </button>
         </div>
-        <div class="max-w-6xl mx-auto bg-white rounded-2xl sm:rounded-3xl border border-slate-300 shadow-sm p-4 sm:p-10 overflow-x-hidden">
+        <div class="max-w-6xl mx-auto bg-white rounded-2xl sm:rounded-3xl border border-slate-300 shadow-sm p-4 sm:p-10 overflow-visible">
 
           <div class="relative mb-6">
             <h1 class="text-2xl font-bold text-center text-slate-900 uppercase tracking-wide">{{ tituloMesPrincipal }}</h1>

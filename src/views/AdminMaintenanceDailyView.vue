@@ -95,13 +95,26 @@ const getDocumentStatusByExpiry = (expiryDate) => {
   return expiry >= today ? 'Vigente' : 'Vencido'
 }
 
-const formatDate = (value) => {
+const formatCalendarDate = (value) => {
+  if (!value) return '—'
+
+  // Trata fechas tipo YYYY-MM-DD o ISO midnight como fecha-calendario
+  // para evitar que la zona horaria del navegador reste un día.
+  const normalized = String(value).slice(0, 10)
+  const parts = normalized.split('-')
+  if (parts.length === 3) {
+    const [year, month, day] = parts
+    if (year && month && day) {
+      return `${day.padStart(2, '0')}-${month.padStart(2, '0')}-${year}`
+    }
+  }
+
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
 
-  const day = String(date.getDate()).padStart(2, '0')
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const year = date.getFullYear()
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const year = date.getUTCFullYear()
   return `${day}-${month}-${year}`
 }
 
@@ -203,7 +216,7 @@ const buildTopCategories = (recordsList) => {
 
 const mapRecordFromApi = (record) => ({
   id: record.id,
-  date: formatDate(record.inspectionDate),
+  date: formatCalendarDate(record.inspectionDate),
   plate: record.truck?.plate || 'Sin patente',
   driver:
     record.driver?.name || record.driver?.email || `Conductor ${record.driverId}`,
@@ -508,7 +521,6 @@ const onTableMouseMove = (e) => {
 const onTableMouseUp = () => { isTableDragging.value = false }
 
 onMounted(() => {
-  console.log('[AdminMaintenanceDaily] Route query:', route.query)
   if (route.query.saved === 'true') {
     checklistSavedModal.value.open = true
     router.replace({ query: {} })
@@ -922,7 +934,7 @@ const exportChecklistPDF = async (record) => {
 </script>
 
 <template>
-  <div class="h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden bg-background flex flex-col">
+  <div class="h-screen min-h-0 overflow-hidden bg-background flex flex-col">
     <!-- Navbar -->
     <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
@@ -933,17 +945,17 @@ const exportChecklistPDF = async (record) => {
       </div>
     </div>
 
-    <div class="flex flex-1 min-h-0 overflow-hidden min-w-0">
+    <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 min-h-0 min-w-0 pt-4 pb-10 pl-4 pr-3 overflow-y-auto overscroll-y-contain flex flex-col [-webkit-overflow-scrolling:touch]">
+      <main class="flex-1 min-w-0 pt-4 pb-10 pl-4 pr-3 overflow-y-auto flex flex-col">
         <div class="w-full mb-3 pl-0 shrink-0">
           <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Volver
           </button>
         </div>
-        <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm w-full flex min-h-0 flex-1 flex-col overflow-hidden max-md:flex-none max-md:overflow-visible">
+        <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm w-full flex flex-col overflow-visible max-md:flex-none">
 
           <!-- Título -->
           <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-6 pb-6 flex flex-col lg:flex-row items-start justify-between gap-6">
@@ -1141,7 +1153,7 @@ const exportChecklistPDF = async (record) => {
           <!-- Tabla -->
           <div
             ref="tableScrollRef"
-            class="custom-scrollbar min-h-0 flex-1 overflow-x-auto overflow-y-auto max-md:min-h-0 max-md:flex-none max-md:overflow-y-visible px-4 sm:px-6 lg:px-10 md:pr-10 cursor-grab active:cursor-grabbing"
+            class="custom-scrollbar overflow-x-auto max-md:min-h-0 max-md:flex-none max-md:overflow-y-visible px-4 sm:px-6 lg:px-10 md:pr-10 cursor-grab active:cursor-grabbing"
             @mousedown="onTableMouseDown"
           >
             <table class="w-full text-sm" style="border-collapse: collapse;">
