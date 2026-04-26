@@ -19,6 +19,9 @@ import monthlyMaintenanceIcon from '@/assets/images/admin/calendario.png'
 import estadisticasIcon from '@/assets/images/Images admin nabvar left/stadistics.png'
 import documentosIcon from '@/assets/images/Images admin nabvar left/enviar-archivo.png'
 import combustibleIcon from '@/assets/images/Images admin nabvar left/combustible.png'
+import solicitudesIcon from '@/assets/images/Direction/solicitudes.png'
+import nuevaSolicitudIcon from '@/assets/images/Direction/nueva.png'
+import historialSolicitudesIcon from '@/assets/images/Direction/Historial.png'
 import ReportProblemModal from './ReportProblemModal.vue'
 
 const router = useRouter()
@@ -68,7 +71,47 @@ ADMIN: [
     },
     { label: 'Combustible', path: '/admin/combustible', icon: combustibleIcon, alt: 'Combustible' },
     { label: 'Estadísticas', path: '/admin/mantencion-vehicular/estadisticas', icon: estadisticasIcon, alt: 'Estadísticas' },
-    { label: 'Reportes', path: '/admin/reportes', icon: warningIcon, alt: 'Reportes' },
+    { label: 'Reportes',    path: '/admin/reportes',              icon: warningIcon,     alt: 'Reportes'    },
+    { label: 'Solicitudes', path: '/admin/solicitudes-recibidas', icon: solicitudesIcon, alt: 'Solicitudes' },
+  ],
+  DIRECTION: [
+    {
+      label: 'Registro',
+      icon: tableIcon,
+      alt: 'Registro',
+      path: '/admin/registro',
+      id: 'registro',
+      subItems: [
+        { label: 'Usuarios',    path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Usuarios'    },
+        { label: 'Vehículos',   path: '/admin/vehiculos',        icon: camionIcon,      alt: 'Vehículos'   },
+        { label: 'Destinos',    path: '/admin/destinos',         icon: destinoIcon,     alt: 'Destinos'    },
+        { label: 'Funcionario', path: '/admin/funcionarios',     icon: funcionarioIcon, alt: 'Funcionario' },
+      ],
+    },
+    {
+      label: 'Mantenimiento\nvehicular',
+      icon: repairIcon,
+      alt: 'Mantenimiento vehicular',
+      path: '/admin/mantencion-vehicular',
+      id: 'mantenimiento',
+      subItems: [
+        { label: 'Diario',  path: '/admin/mantencion-vehicular/diario',            icon: dailyMaintenanceIcon,   alt: 'Mantenimiento diario'  },
+        { label: 'Mensual', path: '/admin/mantencion-vehicular/historial-mensual', icon: monthlyMaintenanceIcon, alt: 'Mantenimiento mensual' },
+      ],
+    },
+    { label: 'Historial de\nviajes', path: '/historial-viajes-admin',                    icon: historialIcon,    alt: 'Historial de viajes' },
+    { label: 'Estadísticas',         path: '/admin/mantencion-vehicular/estadisticas', icon: estadisticasIcon, alt: 'Estadísticas'        },
+    {
+      label: 'Solicitudes',
+      icon: solicitudesIcon,
+      alt: 'Solicitudes',
+      path: '/admin/solicitudes',
+      id: 'solicitudes',
+      subItems: [
+        { label: 'Nueva\nsolicitud',          path: '/admin/solicitudes/nueva',     icon: nuevaSolicitudIcon,       alt: 'Nueva solicitud'         },
+        { label: 'Historial de\nsolicitudes', path: '/admin/solicitudes/historial', icon: historialSolicitudesIcon, alt: 'Historial de solicitudes' },
+      ],
+    },
   ],
 }
 

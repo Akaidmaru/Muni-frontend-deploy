@@ -31,6 +31,11 @@ import AdminMaintenanceStatsView from '../views/AdminMaintenanceStatsView.vue'
 import AdminFuncionarioView from '../views/AdminFuncionarioView.vue'
 import AdminDocumentosView from '../views/AdminDocumentosView.vue'
 import AdminCombustibleView from '../views/AdminCombustibleView.vue'
+import AdminSolicitudesView from '../views/AdminSolicitudesView.vue'
+import DashboardDirectionView from '../views/DashboardDirectionView.vue'
+import SolicitudesNuevaView from '../views/SolicitudesNuevaView.vue'
+import SolicitudesHistorialView from '../views/SolicitudesHistorialView.vue'
+import AdminSolicitudesRecibidasView from '../views/AdminSolicitudesRecibidasView.vue'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -125,25 +130,25 @@ const router = createRouter({
             path: '/historial-viajes-admin',
             name: 'travel-history-admin',
             component: TravelHistoryAdminView,
-            meta: { requiresAuth: true, roles: ['ADMIN'] }
+            meta: { requiresAuth: true, roles: ['ADMIN', 'DIRECTION'] }
         },
         {
             path: '/admin/registro',
             name: 'admin-registro-hub',
             component: AdminRegistrationHubView,
-            meta: { requiresAuth: true, roles: ['ADMIN'] }
+            meta: { requiresAuth: true, roles: ['ADMIN', 'DIRECTION'] }
         },
         {
             path: '/admin/gestion-usuarios',
             name: 'admin-users',
             component: AdminUsersView,
-            meta: { requiresAuth: true, roles: ['ADMIN'] }
+            meta: { requiresAuth: true, roles: ['ADMIN', 'DIRECTION'] }
         },
         {
             path: '/admin/vehiculos',
             name: 'admin-vehicles',
             component: AdminVehiclesView,
-            meta: { requiresAuth: true, roles: ['ADMIN'] }
+            meta: { requiresAuth: true, roles: ['ADMIN', 'DIRECTION'] }
         },
         {
             path: '/admin/gestion-usuarios/roles-iniciales',
@@ -167,31 +172,31 @@ const router = createRouter({
             path: '/admin/mantencion-vehicular',
             name: 'admin-maintenance',
             component: AdminMaintenanceHubView,
-            meta: { requiresAuth: true, roles: ['ADMIN'] }
+            meta: { requiresAuth: true, roles: ['ADMIN', 'DIRECTION'] }
         },
         {
             path: '/admin/mantencion-vehicular/estadisticas',
             name: 'admin-maintenance-estadisticas',
             component: AdminMaintenanceStatsView,
-            meta: { requiresAuth: true, roles: ['ADMIN'] }
+            meta: { requiresAuth: true, roles: ['ADMIN', 'DIRECTION'] }
         },
         {
             path: '/admin/mantencion-vehicular/diario',
             name: 'admin-maintenance-daily',
             component: AdminMaintenanceDailyView,
-            meta: { requiresAuth: true, roles: ['ADMIN'] }
+            meta: { requiresAuth: true, roles: ['ADMIN', 'DIRECTION'] }
         },
         {
             path: '/admin/mantencion-vehicular/mensual',
             name: 'admin-maintenance-monthly',
             component: AdminMaintenanceWeeklyView,
-            meta: { requiresAuth: true, roles: ['ADMIN'] }
+            meta: { requiresAuth: true, roles: ['ADMIN', 'DIRECTION'] }
         },
         {
             path: '/admin/mantencion-vehicular/historial-mensual',
             name: 'admin-maintenance-monthly-history',
             component: AdminMaintenanceWeeklyHistory,
-            meta: { requiresAuth: true, roles: ['ADMIN'] }
+            meta: { requiresAuth: true, roles: ['ADMIN', 'DIRECTION'] }
 
         },
         {
@@ -206,12 +211,42 @@ const router = createRouter({
             path: '/admin/destinos',
             name: 'admin-destinations',
             component: AdminDestinyView,
-            meta: { requiresAuth: true, roles: ['ADMIN'] }
+            meta: { requiresAuth: true, roles: ['ADMIN', 'DIRECTION'] }
         },
         {
             path: '/admin/funcionarios',
             name: 'admin-funcionarios',
             component: AdminFuncionarioView,
+            meta: { requiresAuth: true, roles: ['ADMIN', 'DIRECTION'] }
+        },
+        {
+            path: '/admin/solicitudes',
+            name: 'admin-solicitudes',
+            component: AdminSolicitudesView,
+            meta: { requiresAuth: true, roles: ['DIRECTION'] }
+        },
+        {
+            path: '/admin/solicitudes/nueva',
+            name: 'solicitudes-nueva',
+            component: SolicitudesNuevaView,
+            meta: { requiresAuth: true, roles: ['DIRECTION'] }
+        },
+        {
+            path: '/admin/solicitudes/historial',
+            name: 'solicitudes-historial',
+            component: SolicitudesHistorialView,
+            meta: { requiresAuth: true, roles: ['DIRECTION'] }
+        },
+        {
+            path: '/dashboard-direccion',
+            name: 'dashboard-direccion',
+            component: DashboardDirectionView,
+            meta: { requiresAuth: true, roles: ['DIRECTION'] }
+        },
+        {
+            path: '/admin/solicitudes-recibidas',
+            name: 'admin-solicitudes-recibidas',
+            component: AdminSolicitudesRecibidasView,
             meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
         {
@@ -278,6 +313,7 @@ router.beforeEach(async (to) => {
             DRIVER: 'dashboard',
             EMPLOYEE: 'dashboard',
             ADMIN: 'dashboard-admin',
+            DIRECTION: 'dashboard-direccion',
         }
         return { name: roleRoutes[auth.userRole] || 'dashboard' }
     }

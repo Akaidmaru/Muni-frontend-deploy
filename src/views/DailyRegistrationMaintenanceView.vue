@@ -671,9 +671,6 @@ const saveMaintenanceForm = async () => {
   }
 
   const resolvedDriverId = editingDriverId.value || auth.user?.id;
-  console.log("resolvedDriverId", resolvedDriverId);
-  console.log("auth.user", auth.user);
-
   if (!resolvedDriverId) {
     maintenanceFormError.value = "No se pudo identificar el conductor autenticado.";
     return;

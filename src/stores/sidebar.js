@@ -7,6 +7,7 @@ const DROPDOWNS_KEY = 'muni-admin-nav-dropdowns'
 const DEFAULT_ADMIN_DROPDOWNS = {
   Registro: false,
   Mantenciones: false,
+  Solicitudes: false,
 }
 
 function readPersisted() {
@@ -32,6 +33,7 @@ function readAdminDropdowns() {
     return {
       Registro: Boolean(p.Registro),
       Mantenciones: Boolean(p.Mantenciones),
+      Solicitudes: Boolean(p.Solicitudes),
     }
   } catch {
     return { ...DEFAULT_ADMIN_DROPDOWNS }
@@ -53,6 +55,7 @@ function persistAdminDropdowns(state) {
       JSON.stringify({
         Registro: state.Registro,
         Mantenciones: state.Mantenciones,
+        Solicitudes: state.Solicitudes,
       })
     )
   } catch {
@@ -79,7 +82,7 @@ export const useSidebarStore = defineStore('sidebar', () => {
   }
 
   function toggleAdminDropdown(label) {
-    if (label !== 'Registro' && label !== 'Mantenciones') return
+    if (label !== 'Registro' && label !== 'Mantenciones' && label !== 'Solicitudes') return
     const next = { ...adminDropdowns.value, [label]: !adminDropdowns.value[label] }
     adminDropdowns.value = next
     persistAdminDropdowns(next)
