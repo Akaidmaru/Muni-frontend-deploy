@@ -27,6 +27,7 @@ const handleSubmit = async () => {
          EMPLOYEE: '/dashboard',
          ADMIN: '/dashboard-admin',
          PATIENT: '/dashboard-paciente',
+         DIRECTION: '/dashboard-direccion',
         }
         router.push(roleRoutes[auth.userRole] || '/dashboard')
     } else {

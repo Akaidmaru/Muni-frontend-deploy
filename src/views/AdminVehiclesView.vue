@@ -38,6 +38,10 @@ const isViewModalOpen = ref(false)
 const vehicleToView = ref(null)
 
 const isAddModalOpen = ref(false)
+const addError = ref('')
+const editError = ref('')
+const deleteError = ref('')
+
 const formAdd = ref({
   plate: '',
   model: '',
@@ -219,6 +223,8 @@ const editVehicle = (vehicle) => {
     return doc.label
   }
 
+  editError.value = ''
+  deleteError.value = ''
   vehicleToEdit.value = vehicle
   formEdit.value = {
     plate: vehicle.plate || '',
@@ -237,6 +243,8 @@ const editVehicle = (vehicle) => {
 }
 
 const closeEditModal = () => {
+  editError.value = ''
+  deleteError.value = ''
   isEditModalOpen.value = false
   vehicleToEdit.value = null
 }
@@ -265,7 +273,8 @@ const saveEdit = async () => {
     closeEditModal()
   } catch (error) {
     console.error('Error updating vehicle:', error)
-    alert('Error al actualizar el vehículo')
+    const msg = error.response?.data?.message
+    editError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo actualizar el vehículo.'
   } finally {
     isLoading.value = false
   }
@@ -281,13 +290,15 @@ const deleteVehicle = async () => {
     closeEditModal()
   } catch (error) {
     console.error('Error deleting vehicle:', error)
-    alert('Error al eliminar el vehículo')
+    const msg = error.response?.data?.message
+    deleteError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo eliminar el vehículo.'
   } finally {
     isLoading.value = false
   }
 }
 
 const openAddModal = () => {
+  addError.value = ''
   formAdd.value = {
     plate: '',
     model: '',
@@ -303,7 +314,7 @@ const openAddModal = () => {
   }
   isAddModalOpen.value = true
 }
-const closeAddModal = () => { isAddModalOpen.value = false }
+const closeAddModal = () => { addError.value = ''; isAddModalOpen.value = false }
 
 const saveAdd = async () => {
   if (!formAdd.value.plate || !formAdd.value.model) return
@@ -326,7 +337,8 @@ const saveAdd = async () => {
     closeAddModal()
   } catch (error) {
     console.error('Error creating vehicle:', error)
-    alert('Error al crear el vehículo')
+    const msg = error.response?.data?.message
+    addError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo crear el vehículo.'
   } finally {
     isLoading.value = false
   }
@@ -748,6 +760,7 @@ onMounted(() => {
             </div>
           </div>
 
+          <div v-if="editError" class="mx-6 md:mx-8 mb-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700 font-medium">{{ editError }}</div>
           <div class="px-6 md:px-8 py-5 border-t border-gray-100 bg-gray-50 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
             <button @click="isDeleteConfirmOpen = true" class="order-2 md:order-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white shadow transition-colors">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -777,6 +790,7 @@ onMounted(() => {
               <p class="text-xl font-extrabold text-slate-800">¿Eliminar vehículo?</p>
               <p class="text-base text-slate-500 mt-1">Esta acción no se puede deshacer. Se eliminará <span class="font-bold text-slate-700">{{ vehicleToEdit?.plate }}</span> permanentemente.</p>
             </div>
+            <p v-if="deleteError" class="text-sm text-red-600 font-medium text-center">{{ deleteError }}</p>
             <div class="flex gap-3 w-full sm:w-auto justify-center">
               <button @click="isDeleteConfirmOpen = false" class="flex-1 sm:flex-none justify-center px-6 py-2.5 rounded-xl font-bold text-sm bg-white text-slate-600 border border-slate-300 hover:bg-slate-100 transition-colors flex items-center">Cancelar</button>
               <button @click="deleteVehicle" :disabled="isLoading" class="flex-1 sm:flex-none justify-center px-6 py-2.5 rounded-xl font-bold text-sm bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center gap-2">
@@ -867,6 +881,7 @@ onMounted(() => {
               </div>
             </div>
           </div>
+          <div v-if="addError" class="mx-6 md:mx-8 mb-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700 font-medium">{{ addError }}</div>
           <div class="px-6 md:px-8 py-5 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
             <button @click="closeAddModal" class="flex-1 md:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 shadow-sm border border-slate-300 hover:bg-slate-100 transition-colors flex items-center">Cancelar</button>
             <button @click="saveAdd" :disabled="isLoading || !formAdd.plate || !formAdd.model" class="flex-1 md:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white shadow transition-colors flex items-center gap-2">
