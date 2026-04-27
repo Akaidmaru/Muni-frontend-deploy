@@ -717,7 +717,7 @@ onMounted(() => {
                   <option value="Vencido">Vencido</option>
                 </select>
                 <div class="relative w-full overflow-hidden transition-all duration-300" :class="formEdit.circulationPermitStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
-                  <input type="date" v-model="formEdit.circulationPermitExpiresAt" class="w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400 uppercase" />
+                  <input type="date" v-model="formEdit.circulationPermitExpiresAt" class="date-input w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400" />
                 </div>
               </div>
 
@@ -730,7 +730,7 @@ onMounted(() => {
                   <option value="Vencido">Vencido</option>
                 </select>
                 <div class="relative w-full overflow-hidden transition-all duration-300" :class="formEdit.technicalReviewStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
-                  <input type="date" v-model="formEdit.technicalReviewExpiresAt" class="w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400 uppercase" />
+                  <input type="date" v-model="formEdit.technicalReviewExpiresAt" class="date-input w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400" />
                 </div>
               </div>
 
@@ -743,7 +743,7 @@ onMounted(() => {
                   <option value="Vencido">Vencido</option>
                 </select>
                 <div class="relative w-full overflow-hidden transition-all duration-300" :class="formEdit.emissionsStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
-                  <input type="date" v-model="formEdit.emissionsExpiresAt" class="w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400 uppercase" />
+                  <input type="date" v-model="formEdit.emissionsExpiresAt" class="date-input w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400" />
                 </div>
               </div>
 
@@ -756,7 +756,7 @@ onMounted(() => {
                   <option value="Vencido">Vencido</option>
                 </select>
                 <div class="relative w-full overflow-hidden transition-all duration-300" :class="formEdit.insuranceStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
-                  <input type="date" v-model="formEdit.insuranceExpiresAt" class="w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400 uppercase" />
+                  <input type="date" v-model="formEdit.insuranceExpiresAt" class="date-input w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400" />
                 </div>
               </div>
 
@@ -843,7 +843,7 @@ onMounted(() => {
                   <option value="Vencido">Vencido</option>
                 </select>
                 <div class="relative w-full overflow-hidden transition-all duration-300" :class="formAdd.circulationPermitStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
-                  <input type="date" v-model="formAdd.circulationPermitExpiresAt" class="w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400 uppercase" />
+                  <input type="date" v-model="formAdd.circulationPermitExpiresAt" class="date-input w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400" />
                 </div>
               </div>
               <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3">
@@ -855,7 +855,7 @@ onMounted(() => {
                   <option value="Vencido">Vencido</option>
                 </select>
                 <div class="relative w-full overflow-hidden transition-all duration-300" :class="formAdd.technicalReviewStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
-                  <input type="date" v-model="formAdd.technicalReviewExpiresAt" class="w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400 uppercase" />
+                  <input type="date" v-model="formAdd.technicalReviewExpiresAt" class="date-input w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400" />
                 </div>
               </div>
               <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3">
@@ -867,7 +867,7 @@ onMounted(() => {
                   <option value="Vencido">Vencido</option>
                 </select>
                 <div class="relative w-full overflow-hidden transition-all duration-300" :class="formAdd.emissionsStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
-                  <input type="date" v-model="formAdd.emissionsExpiresAt" class="w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400 uppercase" />
+                  <input type="date" v-model="formAdd.emissionsExpiresAt" class="date-input w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400" />
                 </div>
               </div>
               <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3">
@@ -879,7 +879,7 @@ onMounted(() => {
                   <option value="Vencido">Vencido</option>
                 </select>
                 <div class="relative w-full overflow-hidden transition-all duration-300" :class="formAdd.insuranceStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
-                  <input type="date" v-model="formAdd.insuranceExpiresAt" class="w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400 uppercase" />
+                  <input type="date" v-model="formAdd.insuranceExpiresAt" class="date-input w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400" />
                 </div>
               </div>
             </div>
@@ -991,13 +991,4 @@ onMounted(() => {
 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); border-radius: 4px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.3); }
 
-input[type="date"]::-webkit-calendar-picker-indicator {
-  opacity: 0;
-  cursor: pointer;
-  z-index: 10;
-  position: absolute;
-  right: 8px;
-  width: 24px;
-  height: 24px;
-}
 </style>

@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
+import firmaImg from '@/assets/images/firma.jpeg'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -12,7 +13,7 @@ import JSZip from 'jszip'
 
 const router = useRouter()
 const route = useRoute()
-const authStore = useAuthStore()
+const auth = useAuthStore()
 const alertsModal = ref(false)
 const allRecords = ref([])
 const checklistSavedModal = ref({ open: false })
@@ -834,11 +835,15 @@ const buildChecklistPdfBlob = async (recordId) => {
 
   // ── Número de página ─────────────────────────────────────────────────
   const totalPages = doc.internal.getNumberOfPages()
+  const pageHeight = doc.internal.pageSize.getHeight()
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i)
+    if (i === totalPages) {
+      doc.addImage(firmaImg, 'JPEG', (pageWidth - 50) / 2, pageHeight - 35, 50, 20)
+    }
     doc.setFontSize(7)
     doc.setTextColor(150, 150, 150)
-    doc.text(`Página ${i} de ${totalPages}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 6, { align: 'center' })
+    doc.text(`Página ${i} de ${totalPages}`, pageWidth / 2, pageHeight - 6, { align: 'center' })
   }
 
   return doc.output('blob')
@@ -1217,7 +1222,7 @@ const exportChecklistPDF = async (record) => {
                           </svg>
                           Ver
                         </button>
-                        <!-- Editar: disponible para todos los registros con estado -->
+                        <!-- Editar: visible para todos -->
                         <button
                           @click="editRecord(record)"
                           class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-primary transition-colors bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200 shadow-sm">
@@ -1227,7 +1232,9 @@ const exportChecklistPDF = async (record) => {
                           Editar
                         </button>
                       </div>
+                      <!-- Exportar PDF en tabla: solo para ADMIN -->
                       <button
+                        v-if="!auth.isDireccion"
                         @click="exportChecklistPDF(record)"
                         class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-primary transition-colors bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200 shadow-sm"
                       >
@@ -1521,10 +1528,16 @@ const exportChecklistPDF = async (record) => {
               Editar Check List
             </button>
             <button
-              v-if="authStore.isAdmin"
+              v-if="!auth.isDireccion"
               @click="openDeleteModal(editModal.record); closeEditModal()"
               class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide">
               Eliminar Registro
+            </button>
+            <button
+              v-if="auth.isDireccion"
+              @click="exportChecklistPDF(editModal.record); closeEditModal()"
+              class="flex-1 py-2 bg-[#C0392B] hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide">
+              Exportar PDF
             </button>
           </div>
 

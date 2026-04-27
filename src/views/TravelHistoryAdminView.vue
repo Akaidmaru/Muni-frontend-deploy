@@ -7,6 +7,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import ExcelJS from 'exceljs'
 import logoCompleto from '@/assets/images/Logo-completo.png'
+import firmaImg from '@/assets/images/firma.jpeg'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import TripHistoryTable from '@/components/TripHistoryTable.vue'
 import TripRouteMap from '@/components/TripRouteMap.vue'
@@ -693,6 +694,11 @@ const buildPdfDocument = (signatureImages = new Map()) => {
       )
     },
   })
+
+  const totalPages = doc.internal.getNumberOfPages()
+  const pageHeight = doc.internal.pageSize.getHeight()
+  doc.setPage(totalPages)
+  doc.addImage(firmaImg, 'JPEG', (pageWidth - 50) / 2, pageHeight - 35, 50, 20)
 
   return doc
 }

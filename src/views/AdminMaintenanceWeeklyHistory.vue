@@ -5,6 +5,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import JSZip from 'jszip'
 import logoCompleto from '@/assets/images/Logo-completo.png'
+import firmaImg from '@/assets/images/firma.jpeg'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import api from '@/services/axios'
@@ -722,11 +723,15 @@ const buildMonthlyChecklistPdfBlob = async (record) => {
   }
 
   const totalPages = doc.internal.getNumberOfPages()
+  const pageHeight = doc.internal.pageSize.getHeight()
   for (let i = 1; i <= totalPages; i += 1) {
     doc.setPage(i)
+    if (i === totalPages) {
+      doc.addImage(firmaImg, 'JPEG', (pageWidth - 50) / 2, pageHeight - 35, 50, 20)
+    }
     doc.setFontSize(7)
     doc.setTextColor(150, 150, 150)
-    doc.text(`Página ${i} de ${totalPages}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 6, { align: 'center' })
+    doc.text(`Página ${i} de ${totalPages}`, pageWidth / 2, pageHeight - 6, { align: 'center' })
   }
 
   return doc.output('blob')

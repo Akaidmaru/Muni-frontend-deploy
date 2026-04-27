@@ -15,12 +15,12 @@ const trucks = ref([])
 const maintenanceRecords = ref([])
 const allTrips = ref([])
 const outOfServiceAlerts = ref([])
-const allDrivers = ref([])
 
-// Driver search
-const driverSearch = ref('')
+// Driver modal
+const driverModalOpen = ref(false)
+const driverModalSearch = ref('')
 const selectedDriver = ref(null)
-const showDriverDropdown = ref(false)
+const dbDrivers = ref([])
 
 // Chart instances
 let chartFailures = null
@@ -78,16 +78,18 @@ const kpiClasses = {
   red:   { card: 'border-red-200 bg-red-50',   num: 'text-red-700',   icon: 'text-red-600 bg-red-100'   },
 }
 
-// ── Driver search ──────────────────────────────────────────────────────────
-const filteredDrivers = computed(() => {
-  const q = driverSearch.value.toLowerCase()
-  return allDrivers.value.filter(d => (d.name || '').toLowerCase().includes(q) || (d.email || '').toLowerCase().includes(q)).slice(0, 8)
+// ── Driver modal ───────────────────────────────────────────────────────────
+const modalFilteredDrivers = computed(() => {
+  const q = driverModalSearch.value.toLowerCase()
+  if (!q) return dbDrivers.value
+  return dbDrivers.value.filter(d =>
+    (d.name || '').toLowerCase().includes(q) ||
+    (d.email || '').toLowerCase().includes(q)
+  )
 })
 
 const selectDriver = async (driver) => {
   selectedDriver.value = driver
-  driverSearch.value = driver.name || driver.email
-  showDriverDropdown.value = false
   await nextTick()
   buildDriverWorkChart()
 }
@@ -332,11 +334,12 @@ const buildDriverWorkChart = () => {
 const loadData = async () => {
   isLoading.value = true
   try {
-    const [trucksRes, maintenanceRes, tripsRes, alertsRes] = await Promise.allSettled([
+    const [trucksRes, maintenanceRes, tripsRes, alertsRes, driversRes] = await Promise.allSettled([
       api.get('/trucks'),
       api.get('/daily-maintenance-records/admin'),
       api.get('/trip-history/admin', { params: { pageSize: 100, page: 1 } }),
       api.get('/trucks/out-of-service-alerts'),
+      api.get('/users/by-roles', { params: { roles: 'DRIVER' } }),
     ])
 
     trucks.value = trucksRes.status === 'fulfilled'
@@ -352,15 +355,8 @@ const loadData = async () => {
     outOfServiceAlerts.value = alertsRes.status === 'fulfilled'
       ? (Array.isArray(alertsRes.value.data) ? alertsRes.value.data : []) : []
 
-    // Extract unique drivers from employee field (the person who registered each trip)
-    const driverMap = {}
-    allTrips.value.forEach(t => {
-      const emp = t.employee
-      if (emp?.id && (emp.name || emp.email) && !driverMap[emp.id]) {
-        driverMap[emp.id] = { id: emp.id, name: emp.name || emp.email }
-      }
-    })
-    allDrivers.value = Object.values(driverMap)
+    dbDrivers.value = driversRes.status === 'fulfilled'
+      ? (Array.isArray(driversRes.value.data) ? driversRes.value.data : []) : []
   } finally {
     isLoading.value = false
   }
@@ -515,28 +511,15 @@ onBeforeUnmount(() => {
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col">
               <p class="text-xs font-titles font-bold text-slate-700 mb-2">Trabajo conductor</p>
 
-              <!-- Driver search -->
-              <div class="relative mb-3">
-                <input
-                  v-model="driverSearch"
-                  @focus="showDriverDropdown = true"
-                  @blur="setTimeout(() => showDriverDropdown = false, 150)"
-                  type="text"
-                  placeholder="Nombre Apellido..."
-                  class="w-full text-[11px] border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-primary focus:ring-1 focus:ring-primary placeholder-gray-400"
-                />
-                <div v-if="showDriverDropdown && filteredDrivers.length"
-                     class="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto mt-0.5">
-                  <button
-                    v-for="d in filteredDrivers"
-                    :key="d.id"
-                    @mousedown.prevent="selectDriver(d)"
-                    class="w-full text-left px-3 py-2 text-[11px] hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
-                  >
-                    {{ d.name || d.email }}
-                  </button>
-                </div>
-              </div>
+              <!-- Driver selector button -->
+              <button
+                @click="driverModalOpen = true; driverModalSearch = ''"
+                class="w-full mb-3 text-left text-[11px] border border-gray-300 rounded-lg px-3 py-2 bg-white hover:border-primary transition-colors truncate"
+              >
+                <span :class="selectedDriver ? 'text-slate-800' : 'text-gray-400'">
+                  {{ selectedDriver ? (selectedDriver.name || selectedDriver.email) : 'Seleccionar conductor...' }}
+                </span>
+              </button>
 
               <div class="flex-1 min-h-[130px]">
                 <canvas ref="canvasDriverWork"></canvas>
@@ -591,4 +574,45 @@ onBeforeUnmount(() => {
       </main>
     </div>
   </div>
+
+  <!-- ── Modal selección de conductor ───────────────────────────────────── -->
+  <Teleport to="body">
+    <div v-if="driverModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200">
+        <div class="p-4 border-b border-gray-100">
+          <h3 class="text-sm font-titles font-bold text-slate-800 mb-3">Seleccionar conductor</h3>
+          <input
+            v-model="driverModalSearch"
+            type="text"
+            placeholder="Buscar por nombre..."
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-[11px] outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+          />
+        </div>
+        <ul class="max-h-64 overflow-y-auto divide-y divide-gray-50">
+          <li>
+            <button
+              @click="selectedDriver = null; driverModalOpen = false; buildDriverWorkChart()"
+              class="w-full text-left px-4 py-2.5 text-[11px] text-slate-500 hover:bg-gray-50 transition-colors"
+            >Todos los conductores</button>
+          </li>
+          <li v-for="d in modalFilteredDrivers" :key="d.id">
+            <button
+              @click="selectDriver(d); driverModalOpen = false"
+              class="w-full text-left px-4 py-2.5 text-[11px] hover:bg-gray-50 transition-colors"
+              :class="selectedDriver?.id === d.id ? 'font-bold text-primary' : 'text-slate-700'"
+            >{{ d.name || d.email }}</button>
+          </li>
+          <li v-if="modalFilteredDrivers.length === 0" class="px-4 py-3 text-[11px] text-slate-400 text-center">
+            Sin resultados
+          </li>
+        </ul>
+        <div class="p-3 border-t border-gray-100">
+          <button
+            @click="driverModalOpen = false"
+            class="w-full py-2 text-xs font-titles text-slate-600 rounded-lg hover:bg-gray-50 transition-colors"
+          >Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>

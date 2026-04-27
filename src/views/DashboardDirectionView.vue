@@ -43,7 +43,7 @@ const router = useRouter()
               </button>
 
               <button
-                @click="router.push('/admin/mantencion-vehicular')"
+                @click="router.push('/admin/mantencion-vehicular/diario')"
                 class="bg-white rounded-2xl shadow-lg border border-gray-100 p-5 sm:p-6 h-auto min-h-[140px] sm:h-52 flex flex-col items-center justify-center text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
               >
                 <img :src="repairIcon" alt="Mantenimiento Vehicular" class="w-12 sm:w-16 h-12 sm:h-16 object-contain mb-3 sm:mb-4" />

@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
@@ -8,16 +9,22 @@ import camionIcon from '@/assets/images/Images admin nabvar left/camion.png'
 import destinoIcon from '@/assets/images/Images admin nabvar left/destino.png'
 import funcionarioIcon from '@/assets/images/Images admin nabvar left/funcionario.png'
 import documentosIcon from '@/assets/images/Images admin nabvar left/enviar-archivo.png'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const auth = useAuthStore()
 
-const cards = [
-  { label: 'Usuarios',    icon: anadirGrupoIcon,  path: '/admin/gestion-usuarios' },
-  { label: 'Vehículos',   icon: camionIcon,        path: '/admin/vehiculos'        },
-  { label: 'Destinos',    icon: destinoIcon,       path: '/admin/destinos'         },
-  { label: 'Funcionario', icon: funcionarioIcon,   path: '/admin/funcionarios'     },
-  { label: 'Documentos',  icon: documentosIcon,    path: '/admin/documentos'       },
+const allCards = [
+  { label: 'Usuarios',    icon: anadirGrupoIcon,  path: '/admin/gestion-usuarios', directionVisible: true  },
+  { label: 'Vehículos',   icon: camionIcon,        path: '/admin/vehiculos',        directionVisible: true  },
+  { label: 'Destinos',    icon: destinoIcon,       path: '/admin/destinos',         directionVisible: true  },
+  { label: 'Funcionario', icon: funcionarioIcon,   path: '/admin/funcionarios',     directionVisible: false },
+  { label: 'Documentos',  icon: documentosIcon,    path: '/admin/documentos',       directionVisible: false },
 ]
+
+const cards = computed(() =>
+  auth.isDireccion ? allCards.filter(c => c.directionVisible) : allCards
+)
 </script>
 
 <template>

@@ -114,7 +114,7 @@ const enviar = async () => {
 
           <!-- Formulario -->
           <div class="flex-1 overflow-y-auto px-12 py-6">
-            <div class="max-w-lg">
+            <div class="max-w-lg mx-auto">
 
               <!-- Paso 1: tipo de solicitud -->
               <div class="mb-6">

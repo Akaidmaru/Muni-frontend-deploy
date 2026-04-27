@@ -91,11 +91,7 @@ ADMIN: [
       label: 'Mantenimiento\nvehicular',
       icon: repairIcon,
       alt: 'Mantenimiento vehicular',
-      path: '/admin/mantencion-vehicular',
-      id: 'mantenimiento',
-      subItems: [
-        { label: 'Diario', path: '/admin/mantencion-vehicular/diario', icon: dailyMaintenanceIcon, alt: 'Mantenimiento diario' },
-      ],
+      path: '/admin/mantencion-vehicular/diario',
     },
     { label: 'Historial de\nviajes', path: '/historial-viajes-admin',                    icon: historialIcon,    alt: 'Historial de viajes' },
     { label: 'Estadísticas',         path: '/admin/mantencion-vehicular/estadisticas', icon: estadisticasIcon, alt: 'Estadísticas'        },
