@@ -5,8 +5,10 @@ import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import api from '@/services/axios'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 // ── Estado principal ────────────────────────────────────────────────────────
 const users = ref([])
@@ -372,15 +374,15 @@ onMounted(() => { loadUsers() })
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Rol</th>
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Teléfono</th>
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Correo</th>
-                    <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Estado</th>
-                    <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Seguridad</th>
+                    <th v-if="!authStore.isDireccion" class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Estado</th>
+                    <th v-if="!authStore.isDireccion" class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Seguridad</th>
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Acción</th>
                   </tr>
                 </thead>
 
                 <tbody>
                   <tr v-if="pagedUsers.length === 0">
-                    <td colspan="8" class="border border-[#D3DCE6] py-16 text-center text-slate-400 text-sm">
+                    <td :colspan="authStore.isDireccion ? 6 : 8" class="border border-[#D3DCE6] py-16 text-center text-slate-400 text-sm">
                       No hay usuarios para mostrar.
                     </td>
                   </tr>
@@ -402,7 +404,7 @@ onMounted(() => { loadUsers() })
                     <td class="border border-[#D3DCE6] py-4 px-4 text-center text-slate-400 text-sm">{{ user.email || '—' }}</td>
 
                     <!-- Estado: check verificado + botón llave -->
-                    <td class="border border-[#D3DCE6] py-4 px-4 text-center">
+                    <td v-if="!authStore.isDireccion" class="border border-[#D3DCE6] py-4 px-4 text-center">
                       <div class="flex items-center justify-center gap-3">
                         <!-- Check isVerified -->
                         <span
@@ -431,7 +433,7 @@ onMounted(() => { loadUsers() })
                       </div>
                     </td>
                     <!-- Seguridad (badge) -->
-                    <td class="border border-[#D3DCE6] py-4 px-4 text-center">
+                    <td v-if="!authStore.isDireccion" class="border border-[#D3DCE6] py-4 px-4 text-center">
                       <span
                         class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border"
                         :style="{
@@ -467,6 +469,7 @@ onMounted(() => { loadUsers() })
 
                         <!-- Editar -->
                         <button
+                          v-if="!authStore.isDireccion"
                           @click="openEditModal(user)"
                           :disabled="!user.canEdit"
                           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"

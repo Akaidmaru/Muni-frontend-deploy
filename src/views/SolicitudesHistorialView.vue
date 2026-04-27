@@ -21,6 +21,7 @@ const currentPage   = ref(1)
 
 const selectedItem  = ref(null)
 const isDetailOpen  = ref(false)
+const openingAttachmentId = ref(null)
 
 // ── Config de tipos ───────────────────────────────────────────────────────────
 const TIPO_OPTIONS = [
@@ -34,7 +35,7 @@ const tipoLabel = (tipo) =>
 
 // ── Config de estados ─────────────────────────────────────────────────────────
 const ESTADO_CFG = {
-  PENDING:     { label: 'En curso',    bg: '#fff7ed', border: '#fed7aa', text: '#b45309', dot: '#f59e0b' },
+  PENDING:     { label: 'Pendiente',   bg: '#fff7ed', border: '#fed7aa', text: '#b45309', dot: '#f59e0b' },
   IN_PROGRESS: { label: 'En curso',    bg: '#fff7ed', border: '#fed7aa', text: '#b45309', dot: '#f59e0b' },
   COMPLETED:   { label: 'Finalizado',  bg: '#f0fdf4', border: '#bbf7d0', text: '#15803d', dot: '#22c55e' },
   REJECTED:    { label: 'Rechazado',   bg: '#fef2f2', border: '#fecaca', text: '#dc2626', dot: '#ef4444' },
@@ -74,7 +75,11 @@ const loadSolicitudes = async () => {
   try {
     const { data } = await api.get('/solicitudes')
     solicitudes.value = Array.isArray(data) ? data : []
-  } catch {
+  } catch (error) {
+    const backendMessage = error.response?.data?.message
+    loadError.value = Array.isArray(backendMessage)
+      ? backendMessage.join(', ')
+      : backendMessage || 'No se pudieron cargar las solicitudes.'
     solicitudes.value = []
   } finally {
     isLoading.value = false
@@ -121,12 +126,31 @@ const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.v
 // ── Modal detalle ─────────────────────────────────────────────────────────────
 const openDetail = (item) => { selectedItem.value = item; isDetailOpen.value = true }
 const closeDetail = () => { isDetailOpen.value = false; selectedItem.value = null }
+
+const hasAttachment = (item) => Boolean(item?.archivoKey || item?.attachmentKey)
+
+const openAttachment = async (item) => {
+  if (!item || openingAttachmentId.value) return
+  openingAttachmentId.value = item.id
+  loadError.value = ''
+  try {
+    const { data } = await api.get(`/solicitudes/${item.id}/archivo`)
+    if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer')
+  } catch (error) {
+    const backendMessage = error.response?.data?.message
+    loadError.value = Array.isArray(backendMessage)
+      ? backendMessage.join(', ')
+      : backendMessage || 'No se pudo abrir el archivo adjunto.'
+  } finally {
+    openingAttachmentId.value = null
+  }
+}
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
+  <div class="h-screen min-h-0 overflow-hidden bg-background flex flex-col">
     <!-- Header -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
+    <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
@@ -135,10 +159,10 @@ const closeDetail = () => { isDetailOpen.value = false; selectedItem.value = nul
       </div>
     </div>
 
-    <div class="flex h-screen overflow-hidden">
+    <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 py-6 pl-14 pr-4 md:pr-8 overflow-y-auto flex flex-col">
+      <main class="flex-1 py-6 pr-4 md:pr-8 overflow-y-auto flex flex-col">
         <div class="w-full flex flex-col flex-1">
 
           <!-- Volver -->
@@ -209,6 +233,10 @@ const closeDetail = () => { isDetailOpen.value = false; selectedItem.value = nul
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                 </svg>
                 <span class="text-sm text-slate-500 font-titles">Cargando solicitudes...</span>
+              </div>
+
+              <div v-else-if="loadError" class="py-24 text-center text-sm font-semibold text-red-600">
+                {{ loadError }}
               </div>
 
               <table v-else class="w-full border-collapse min-w-[600px]">
@@ -339,6 +367,16 @@ const closeDetail = () => { isDetailOpen.value = false; selectedItem.value = nul
             <div class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
               <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">Fecha</p>
               <p class="text-slate-700 font-medium">{{ formatDate(selectedItem.createdAt) }}</p>
+            </div>
+            <div v-if="hasAttachment(selectedItem)" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+              <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-2">Archivo adjunto</p>
+              <button
+                @click="openAttachment(selectedItem)"
+                :disabled="openingAttachmentId === selectedItem.id"
+                class="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-60 transition-colors"
+              >
+                {{ openingAttachmentId === selectedItem.id ? 'Abriendo...' : 'Ver archivo' }}
+              </button>
             </div>
             <div class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
               <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">Estado</p>

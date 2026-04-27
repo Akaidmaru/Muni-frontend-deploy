@@ -1,5 +1,5 @@
 <script setup>
-import { ref, defineExpose } from 'vue'
+import { ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -82,10 +82,9 @@ ADMIN: [
       path: '/admin/registro',
       id: 'registro',
       subItems: [
-        { label: 'Usuarios',    path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Usuarios'    },
-        { label: 'Vehículos',   path: '/admin/vehiculos',        icon: camionIcon,      alt: 'Vehículos'   },
-        { label: 'Destinos',    path: '/admin/destinos',         icon: destinoIcon,     alt: 'Destinos'    },
-        { label: 'Funcionario', path: '/admin/funcionarios',     icon: funcionarioIcon, alt: 'Funcionario' },
+        { label: 'Usuarios',  path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Usuarios'  },
+        { label: 'Vehículos', path: '/admin/vehiculos',        icon: camionIcon,      alt: 'Vehículos' },
+        { label: 'Destinos',  path: '/admin/destinos',         icon: destinoIcon,     alt: 'Destinos'  },
       ],
     },
     {
@@ -95,8 +94,7 @@ ADMIN: [
       path: '/admin/mantencion-vehicular',
       id: 'mantenimiento',
       subItems: [
-        { label: 'Diario',  path: '/admin/mantencion-vehicular/diario',            icon: dailyMaintenanceIcon,   alt: 'Mantenimiento diario'  },
-        { label: 'Mensual', path: '/admin/mantencion-vehicular/historial-mensual', icon: monthlyMaintenanceIcon, alt: 'Mantenimiento mensual' },
+        { label: 'Diario', path: '/admin/mantencion-vehicular/diario', icon: dailyMaintenanceIcon, alt: 'Mantenimiento diario' },
       ],
     },
     { label: 'Historial de\nviajes', path: '/historial-viajes-admin',                    icon: historialIcon,    alt: 'Historial de viajes' },

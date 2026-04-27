@@ -8,7 +8,7 @@ const props = defineProps({
   },
   role: {
     type: String,
-    default: 'driver' // 'driver', 'admin'
+    default: 'driver' // 'driver', 'admin', 'viewer'
   },
   // --- Admin/Global Props ---
   isLoading: {
@@ -65,6 +65,9 @@ const emit = defineEmits([
 const editingTripId = ref(null);
 const editingTripData = ref({});
 const OTHER_DESTINATION_VALUE = '__other__';
+const isAdminHistoryRole = computed(() => props.role === 'admin' || props.role === 'viewer');
+const isAdminEditor = computed(() => props.role === 'admin');
+const adminHistoryColspan = computed(() => (isAdminEditor.value ? 13 : 12));
 
 const startEditing = (trip) => {
   editingTripId.value = trip.id;
@@ -219,8 +222,8 @@ const adminStatusLabel = (status) => {
     <!-- HEADERS -->
     <thead class="text-[13px] text-text-title font-bold sticky top-0 bg-white z-10">
       <!-- Admin Header Row -->
-      <tr v-if="role === 'admin'">
-        <th rowspan="2" class="align-middle no-border-cell w-8"></th>
+      <tr v-if="isAdminHistoryRole">
+        <th v-if="isAdminEditor" rowspan="2" class="align-middle no-border-cell w-8"></th>
         <th rowspan="2" class="align-middle">Fecha</th>
         <th rowspan="2" class="align-middle">Patente</th>
         <th colspan="2">Hora</th>
@@ -232,7 +235,7 @@ const adminStatusLabel = (status) => {
         <th rowspan="2" class="align-middle">Firma</th>
         <th rowspan="2" class="align-middle no-border-cell w-8"></th>
       </tr>
-      <tr v-if="role === 'admin'">
+      <tr v-if="isAdminHistoryRole">
         <th class="text-xs font-semibold border-t-0">Inicio</th>
         <th class="text-xs font-semibold border-t-0">Final</th>
         <th class="text-xs font-semibold border-t-0">Inicio</th>
@@ -253,12 +256,12 @@ const adminStatusLabel = (status) => {
     <tbody class="text-center font-body">
       <!-- Loading / Error States for Admin -->
       <tr v-if="isLoading">
-        <td colspan="12" class="px-3 py-20 text-center text-text-secondary font-medium">
+        <td :colspan="isAdminHistoryRole ? adminHistoryColspan : 4" class="px-3 py-20 text-center text-text-secondary font-medium">
           Cargando viajes...
         </td>
       </tr>
       <tr v-else-if="error">
-        <td colspan="12" class="px-3 py-20 text-center text-red-600 font-medium">
+        <td :colspan="isAdminHistoryRole ? adminHistoryColspan : 4" class="px-3 py-20 text-center text-red-600 font-medium">
           {{ error }}
         </td>
       </tr>
@@ -272,9 +275,9 @@ const adminStatusLabel = (status) => {
           }">
         
         <!-- ADMIN COLUMNS -->
-        <template v-if="role === 'admin'">
+        <template v-if="isAdminHistoryRole">
           <!-- Edit/Delete & Save/Cancel buttons slot -->
-          <td class="px-2 py-5 text-gray-400 no-border-cell w-10">
+          <td v-if="isAdminEditor" class="px-2 py-5 text-gray-400 no-border-cell w-10">
             <div v-if="editingTripId === trip.id" class="flex flex-col gap-3 items-center justify-center">
               <button
                 @click="saveEditing"
@@ -303,7 +306,7 @@ const adminStatusLabel = (status) => {
             </div>
           </td>
 
-          <template v-if="editingTripId === trip.id">
+          <template v-if="isAdminEditor && editingTripId === trip.id">
             <td class="px-2 py-5 text-gray-500 text-sm">
               <input type="date" v-model="editingTripData.date" autocomplete="off" class="w-[140px] text-center border border-gray-300 rounded px-1 py-1 text-xs outline-none focus:border-primary bg-white cursor-pointer">
             </td>
@@ -553,9 +556,9 @@ const adminStatusLabel = (status) => {
         </template>
       </tr>
 
-      <tr v-if="!isLoading && !error && trips.length === 0 && role === 'admin'">
-        <td colspan="12" class="px-3 py-20 text-center text-text-secondary font-medium">
-          No hay viajes que coincidan con la busqueda.
+      <tr v-if="!isLoading && !error && trips.length === 0 && isAdminHistoryRole">
+        <td :colspan="adminHistoryColspan" class="px-3 py-20 text-center text-text-secondary font-medium">
+          No se encuentra historial de viajes.
         </td>
       </tr>
     </tbody>

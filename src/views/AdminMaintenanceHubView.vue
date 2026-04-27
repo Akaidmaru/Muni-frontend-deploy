@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
@@ -6,13 +7,16 @@ import UserMenu from '@/components/UserMenu.vue'
 import dailyMaintenanceIcon from '@/assets/images/admin/tareas-diarias.png'
 import monthlyMaintenanceIcon from '@/assets/images/admin/calendario.png'
 import estadisticasIcon from '@/assets/images/Images admin nabvar left/stadistics.png'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
-const cards = [
+const allCards = [
   { label: 'Mantenciones diarias', icon: dailyMaintenanceIcon, path: '/admin/mantencion-vehicular/diario' },
-  { label: 'Mantenciones mensuales', icon: monthlyMaintenanceIcon, path: '/admin/mantencion-vehicular/historial-mensual' },
+  { label: 'Mantenciones mensuales', icon: monthlyMaintenanceIcon, path: '/admin/mantencion-vehicular/historial-mensual', adminOnly: true },
 ]
+const cards = computed(() => allCards.filter(c => !c.adminOnly || !authStore.isDireccion))
 </script>
 
 <template>

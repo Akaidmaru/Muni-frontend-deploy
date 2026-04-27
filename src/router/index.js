@@ -190,13 +190,13 @@ const router = createRouter({
             path: '/admin/mantencion-vehicular/mensual',
             name: 'admin-maintenance-monthly',
             component: AdminMaintenanceWeeklyView,
-            meta: { requiresAuth: true, roles: ['ADMIN', 'DIRECTION'] }
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
         {
             path: '/admin/mantencion-vehicular/historial-mensual',
             name: 'admin-maintenance-monthly-history',
             component: AdminMaintenanceWeeklyHistory,
-            meta: { requiresAuth: true, roles: ['ADMIN', 'DIRECTION'] }
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
 
         },
         {
@@ -217,7 +217,7 @@ const router = createRouter({
             path: '/admin/funcionarios',
             name: 'admin-funcionarios',
             component: AdminFuncionarioView,
-            meta: { requiresAuth: true, roles: ['ADMIN', 'DIRECTION'] }
+            meta: { requiresAuth: true, roles: ['ADMIN'] }
         },
         {
             path: '/admin/solicitudes',

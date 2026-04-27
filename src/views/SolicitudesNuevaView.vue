@@ -14,6 +14,7 @@ const nombreUsuario  = ref('')
 const patente        = ref('')
 const razon          = ref('')
 const archivoNombre  = ref('')
+const archivoFile    = ref(null)
 const archivoRef     = ref(null)
 
 const esConductor = computed(() => tipoSolicitud.value === 'conductor')
@@ -25,13 +26,16 @@ const onChangeTipo = () => {
   patente.value         = ''
   razon.value           = ''
   archivoNombre.value   = ''
+  archivoFile.value     = null
+  if (archivoRef.value) archivoRef.value.value = ''
 }
 
 const triggerArchivo = () => archivoRef.value?.click()
 
 const onArchivoChange = (e) => {
   const file = e.target.files[0]
-  if (file) archivoNombre.value = file.name
+  archivoFile.value = file || null
+  archivoNombre.value = file?.name || ''
 }
 
 const isSending  = ref(false)
@@ -43,20 +47,24 @@ const enviar = async () => {
   sendError.value  = ''
   sendSuccess.value = false
   try {
-    // requiere endpoint en el backend:
-    // POST /solicitudes  →  { tipo, conductorOpcion?, nombre?, patente?, razon?, archivo? }
-    // El backend debe notificar al ADMIN al recibir la solicitud
-    const payload = {
-      tipo: tipoSolicitud.value,
-      ...(esConductor.value && { conductorOpcion: conductorOpcion.value, nombre: nombreUsuario.value }),
-      ...(esPatente.value   && { patente: patente.value }),
-      razon: razon.value || undefined,
+    const payload = new FormData()
+    payload.append('tipo', tipoSolicitud.value)
+    if (esConductor.value) {
+      payload.append('conductorOpcion', conductorOpcion.value)
+      payload.append('nombre', nombreUsuario.value)
     }
+    if (esPatente.value) payload.append('patente', patente.value)
+    if (razon.value) payload.append('razon', razon.value)
+    if (archivoFile.value) payload.append('archivo', archivoFile.value)
+
     await api.post('/solicitudes', payload)
     sendSuccess.value = true
     setTimeout(() => router.push('/admin/solicitudes/historial'), 1200)
-  } catch {
-    sendError.value = 'No se pudo enviar la solicitud. Intenta nuevamente.'
+  } catch (error) {
+    const backendMessage = error.response?.data?.message
+    sendError.value = Array.isArray(backendMessage)
+      ? backendMessage.join(', ')
+      : backendMessage || 'No se pudo enviar la solicitud. Intenta nuevamente.'
   } finally {
     isSending.value = false
   }
@@ -64,10 +72,10 @@ const enviar = async () => {
 </script>
 
 <template>
-  <div class="flex flex-col min-h-screen bg-gray-100">
+  <div class="h-screen min-h-0 overflow-hidden bg-gray-100 flex flex-col">
     <!-- Header -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
-      <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+    <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
+      <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
         </router-link>
@@ -75,10 +83,10 @@ const enviar = async () => {
       </div>
     </div>
 
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 pt-4 pb-10 pl-14 pr-4 overflow-hidden flex flex-col min-w-0">
+      <main class="flex-1 pt-4 pb-10 pr-4 overflow-y-auto flex flex-col">
         <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden w-full">
 
           <!-- Card header -->
@@ -229,7 +237,7 @@ const enviar = async () => {
                   <input
                     ref="archivoRef"
                     type="file"
-                    accept="image/*,.pdf"
+                    accept="application/pdf,image/png,image/jpeg,image/webp"
                     class="hidden"
                     @change="onArchivoChange"
                   />

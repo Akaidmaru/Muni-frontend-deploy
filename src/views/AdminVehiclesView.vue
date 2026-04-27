@@ -6,8 +6,10 @@ import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import api from '@/services/axios'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const filterDesde = ref('')
 const filterHasta = ref('')
@@ -382,6 +384,7 @@ onMounted(() => {
 
                <div class="order-2 flex items-center gap-2 md:absolute md:right-4 md:top-6 lg:right-8">
                  <button
+                   v-if="!authStore.isDireccion"
                    @click="openAddModal"
                    class="flex items-center gap-2 bg-[#0B2545] hover:bg-[#133A6D] text-white text-xs font-bold px-4 py-2.5 rounded-lg transition-all hover:-translate-y-0.5 active:scale-95 shadow-sm"
                  >
@@ -522,7 +525,7 @@ onMounted(() => {
                           </svg>
                           Ver
                         </button>
-                        <button @click="editVehicle(vehicle)" class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 hover:text-slate-800 transition-colors bg-white rounded-full px-3 py-1.5 shadow-sm border border-gray-200">
+                        <button v-if="!authStore.isDireccion" @click="editVehicle(vehicle)" class="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 hover:text-slate-800 transition-colors bg-white rounded-full px-3 py-1.5 shadow-sm border border-gray-200">
                           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                           </svg>

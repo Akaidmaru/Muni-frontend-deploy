@@ -7,8 +7,11 @@ import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import TripRouteMap from '@/components/TripRouteMap.vue'
 import api from '@/services/axios'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
+const canManageDestinations = computed(() => !authStore.isDireccion)
 
 // ── Estado principal ────────────────────────────────────────────────────────
 const destinations = ref([])
@@ -274,6 +277,7 @@ onMounted(loadDestinations)
                 <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center sm:py-2">Administración de Destinos</h1>
                 <div class="flex items-center gap-3 sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2">
                   <button
+                    v-if="canManageDestinations"
                     @click="openCreateModal"
                     class="flex items-center gap-2 bg-[#0B2545] hover:bg-[#133A6D] text-white text-xs font-bold px-4 py-2.5 rounded-lg transition-all hover:-translate-y-0.5 active:scale-95 shadow-sm"
                   >
@@ -305,19 +309,19 @@ onMounted(loadDestinations)
 
             <!-- Tabla -->
             <div class="px-8 md:px-12 overflow-x-auto mb-4">
-              <table class="w-full border-collapse min-w-[800px]">
+              <table class="w-full border-collapse min-w-[720px]">
                 <thead>
                   <tr>
                     <th class="border border-[#7EA0C4] py-4 px-6 text-left font-body text-[1.05rem] font-medium text-slate-700 bg-white">Destino</th>
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white w-48">Estado</th>
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white w-48">Viajes asociados</th>
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white w-48">Último viaje</th>
-                    <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white w-40">Acción</th>
+                    <th v-if="canManageDestinations" class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white w-40">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-if="isLoading">
-                    <td colspan="5" class="border border-[#D3DCE6] text-center py-16 text-slate-400 font-body">
+                    <td :colspan="canManageDestinations ? 5 : 4" class="border border-[#D3DCE6] text-center py-16 text-slate-400 font-body">
                       <div class="flex items-center justify-center gap-2">
                         <svg class="animate-spin w-5 h-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -328,7 +332,7 @@ onMounted(loadDestinations)
                     </td>
                   </tr>
                   <tr v-else-if="pagedDestinations.length === 0">
-                    <td colspan="5" class="border border-[#D3DCE6] text-center py-16 text-slate-400 font-body">
+                    <td :colspan="canManageDestinations ? 5 : 4" class="border border-[#D3DCE6] text-center py-16 text-slate-400 font-body">
                       No se encontraron destinos.
                     </td>
                   </tr>
@@ -365,7 +369,7 @@ onMounted(loadDestinations)
                     <td class="border border-[#D3DCE6] py-4 px-4 text-center text-slate-400 text-sm font-medium">
                       {{ dest.lastTripDate || '—' }}
                     </td>
-                    <td class="border border-[#D3DCE6] py-4 px-4 text-center">
+                    <td v-if="canManageDestinations" class="border border-[#D3DCE6] py-4 px-4 text-center">
                       <div class="flex items-center justify-center gap-2">
                         <button
                           @click="openEditModal(dest)"

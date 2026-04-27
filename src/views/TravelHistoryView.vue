@@ -43,6 +43,15 @@ const filters = ref({
 // Applied state (when user clicks Apply)
 const appliedFilters = ref({ ...filters.value })
 
+const hasActiveFilters = computed(() =>
+  Boolean(
+    appliedFilters.value.from ||
+    appliedFilters.value.to ||
+    appliedFilters.value.searchValue ||
+    appliedFilters.value.license
+  )
+)
+
 const formatDate = (value) => {
   const parsedDate = new Date(value)
   if (Number.isNaN(parsedDate.getTime())) return ''
@@ -153,6 +162,12 @@ const lastVisibleRow = computed(() => {
   if (totalItems.value === 0) return 0
   return Math.min(currentPage.value * Number(itemsPerPage.value), totalItems.value)
 })
+
+const emptyTravelsMessage = computed(() =>
+  hasActiveFilters.value
+    ? 'No hay viajes que coincidan con la búsqueda.'
+    : 'No se encuentra historial de viajes.'
+)
 
 const goToPreviousPage = () => {
   if (currentPage.value <= 1 || isLoadingTravels.value) return
@@ -298,6 +313,12 @@ watch(currentPage, () => {
                       </td>
                     </tr>
 
+                    <tr v-else-if="filteredTravels.length === 0">
+                      <td colspan="9" class="px-3 py-20 text-center text-text-secondary font-medium">
+                        {{ emptyTravelsMessage }}
+                      </td>
+                    </tr>
+
                     <!-- Actual Data Rows -->
                     <tr v-else v-for="travel in filteredTravels" :key="travel.id" class="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                       <td class="px-2 py-5 text-gray-500 text-sm">{{ travel.date }}</td>
@@ -320,13 +341,6 @@ watch(currentPage, () => {
                            <div class="h-1 w-12 bg-primary rounded-full opacity-60 rotate-[-10deg]"></div>
                          </div>
                          <span v-else class="text-gray-400">-</span>
-                      </td>
-                    </tr>
-                    
-                    <!-- Empty State -->
-                    <tr v-if="!isLoadingTravels && !travelsError && filteredTravels.length === 0">
-                      <td colspan="9" class="px-3 py-20 text-center text-text-secondary font-medium">
-                        No hay viajes que coincidan con la búsqueda.
                       </td>
                     </tr>
                   </tbody>

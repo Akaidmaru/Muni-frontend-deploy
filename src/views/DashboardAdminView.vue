@@ -37,7 +37,7 @@ const goToAdminSolicitudes = () => {
   <div class="h-screen min-h-0 overflow-hidden bg-background flex flex-col">
     <!-- Header -->
     <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
-      <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
         </router-link>

@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSidebarStore } from '@/stores/sidebar'
+import { useAuthStore } from '@/stores/auth'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import ExcelJS from 'exceljs'
@@ -13,6 +14,7 @@ import UserMenu from '@/components/UserMenu.vue'
 import api from '@/services/axios'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const travels = ref([])
 const isLoadingTravels = ref(false)
 const travelsError = ref('')
@@ -803,7 +805,9 @@ const exportToExcel = async () => {
 }
 
 onMounted(() => {
-  void loadAdminEditCatalogs()
+  if (!authStore.isDireccion) {
+    void loadAdminEditCatalogs()
+  }
   loadTravels()
 })
 
@@ -881,10 +885,10 @@ watch(currentPage, () => {
 
             <div class="custom-scrollbar w-full overflow-x-auto px-3 sm:px-8 md:px-12 lg:px-16 md:pr-10 relative mt-4 sm:mt-6 pb-6 min-w-0">
               <div class="min-w-[1200px]">
-                <TripHistoryTable 
+                <TripHistoryTable
                   ref="tripTable"
                   :trips="filteredTravels"
-                  role="admin"
+                  :role="authStore.isDireccion ? 'viewer' : 'admin'"
                   :isLoading="isLoadingTravels"
                   :error="travelsError"
                   :adminDrivers="adminDrivers"

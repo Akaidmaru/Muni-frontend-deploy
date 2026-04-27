@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
+import { useAuthStore } from '@/stores/auth'
 import api from '@/services/axios'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -11,6 +12,7 @@ import JSZip from 'jszip'
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
 const alertsModal = ref(false)
 const allRecords = ref([])
 const checklistSavedModal = ref({ open: false })
@@ -296,13 +298,14 @@ const kpis = ref({
 const isLoadingKpis = ref(false)
 
 // ═══════════════════════════════════════════════════════════
-// ELIMINAR REGISTRO DIARIO
+// ELIMINAR REGISTRO DIARIO (solo ADMIN)
 // ═══════════════════════════════════════════════════════════
 const deleteModal = ref({ open: false, record: null })
 const isDeleting = ref(false)
 const deleteResultModal = ref({ open: false, success: false, message: '' })
 
 const openDeleteModal = (record) => {
+  if (!authStore.isAdmin) return
   deleteModal.value = { open: true, record }
 }
 
@@ -313,7 +316,7 @@ const closeDeleteModal = () => {
 }
 
 const confirmDeleteRecord = async () => {
-  if (!deleteModal.value.record) return
+  if (!authStore.isAdmin || !deleteModal.value.record) return
   const recordId = deleteModal.value.record.id
   isDeleting.value = true
   deleteModal.value = { open: false, record: null }
@@ -1025,7 +1028,7 @@ const exportChecklistPDF = async (record) => {
   </div>
 
 <Teleport to="body">
-      <div v-if="deleteModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div v-if="authStore.isAdmin && deleteModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200">
           <div class="p-6 text-center">
             <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
@@ -1053,7 +1056,7 @@ const exportChecklistPDF = async (record) => {
 
     <!-- ═══════════ MODAL RESULTADO ELIMINAR ═══════════ -->
     <Teleport to="body">
-      <div v-if="deleteResultModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div v-if="authStore.isAdmin && deleteResultModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200">
           <div class="p-6 text-center">
             <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4" :class="deleteResultModal.success ? 'bg-green-100' : 'bg-red-100'">
@@ -1518,6 +1521,7 @@ const exportChecklistPDF = async (record) => {
               Editar Check List
             </button>
             <button
+              v-if="authStore.isAdmin"
               @click="openDeleteModal(editModal.record); closeEditModal()"
               class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide">
               Eliminar Registro
