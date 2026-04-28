@@ -8,16 +8,17 @@ import api from '@/services/axios'
 
 const router = useRouter()
 
-/** Tipos alineados al backend (SOAT en API; en pantalla se muestra SOAP) */
+/** Tipos alineados al backend */
 const DOCUMENT_ROWS = [
   { kind: 'CIRCULATION_PERMIT', label: 'Permiso de circulación' },
-  { kind: 'SOAT', label: 'SOAP' },
+  { kind: 'INSURANCE', label: 'SOAP' },
   { kind: 'TECHNICAL_REVIEW', label: 'Revisión técnica' },
   { kind: 'EMISSIONS', label: 'Emisión de contaminantes' },
 ]
 
 /** Año corriente: documentación organizada según el año actual */
 const currentDocumentationYear = computed(() => new Date().getFullYear())
+const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024
 
 const DOCUMENT_FILE_ACCEPT =
   'application/pdf,.pdf,image/png,.png,image/jpeg,.jpg,.jpeg,image/webp,.webp'
@@ -77,7 +78,7 @@ const sortedVehicles = computed(() =>
 const docsByKind = computed(() => {
   const m = {}
   for (const d of docsList.value) {
-    m[d.documentKind] = d
+    m[d.documentType] = d
   }
   return m
 })
@@ -159,10 +160,14 @@ async function uploadDocument(truckId, kind, file) {
     )
     return
   }
+  if (file.size > MAX_DOCUMENT_BYTES) {
+    showAlert('Error', 'El archivo no puede superar los 20 MB.', true)
+    return
+  }
   uploadingKind.value = kind
   try {
     const fd = new FormData()
-    fd.append('kind', kind)
+    fd.append('documentType', kind)
     fd.append('file', file)
     await api.post(`/trucks/${truckId}/documents`, fd)
     await loadDocuments()
@@ -196,9 +201,23 @@ function tipoLabelClass(loaded) {
 
 function onViewDocument(kind) {
   const doc = docsByKind.value[kind]
-  if (doc?.downloadUrl) {
-    window.open(doc.downloadUrl, '_blank', 'noopener,noreferrer')
-  }
+  if (!selectedTruckId.value || !doc) return
+  api
+    .get(`/trucks/${selectedTruckId.value}/documents/${kind}/url`)
+    .then(({ data }) => {
+      if (data?.url) {
+        window.open(data.url, '_blank', 'noopener,noreferrer')
+      }
+    })
+    .catch((e) => {
+      console.error(e)
+      const msg = e.response?.data?.message || 'No se pudo abrir el documento.'
+      showAlert(
+        'Error',
+        typeof msg === 'string' ? msg : 'No se pudo abrir el documento.',
+        true
+      )
+    })
 }
 
 async function confirmDeleteDocument() {
@@ -446,7 +465,7 @@ onMounted(async () => {
                           type="button"
                           title="Abrir el documento en otra pestaña"
                           class="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-slate-600 hover:text-slate-900 transition-colors bg-white rounded-full px-2.5 py-1.5 shadow-sm border border-gray-300 disabled:opacity-50 shrink-0"
-                          :disabled="!selectedTruckId || !docsByKind[row.kind]?.downloadUrl"
+                          :disabled="!selectedTruckId || !docsByKind[row.kind]"
                           @click="onViewDocument(row.kind)"
                         >
                           <svg
@@ -608,7 +627,7 @@ onMounted(async () => {
                 <option value="CIRCULATION_PERMIT">
                   Permiso de circulación
                 </option>
-                <option value="SOAT">SOAP</option>
+                <option value="INSURANCE">SOAP</option>
                 <option value="TECHNICAL_REVIEW">Revisión técnica</option>
                 <option value="EMISSIONS">
                   Emisión de contaminantes
