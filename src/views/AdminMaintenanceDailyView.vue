@@ -1,9 +1,11 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
+import firmaImg from '@/assets/images/firma.jpeg'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
+import { useAuthStore } from '@/stores/auth'
 import api from '@/services/axios'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -11,6 +13,7 @@ import JSZip from 'jszip'
 
 const router = useRouter()
 const route = useRoute()
+const auth = useAuthStore()
 const alertsModal = ref(false)
 const allRecords = ref([])
 const checklistSavedModal = ref({ open: false })
@@ -95,13 +98,26 @@ const getDocumentStatusByExpiry = (expiryDate) => {
   return expiry >= today ? 'Vigente' : 'Vencido'
 }
 
-const formatDate = (value) => {
+const formatCalendarDate = (value) => {
+  if (!value) return '—'
+
+  // Trata fechas tipo YYYY-MM-DD o ISO midnight como fecha-calendario
+  // para evitar que la zona horaria del navegador reste un día.
+  const normalized = String(value).slice(0, 10)
+  const parts = normalized.split('-')
+  if (parts.length === 3) {
+    const [year, month, day] = parts
+    if (year && month && day) {
+      return `${day.padStart(2, '0')}-${month.padStart(2, '0')}-${year}`
+    }
+  }
+
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
 
-  const day = String(date.getDate()).padStart(2, '0')
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const year = date.getFullYear()
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const year = date.getUTCFullYear()
   return `${day}-${month}-${year}`
 }
 
@@ -203,7 +219,7 @@ const buildTopCategories = (recordsList) => {
 
 const mapRecordFromApi = (record) => ({
   id: record.id,
-  date: formatDate(record.inspectionDate),
+  date: formatCalendarDate(record.inspectionDate),
   plate: record.truck?.plate || 'Sin patente',
   driver:
     record.driver?.name || record.driver?.email || `Conductor ${record.driverId}`,
@@ -283,13 +299,14 @@ const kpis = ref({
 const isLoadingKpis = ref(false)
 
 // ═══════════════════════════════════════════════════════════
-// ELIMINAR REGISTRO DIARIO
+// ELIMINAR REGISTRO DIARIO (solo ADMIN)
 // ═══════════════════════════════════════════════════════════
 const deleteModal = ref({ open: false, record: null })
 const isDeleting = ref(false)
 const deleteResultModal = ref({ open: false, success: false, message: '' })
 
 const openDeleteModal = (record) => {
+  if (!authStore.isAdmin) return
   deleteModal.value = { open: true, record }
 }
 
@@ -300,7 +317,7 @@ const closeDeleteModal = () => {
 }
 
 const confirmDeleteRecord = async () => {
-  if (!deleteModal.value.record) return
+  if (!authStore.isAdmin || !deleteModal.value.record) return
   const recordId = deleteModal.value.record.id
   isDeleting.value = true
   deleteModal.value = { open: false, record: null }
@@ -508,7 +525,6 @@ const onTableMouseMove = (e) => {
 const onTableMouseUp = () => { isTableDragging.value = false }
 
 onMounted(() => {
-  console.log('[AdminMaintenanceDaily] Route query:', route.query)
   if (route.query.saved === 'true') {
     checklistSavedModal.value.open = true
     router.replace({ query: {} })
@@ -819,11 +835,15 @@ const buildChecklistPdfBlob = async (recordId) => {
 
   // ── Número de página ─────────────────────────────────────────────────
   const totalPages = doc.internal.getNumberOfPages()
+  const pageHeight = doc.internal.pageSize.getHeight()
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i)
+    if (i === totalPages) {
+      doc.addImage(firmaImg, 'JPEG', (pageWidth - 50) / 2, pageHeight - 35, 50, 20)
+    }
     doc.setFontSize(7)
     doc.setTextColor(150, 150, 150)
-    doc.text(`Página ${i} de ${totalPages}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 6, { align: 'center' })
+    doc.text(`Página ${i} de ${totalPages}`, pageWidth / 2, pageHeight - 6, { align: 'center' })
   }
 
   return doc.output('blob')
@@ -922,9 +942,9 @@ const exportChecklistPDF = async (record) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
+  <div class="h-screen min-h-0 overflow-hidden bg-background flex flex-col">
     <!-- Navbar -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
+    <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
@@ -933,17 +953,17 @@ const exportChecklistPDF = async (record) => {
       </div>
     </div>
 
-    <div class="flex flex-1 overflow-hidden min-w-0">
+    <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 pt-4 pb-10 pl-14 pr-3 overflow-hidden flex flex-col min-w-0">
-        <div class="w-full mb-3 pl-10 sm:pl-12 shrink-0">
+      <main class="flex-1 min-w-0 pt-4 pb-10 pl-4 pr-3 overflow-y-auto flex flex-col">
+        <div class="w-full mb-3 pl-0 shrink-0">
           <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Volver
           </button>
         </div>
-        <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden w-full">
+        <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm w-full flex flex-col overflow-visible max-md:flex-none">
 
           <!-- Título -->
           <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-6 pb-6 flex flex-col lg:flex-row items-start justify-between gap-6">
@@ -1009,9 +1029,11 @@ const exportChecklistPDF = async (record) => {
         <p class="text-[11px] text-slate-600 leading-snug">Registros sin revisar</p>
       </div>
     </div>
+    </div>
+  </div>
 
 <Teleport to="body">
-      <div v-if="deleteModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div v-if="authStore.isAdmin && deleteModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200">
           <div class="p-6 text-center">
             <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
@@ -1039,7 +1061,7 @@ const exportChecklistPDF = async (record) => {
 
     <!-- ═══════════ MODAL RESULTADO ELIMINAR ═══════════ -->
     <Teleport to="body">
-      <div v-if="deleteResultModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div v-if="authStore.isAdmin && deleteResultModal.open" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden border border-gray-200">
           <div class="p-6 text-center">
             <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4" :class="deleteResultModal.success ? 'bg-green-100' : 'bg-red-100'">
@@ -1091,9 +1113,6 @@ const exportChecklistPDF = async (record) => {
       </div>
     </Teleport>
 
-  </div>
-</div>
-
           <!-- Error de carga -->
           <div v-if="recordsError" class="mx-4 sm:mx-6 lg:mx-10 mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
             {{ recordsError }}
@@ -1142,7 +1161,7 @@ const exportChecklistPDF = async (record) => {
           <!-- Tabla -->
           <div
             ref="tableScrollRef"
-            class="flex-1 min-h-0 overflow-x-auto overflow-y-auto px-4 sm:px-6 lg:px-10 md:pr-10 cursor-grab active:cursor-grabbing"
+            class="custom-scrollbar overflow-x-auto max-md:min-h-0 max-md:flex-none max-md:overflow-y-visible px-4 sm:px-6 lg:px-10 md:pr-10 cursor-grab active:cursor-grabbing"
             @mousedown="onTableMouseDown"
           >
             <table class="w-full text-sm" style="border-collapse: collapse;">
@@ -1203,7 +1222,7 @@ const exportChecklistPDF = async (record) => {
                           </svg>
                           Ver
                         </button>
-                        <!-- Editar: disponible para todos los registros con estado -->
+                        <!-- Editar: visible para todos -->
                         <button
                           @click="editRecord(record)"
                           class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-primary transition-colors bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200 shadow-sm">
@@ -1213,7 +1232,9 @@ const exportChecklistPDF = async (record) => {
                           Editar
                         </button>
                       </div>
+                      <!-- Exportar PDF en tabla: solo para ADMIN -->
                       <button
+                        v-if="!auth.isDireccion"
                         @click="exportChecklistPDF(record)"
                         class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-primary transition-colors bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200 shadow-sm"
                       >
@@ -1507,9 +1528,16 @@ const exportChecklistPDF = async (record) => {
               Editar Check List
             </button>
             <button
+              v-if="!auth.isDireccion"
               @click="openDeleteModal(editModal.record); closeEditModal()"
               class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide">
               Eliminar Registro
+            </button>
+            <button
+              v-if="auth.isDireccion"
+              @click="exportChecklistPDF(editModal.record); closeEditModal()"
+              class="flex-1 py-2 bg-[#C0392B] hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide">
+              Exportar PDF
             </button>
           </div>
 
@@ -1597,3 +1625,20 @@ const exportChecklistPDF = async (record) => {
   </Teleport>
 
 </template>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+</style>

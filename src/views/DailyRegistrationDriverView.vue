@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import logoCompleto from "@/assets/images/Logo-completo.png";
@@ -1040,9 +1040,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="h-screen bg-background flex flex-col overflow-hidden">
+  <div class="h-screen min-h-0 overflow-hidden bg-background flex flex-col">
     <!-- Header -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
+    <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
           <img
@@ -1060,7 +1060,7 @@ onBeforeUnmount(() => {
     <div class="flex flex-1 overflow-hidden min-h-0">
       <DashboardSidebar />
 
-      <main class="flex-1 py-10 px-6 overflow-hidden flex items-start justify-center">
+      <main class="flex-1 min-h-0 py-10 pl-3 pr-6 overflow-y-auto flex items-start justify-center">
         <!-- ═══════════════════════════════════ -->
         <!-- PASO 1 – Seleccionar patente        -->
         <!-- ═══════════════════════════════════ -->

@@ -1,7 +1,9 @@
 <script setup>
-import { ref, watchEffect, defineExpose } from 'vue'
+import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useSidebarStore } from '@/stores/sidebar'
 import registroIcon from '@/assets/images/Registro.png'
 import historialIcon from '@/assets/images/Historial.png'
 import tableIcon from '@/assets/images/Images admin nabvar left/table.png'
@@ -15,24 +17,30 @@ import viajesIcon from '@/assets/images/Images admin nabvar left/agencia-de-viaj
 import dailyMaintenanceIcon from '@/assets/images/admin/tareas-diarias.png'
 import monthlyMaintenanceIcon from '@/assets/images/admin/calendario.png'
 import estadisticasIcon from '@/assets/images/Images admin nabvar left/stadistics.png'
+import documentosIcon from '@/assets/images/Images admin nabvar left/enviar-archivo.png'
+import combustibleIcon from '@/assets/images/Images admin nabvar left/combustible.png'
+import solicitudesIcon from '@/assets/images/Direction/solicitudes.png'
+import nuevaSolicitudIcon from '@/assets/images/Direction/nueva.png'
+import historialSolicitudesIcon from '@/assets/images/Direction/Historial.png'
 import ReportProblemModal from './ReportProblemModal.vue'
 
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
-
-const open = ref(false)
+const sidebarStore = useSidebarStore()
+const { open, adminDropdowns: openDropdowns, mobileFiltersOverlayOpen } = storeToRefs(sidebarStore)
+const { setOpen, toggleAdminDropdown } = sidebarStore
 
 defineExpose({ isOpen: open })
 
 const allNavItems = {
   DRIVER: [
     { label: 'Registro\ndiario', path: '/registro-diario', icon: registroIcon, alt: 'Registro diario' },
-    { label: 'Historial de\nviajes', path: '/historial-viajes', icon: historialIcon, alt: 'Historial de viajes' },
+    { label: 'Historial de\nViajes', path: '/historial-viajes', icon: historialIcon, alt: 'Historial de Viajes' },
   ],
   EMPLOYEE: [
     { label: 'Registro\ndiario', path: '/registro-diario-funcionario', icon: registroIcon, alt: 'Registro diario' },
-    { label: 'Historial de\nviajes', path: '/historial-viajes-funcionario', icon: historialIcon, alt: 'Historial de viajes' },
+    { label: 'Historial de\nViajes', path: '/historial-viajes-funcionario', icon: historialIcon, alt: 'Historial de Viajes' },
   ],
 ADMIN: [
     {
@@ -45,23 +53,59 @@ ADMIN: [
         { label: 'Usuarios',    path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Usuarios'      },
         { label: 'Vehículos',   path: '/admin/vehiculos',         icon: camionIcon,       alt: 'Vehículos'    },
         { label: 'Destinos',    path: '/admin/destinos',          icon: destinoIcon,      alt: 'Destinos'      },
-        { label: 'Funcionario', path: '/admin/funcionarios',      icon: funcionarioIcon,  alt: 'Funcionario'   }
+        { label: 'Funcionario', path: '/admin/funcionarios',      icon: funcionarioIcon,  alt: 'Funcionario'   },
+        { label: 'Documentos',  path: '/admin/documentos',        icon: documentosIcon,     alt: 'Documentos'    },
+      ],
+    },
+    { label: 'Historial de\nViajes', path: '/historial-viajes-admin', icon: historialIcon, alt: 'Historial de Viajes' },
+    {
+      label: 'Mantenciones',
+      icon: repairIcon,
+      alt: 'Mantenciones',
+      path: '/admin/mantencion-vehicular',
+      id: 'mantenimiento',
+      subItems: [
+        { label: 'Diarias', path: '/admin/mantencion-vehicular/diario', icon: dailyMaintenanceIcon, alt: 'Mantención diaria' },
+        { label: 'Mensuales', path: '/admin/mantencion-vehicular/historial-mensual', icon: monthlyMaintenanceIcon, alt: 'Mantención mensual' },
+      ],
+    },
+    { label: 'Combustible', path: '/admin/combustible', icon: combustibleIcon, alt: 'Combustible' },
+    { label: 'Estadísticas', path: '/admin/mantencion-vehicular/estadisticas', icon: estadisticasIcon, alt: 'Estadísticas' },
+    { label: 'Reportes',    path: '/admin/reportes',              icon: warningIcon,     alt: 'Reportes'    },
+    { label: 'Solicitudes', path: '/admin/solicitudes-recibidas', icon: solicitudesIcon, alt: 'Solicitudes' },
+  ],
+  DIRECTION: [
+    {
+      label: 'Registro',
+      icon: tableIcon,
+      alt: 'Registro',
+      path: '/admin/registro',
+      id: 'registro',
+      subItems: [
+        { label: 'Usuarios',  path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Usuarios'  },
+        { label: 'Vehículos', path: '/admin/vehiculos',        icon: camionIcon,      alt: 'Vehículos' },
+        { label: 'Destinos',  path: '/admin/destinos',         icon: destinoIcon,     alt: 'Destinos'  },
       ],
     },
     {
       label: 'Mantenimiento\nvehicular',
       icon: repairIcon,
       alt: 'Mantenimiento vehicular',
-      path: '/admin/mantencion-vehicular',
-      id: 'mantenimiento',
+      path: '/admin/mantencion-vehicular/diario',
+    },
+    { label: 'Historial de\nviajes', path: '/historial-viajes-admin',                    icon: historialIcon,    alt: 'Historial de viajes' },
+    { label: 'Estadísticas',         path: '/admin/mantencion-vehicular/estadisticas', icon: estadisticasIcon, alt: 'Estadísticas'        },
+    {
+      label: 'Solicitudes',
+      icon: solicitudesIcon,
+      alt: 'Solicitudes',
+      path: '/admin/solicitudes',
+      id: 'solicitudes',
       subItems: [
-        { label: 'Diario',        path: '/admin/mantencion-vehicular/diario',           icon: dailyMaintenanceIcon,   alt: 'Mantenimiento diario'   },
-        { label: 'Mensual',       path: '/admin/mantencion-vehicular/historial-mensual', icon: monthlyMaintenanceIcon, alt: 'Mantenimiento mensual'  },
+        { label: 'Nueva\nsolicitud',          path: '/admin/solicitudes/nueva',     icon: nuevaSolicitudIcon,       alt: 'Nueva solicitud'         },
+        { label: 'Historial de\nsolicitudes', path: '/admin/solicitudes/historial', icon: historialSolicitudesIcon, alt: 'Historial de solicitudes' },
       ],
     },
-    { label: 'Estadísticas', path: '/admin/mantencion-vehicular/estadisticas', icon: estadisticasIcon, alt: 'Estadísticas' },
-    { label: 'Historial de\nviajes', path: '/historial-viajes-admin', icon: historialIcon, alt: 'Historial de viajes' },
-    { label: 'Reportes', path: '/admin/reportes', icon: warningIcon, alt: 'Reportes' },
   ],
 }
 
@@ -71,86 +115,94 @@ const isActive = (path) => route.path === path
 const isNestedSubItemActive = (subItem) =>
   Array.isArray(subItem.children) && subItem.children.some((child) => route.path === child.path)
 
-const openDropdowns = ref({
-  'Registro': false,
-  'Mantenimiento\nvehicular': false,
-})
-
-watchEffect(() => {
-  for (const item of navItems) {
-    if (item.subItems && item.label) {
-      const hasActiveChild = item.subItems.some(sub => route.path === sub.path || route.path.startsWith(sub.path + '/'))
-      if (hasActiveChild) {
-        openDropdowns.value[item.label] = true
-      }
-    }
-  }
-})
-
 const openNestedDropdowns = ref({
   usuarios: true,
 })
-
-const toggleDropdown = (label) => {
-  openDropdowns.value[label] = !openDropdowns.value[label]
-}
 
 const toggleNestedDropdown = (key) => {
   openNestedDropdowns.value[key] = !openNestedDropdowns.value[key]
 }
 
+/** Móvil (max-width 767px): al navegar desde el menú, cerrar el panel desplegable */
+function closeMenuIfMobile() {
+  if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+    setOpen(false)
+  }
+}
+
 const navigate = (path) => {
   router.push(path)
+  closeMenuIfMobile()
 }
 
 const navigateParent = (path, label) => {
   if (label) {
-    openDropdowns.value[label] = !openDropdowns.value[label]
+    toggleAdminDropdown(label)
   }
-  if (path) router.push(path)
+  if (path) {
+    router.push(path)
+    closeMenuIfMobile()
+  }
 }
 
 const toggleOnly = (label) => {
   if (label) {
-    openDropdowns.value[label] = !openDropdowns.value[label]
+    toggleAdminDropdown(label)
   }
 }
 
 const isReportModalOpen = ref(false)
 
 const reportProblem = () => {
-  open.value = false
+  setOpen(false)
   isReportModalOpen.value = true
 }
 </script>
 
 <template>
   <div
-    class="fixed md:relative h-screen transition-all duration-300 ease-in-out flex-shrink-0 flex flex-col z-50"
-    :class="open ? 'w-48 bg-white border-r border-gray-200 shadow-xl' : 'w-0'"
+    class="fixed md:relative h-screen max-h-dvh md:h-full md:max-h-none md:min-h-0 self-stretch transition-all duration-300 ease-in-out flex flex-col z-50 shrink-0"
+    :class="
+      open
+        ? 'w-48 flex-shrink-0 bg-white border-r border-gray-200 shadow-xl'
+        : 'w-0 overflow-visible md:w-10 md:min-w-[2.5rem] md:max-w-[2.5rem] md:overflow-hidden md:border-transparent md:bg-background md:shadow-none'
+    "
   >
     <!-- Overlay solo en móvil -->
     <Teleport to="body">
       <div
         v-if="open"
         class="fixed inset-0 bg-black/30 z-40 md:hidden"
-        @click="open = false"
+        @click="setOpen(false)"
       />
+    </Teleport>
+    <!-- Móvil: en body con fixed para no quedar recortada por overflow-hidden de ancestros; Escritorio: al borde de la raíz w-0 -->
+    <Teleport to="body">
+      <button
+        v-if="!open && !mobileFiltersOverlayOpen"
+        type="button"
+        @click="setOpen(true)"
+        aria-label="Abrir menú"
+        class="md:hidden fixed left-2 top-20 z-[100] flex flex-col justify-center items-center gap-[5px] w-9 h-9 rounded-md border border-gray-300 bg-white shadow-sm hover:border-primary transition-all"
+      >
+        <span v-for="i in 3" :key="i" class="block w-4 h-[2px] bg-gray-600 rounded-full" />
+      </button>
     </Teleport>
     <button
       v-if="!open"
-      @click="open = true"
+      type="button"
+      @click="setOpen(true)"
       aria-label="Abrir menú"
-      class="absolute top-4 -right-12 z-50 flex flex-col justify-center items-center gap-[5px] w-9 h-9 rounded-md border border-gray-300 bg-white shadow-sm hover:border-primary transition-all"
+      class="hidden md:flex md:relative z-50 mx-auto mt-2.5 shrink-0 flex-col justify-center items-center gap-[5px] w-9 h-9 rounded-md border border-gray-300 bg-white shadow-sm hover:border-primary transition-all"
     >
       <span v-for="i in 3" :key="i" class="block w-4 h-[2px] bg-gray-600 rounded-full" />
     </button>
 
-    <div class="w-full h-full overflow-hidden">
-    <div class="flex flex-col h-full w-48 flex-shrink-0">
+    <div v-show="open" class="h-full w-full min-h-0 flex-1 min-w-0 overflow-hidden">
+    <div class="flex flex-col h-full w-48 min-w-48 flex-shrink-0">
       <div class="flex justify-end px-2 pt-2">
         <button
-          @click="open = false"
+          @click="setOpen(false)"
           aria-label="Cerrar men\xFA"
           class="w-6 h-6 rounded border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-all active:scale-95"
         >
@@ -166,19 +218,19 @@ const reportProblem = () => {
               v-if="item && item.subItems"
               class="bg-gray-50 border-b border-gray-200"
             >
-              <div class="flex items-center px-3 py-3 w-full group hover:bg-gray-100 transition-colors">
+              <div class="flex items-center gap-3 px-3 py-3 w-full group hover:bg-gray-100 transition-colors">
                 <img
                   v-if="item.icon"
                   :src="item.icon"
                   :alt="item.alt"
-                  class="w-8 h-8 shrink-0 object-contain"
+                  class="w-7 h-7 shrink-0 object-contain"
                 />
                 <button
                   @click="navigateParent(item.path, item.label)"
-                  class="flex-1 text-left"
+                  class="min-w-0 flex-1 text-left"
                 >
-                  <span class="text-base font-titles font-bold leading-tight whitespace-pre-line transition-colors"
-                        :class="item.path && isActive(item.path) ? 'text-primary' : 'text-slate-800 group-hover:text-primary'">
+                  <span class="text-sm font-titles font-semibold leading-snug whitespace-pre-line transition-colors"
+                        :class="item.path && isActive(item.path) ? 'text-primary' : 'text-slate-700 group-hover:text-primary'">
                     {{ item.label }}
                   </span>
                 </button>
@@ -213,13 +265,12 @@ const reportProblem = () => {
                   <div v-if="idx !== 0" class="absolute left-5 top-0 h-1/2 w-px bg-gray-300" />
                   <div v-if="idx !== item.subItems.length - 1" class="absolute left-5 top-1/2 bottom-0 w-px bg-gray-300" />
                   <span class="absolute left-5 top-1/2 h-px w-4 bg-gray-300 -translate-y-1/2" />
-
                   <div class="relative z-10 shrink-0 ml-4">
                     <img
                       v-if="sub.icon"
                       :src="sub.icon"
                       :alt="sub.alt"
-                      class="w-8 h-8 object-contain transition-transform duration-150 group-hover:scale-110"
+                      class="w-7 h-7 object-contain transition-transform duration-150 group-hover:scale-110"
                     />
                   </div>
                   <span
@@ -232,7 +283,6 @@ const reportProblem = () => {
                   <div v-if="idx !== 0" class="absolute left-5 top-0 h-1/2 w-px bg-gray-300" />
                   <div v-if="idx !== item.subItems.length - 1 || (openNestedDropdowns[sub.nestedKey] ?? false)" class="absolute left-5 top-1/2 bottom-0 w-px bg-gray-300" />
                   <span class="absolute left-5 top-6 h-px w-4 bg-gray-300" />
-
                   <button
                     @click="toggleNestedDropdown(sub.nestedKey)"
                     class="relative flex items-center gap-2 py-3 pl-6 pr-3 w-full text-left group"
@@ -242,7 +292,7 @@ const reportProblem = () => {
                         v-if="sub.icon"
                         :src="sub.icon"
                         :alt="sub.alt"
-                        class="w-8 h-8 object-contain transition-transform duration-150 group-hover:scale-110"
+                        class="w-7 h-7 object-contain transition-transform duration-150 group-hover:scale-110"
                       />
                     </div>
                     <span
@@ -252,15 +302,11 @@ const reportProblem = () => {
                     <svg
                       class="w-4 h-4 text-slate-400 transition-transform duration-150"
                       :class="(openNestedDropdowns[sub.nestedKey] ?? false) ? 'rotate-90' : ''"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
+                      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     >
                       <polyline points="9 6 15 12 9 18" />
                     </svg>
                   </button>
-
                   <div
                     v-if="openNestedDropdowns[sub.nestedKey] ?? false"
                     class="relative pb-1"
@@ -276,9 +322,7 @@ const reportProblem = () => {
                       <span
                         class="text-xs font-titles font-semibold transition-colors leading-tight"
                         :class="isActive(child.path) ? 'text-primary font-bold' : 'text-slate-600 group-hover:text-primary'"
-                      >
-                        {{ child.label }}
-                      </span>
+                      >{{ child.label }}</span>
                     </button>
                   </div>
                 </div>
@@ -295,7 +339,7 @@ const reportProblem = () => {
                 v-if="item.icon"
                 :src="item.icon"
                 :alt="item.alt"
-                class="w-9 h-9 shrink-0 object-contain transition-transform duration-150 group-hover:scale-105"
+                class="w-7 h-7 shrink-0 object-contain transition-transform duration-150 group-hover:scale-105"
               />
               <span
                 class="text-sm font-titles font-semibold leading-snug whitespace-pre-line flex-1"

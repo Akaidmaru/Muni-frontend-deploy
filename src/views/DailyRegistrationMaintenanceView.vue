@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, onMounted, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import logoCompleto from "@/assets/images/Logo-completo.png";
@@ -671,9 +671,6 @@ const saveMaintenanceForm = async () => {
   }
 
   const resolvedDriverId = editingDriverId.value || auth.user?.id;
-  console.log("resolvedDriverId", resolvedDriverId);
-  console.log("auth.user", auth.user);
-
   if (!resolvedDriverId) {
     maintenanceFormError.value = "No se pudo identificar el conductor autenticado.";
     return;
@@ -1100,9 +1097,9 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
+  <div class="h-screen min-h-0 overflow-hidden bg-background flex flex-col">
     <!-- Header -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
+    <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
           <img
@@ -1117,10 +1114,10 @@ onMounted(async () => {
     </div>
 
     <!-- Body -->
-    <div class="flex flex-1">
+    <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 py-6 px-4 sm:py-10 sm:px-6 overflow-y-auto overflow-x-hidden flex items-start justify-center">
+      <main class="flex-1 min-h-0 py-6 pl-3 pr-4 sm:py-10 sm:pl-3 sm:pr-6 overflow-y-auto overflow-x-hidden flex items-start justify-center">
 
         <!-- PASO 1 â€“ Seleccionar patente        -->
 
@@ -1210,7 +1207,7 @@ onMounted(async () => {
         </div>
 
         <!-- PASO 2 â€“ Formulario de mantenimiento -->
-        <div v-else class="flex gap-6 w-full max-w-6xl h-full min-h-0">
+        <div v-else class="flex gap-6 w-full max-w-6xl">
           <div class="bg-white rounded-2xl sm:rounded-3xl border-2 border-slate-300 shadow-sm overflow-hidden flex-1 flex flex-col w-full">
             <div class="px-4 pt-6 pb-4 sm:px-10 sm:pt-10 md:px-14">
               <h1 class="text-2xl sm:text-3xl font-titles font-bold text-text-title text-center mb-6">
@@ -1300,7 +1297,7 @@ onMounted(async () => {
 
             </div>
 
-            <div class="overflow-x-auto px-4 pb-8 sm:px-10 md:px-14 w-full">
+            <div class="px-4 pb-8 sm:px-10 md:px-14 w-full">
               <div
                 class="mx-auto mb-4 flex w-full max-w-[58rem] items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:hidden"
               >
@@ -1330,7 +1327,7 @@ onMounted(async () => {
                   </div>
                 </div>
               </div>
-              <div class="mx-auto w-full max-w-[58rem] overflow-x-auto overflow-y-visible pl-0 sm:pl-10">
+              <div class="mx-auto w-full max-w-[58rem] overflow-x-auto pl-0 sm:pl-10">
                 <table class="w-full text-sm text-left border-collapse border border-slate-200 min-w-[700px] sm:min-w-full">
                   <thead class="bg-gray-100 text-gray-700">
                     <tr>

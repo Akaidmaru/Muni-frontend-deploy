@@ -30,6 +30,10 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  }
+
   const url = String(config.url || '');
   const isTripStartEndpoint =
     config.method?.toLowerCase() === 'post' && url.includes('/trip-history/start');

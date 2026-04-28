@@ -1,13 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api, { getApiBaseUrl } from '@/services/axios'
+import { useSidebarStore } from '@/stores/sidebar'
 
 export const useAuthStore = defineStore('auth', () => {
     // ── State ──────────────────────────────────────────────────────────────
     const token = ref(null)
     const user = ref(null) // { id, email, name, role }
-    const role = ref(null) // 'ADMIN' | 'DRIVER' | 'EMPLOYEE'
-    const VALID_ROLES = ['ADMIN', 'DRIVER', 'EMPLOYEE']
+    const role = ref(null) // 'ADMIN' | 'DRIVER' | 'EMPLOYEE' | 'DIRECTION'
+    const VALID_ROLES = ['ADMIN', 'DRIVER', 'EMPLOYEE', 'DIRECTION']
     const SESSION_SYNC_INTERVAL_MS = 15000
     const lastSessionSyncAt = ref(0)
     const isSyncingSession = ref(false)
@@ -19,6 +20,7 @@ export const useAuthStore = defineStore('auth', () => {
     const isFuncionario = computed(() => role.value === 'EMPLOYEE')
     const isAdmin = computed(() => role.value === 'ADMIN')
     const isPaciente = computed(() => role.value === 'PATIENT')
+    const isDireccion = computed(() => role.value === 'DIRECTION')
 
     const fullName = computed(() =>
         user.value ? `${user.value.name ?? ''}`.trim() : ''
@@ -37,6 +39,7 @@ export const useAuthStore = defineStore('auth', () => {
             ADMIN: 'ADMIN',
             DRIVER: 'DRIVER',
             EMPLOYEE: 'EMPLOYEE',
+            DIRECTION: 'DIRECTION',
         }
 
         return roleMap[rawRole] ?? null
@@ -213,6 +216,7 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.removeItem('user')
         localStorage.removeItem('role')
         lastSessionSyncAt.value = 0
+        useSidebarStore().reset()
     }
 
     return {
@@ -227,6 +231,7 @@ export const useAuthStore = defineStore('auth', () => {
         isFuncionario,
         isAdmin,
         isPaciente,
+        isDireccion,
         fullName,
         initials,
         // actions

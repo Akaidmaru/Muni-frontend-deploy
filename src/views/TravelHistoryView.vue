@@ -1,6 +1,7 @@
-﻿<script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+<script setup>
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useSidebarStore } from '@/stores/sidebar'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
@@ -18,6 +19,13 @@ const totalPages = ref(1)
 
 // Filter state
 const isFilterOpen = ref(false)
+const sidebarStore = useSidebarStore()
+watch(isFilterOpen, (v) => {
+  sidebarStore.setMobileFiltersOverlayOpen(!!v)
+}, { immediate: true })
+onUnmounted(() => {
+  sidebarStore.setMobileFiltersOverlayOpen(false)
+})
 
 // Pagination state
 const itemsPerPage = ref(100)
@@ -35,13 +43,22 @@ const filters = ref({
 // Applied state (when user clicks Apply)
 const appliedFilters = ref({ ...filters.value })
 
+const hasActiveFilters = computed(() =>
+  Boolean(
+    appliedFilters.value.from ||
+    appliedFilters.value.to ||
+    appliedFilters.value.searchValue ||
+    appliedFilters.value.license
+  )
+)
+
 const formatDate = (value) => {
   const parsedDate = new Date(value)
   if (Number.isNaN(parsedDate.getTime())) return ''
 
-  const day = String(parsedDate.getDate()).padStart(2, '0')
-  const month = String(parsedDate.getMonth() + 1).padStart(2, '0')
-  const year = parsedDate.getFullYear()
+  const day = String(parsedDate.getUTCDate()).padStart(2, '0')
+  const month = String(parsedDate.getUTCMonth() + 1).padStart(2, '0')
+  const year = parsedDate.getUTCFullYear()
 
   return `${day}/${month}/${year}`
 }
@@ -50,9 +67,9 @@ const formatDateIso = (value) => {
   const parsedDate = new Date(value)
   if (Number.isNaN(parsedDate.getTime())) return ''
 
-  const year = parsedDate.getFullYear()
-  const month = String(parsedDate.getMonth() + 1).padStart(2, '0')
-  const day = String(parsedDate.getDate()).padStart(2, '0')
+  const year = parsedDate.getUTCFullYear()
+  const month = String(parsedDate.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(parsedDate.getUTCDate()).padStart(2, '0')
 
   return `${year}-${month}-${day}`
 }
@@ -68,6 +85,12 @@ const loadTravels = async () => {
         pageSize: Number(itemsPerPage.value),
         from: appliedFilters.value.from || undefined,
         to: appliedFilters.value.to || undefined,
+        ...(appliedFilters.value.searchValue
+          ? {
+              [appliedFilters.value.searchBy === 'official' ? 'name' : 'destination']:
+                appliedFilters.value.searchValue,
+            }
+          : {}),
         license: appliedFilters.value.license || undefined,
       },
     })
@@ -140,6 +163,12 @@ const lastVisibleRow = computed(() => {
   return Math.min(currentPage.value * Number(itemsPerPage.value), totalItems.value)
 })
 
+const emptyTravelsMessage = computed(() =>
+  hasActiveFilters.value
+    ? 'No hay viajes que coincidan con la búsqueda.'
+    : 'No se encuentra historial de viajes.'
+)
+
 const goToPreviousPage = () => {
   if (currentPage.value <= 1 || isLoadingTravels.value) return
   currentPage.value -= 1
@@ -165,13 +194,13 @@ const clearFilters = () => {
 
 const activeFilterChips = computed(() => {
   const chips = []
-  if (filters.value.from) chips.push({ label: 'Desde', value: filters.value.from, field: 'from' })
-  if (filters.value.to) chips.push({ label: 'Hasta', value: filters.value.to, field: 'to' })
-  if (filters.value.searchValue) {
-    const label = filters.value.searchBy === 'destination' ? 'Destino' : 'Funcionario'
-    chips.push({ label, value: filters.value.searchValue, field: 'searchValue' })
+  if (appliedFilters.value.from) chips.push({ label: 'Desde', value: appliedFilters.value.from, field: 'from' })
+  if (appliedFilters.value.to) chips.push({ label: 'Hasta', value: appliedFilters.value.to, field: 'to' })
+  if (appliedFilters.value.searchValue) {
+    const label = appliedFilters.value.searchBy === 'destination' ? 'Destino' : 'Funcionario'
+    chips.push({ label, value: appliedFilters.value.searchValue, field: 'searchValue' })
   }
-  if (filters.value.license) chips.push({ label: 'Patente', value: filters.value.license, field: 'license' })
+  if (appliedFilters.value.license) chips.push({ label: 'Patente', value: appliedFilters.value.license, field: 'license' })
   return chips
 })
 
@@ -198,9 +227,9 @@ watch(currentPage, () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
+  <div class="h-screen min-h-0 overflow-hidden bg-background flex flex-col">
     <!-- Header -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
+    <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
@@ -212,28 +241,28 @@ watch(currentPage, () => {
     </div>
 
     <!-- Body: sidebar + content -->
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
       <!-- Main content -->
-      <main class="flex-1 pt-4 pb-10 pl-14 pr-3 overflow-hidden flex flex-col min-w-0">
+      <main class="flex-1 pt-4 pb-10 pl-4 pr-3 overflow-y-auto flex flex-col min-w-0">
         <div class="w-full mb-3 shrink-0">
           <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Volver
           </button>
         </div>
-        <div class="flex gap-6 w-full h-full min-h-0 min-w-0">
+        <div class="flex gap-6 w-full min-w-0">
 
           <!-- Main Card (Table) -->
           <div :class="[
-            'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative min-w-0',
+            'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-visible transition-all duration-300 relative min-w-0',
             isFilterOpen ? 'md:max-w-[calc(100%-24rem)]' : 'w-full'
           ]">
 <!-- Top section: Title and Filter Button -->
             <div class="flex items-center justify-between p-4 md:p-8 pb-4 md:pb-6 relative min-h-[4rem] md:min-h-[5rem]">
                
-               <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center order-1 md:absolute md:left-1/2 md:-translate-x-1/2">Historial de viajes</h1>
+               <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center order-1 md:absolute md:left-1/2 md:-translate-x-1/2">Historial de Viajes</h1>
                
                <div class="order-2 flex items-center gap-2 md:absolute md:right-4 md:top-6 lg:right-8">
                  <button
@@ -251,7 +280,7 @@ watch(currentPage, () => {
             </div>
 
             <!-- Table Container -->
-            <div class="flex-1 overflow-auto px-3 md:px-10 relative mt-4 md:mt-6 pb-6 min-w-0 custom-scrollbar">
+            <div class="overflow-x-auto px-3 md:px-10 relative mt-4 md:mt-6 pb-6 min-w-0 custom-scrollbar">
               <div class="min-w-[900px]">
                 <table class="history-table w-full text-sm text-center" style="border-collapse: separate; border-spacing: 0;">
                   <thead class="text-[13px] text-text-title font-bold sticky top-0 bg-white z-10">
@@ -284,6 +313,12 @@ watch(currentPage, () => {
                       </td>
                     </tr>
 
+                    <tr v-else-if="filteredTravels.length === 0">
+                      <td colspan="9" class="px-3 py-20 text-center text-text-secondary font-medium">
+                        {{ emptyTravelsMessage }}
+                      </td>
+                    </tr>
+
                     <!-- Actual Data Rows -->
                     <tr v-else v-for="travel in filteredTravels" :key="travel.id" class="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                       <td class="px-2 py-5 text-gray-500 text-sm">{{ travel.date }}</td>
@@ -306,13 +341,6 @@ watch(currentPage, () => {
                            <div class="h-1 w-12 bg-primary rounded-full opacity-60 rotate-[-10deg]"></div>
                          </div>
                          <span v-else class="text-gray-400">-</span>
-                      </td>
-                    </tr>
-                    
-                    <!-- Empty State -->
-                    <tr v-if="!isLoadingTravels && !travelsError && filteredTravels.length === 0">
-                      <td colspan="9" class="px-3 py-20 text-center text-text-secondary font-medium">
-                        No hay viajes que coincidan con la búsqueda.
                       </td>
                     </tr>
                   </tbody>

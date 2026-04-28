@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
@@ -133,10 +133,10 @@ const truncate = (str, n = 38) => str?.length > n ? str.slice(0, n) + '…' : (s
 </script>
 
 <template>
-  <div class="h-screen bg-background flex flex-col overflow-hidden">
+  <div class="h-screen min-h-0 overflow-hidden bg-background flex flex-col">
 
     <!-- ── Header ─────────────────────────────────────────────────────────── -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
+    <div class="shrink-0 bg-white shadow-sm border-b border-gray-200">
       <div class="px-4 py-4 flex items-center justify-between">
         <router-link to="/" class="flex items-center">
           <img :src="logoCompleto" alt="Transportes Flores Vargas" class="h-16 w-auto object-contain hover:opacity-80 transition-opacity" />
@@ -148,10 +148,10 @@ const truncate = (str, n = 38) => str?.length > n ? str.slice(0, n) + '…' : (s
     <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <!-- ── Main content ────────────────────────────────────────────────── -->
-      <main class="flex-1 py-6 px-4 md:px-8 overflow-y-auto flex items-start justify-center">
-        <div class="w-full max-w-5xl">
-          <div class="mb-4 pl-10 sm:pl-12">
+      <!-- ── Main content (mismo bloque que Usuarios / Vehículos / Destinos) ── -->
+      <main class="flex-1 min-h-0 py-6 pl-4 pr-4 md:pr-8 overflow-y-auto flex flex-col">
+        <div class="w-full flex flex-col">
+          <div class="mb-4 pl-0">
             <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
               <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
               Volver
@@ -159,10 +159,10 @@ const truncate = (str, n = 38) => str?.length > n ? str.slice(0, n) + '…' : (s
           </div>
 
           <!-- Card container -->
-          <div class="bg-white rounded-3xl border-2 border-slate-200 shadow-sm flex flex-col overflow-hidden">
+          <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col overflow-hidden">
 
             <!-- Card header -->
-            <div class="px-4 sm:px-6 lg:px-8 md:pr-10 pt-5 lg:pt-7 pb-5">
+            <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-6 lg:pt-8 pb-5">
               <h1 class="text-2xl font-titles font-bold text-text-title mb-5">Lista de reportes</h1>
 
               <!-- Search + filter row -->
@@ -199,7 +199,7 @@ const truncate = (str, n = 38) => str?.length > n ? str.slice(0, n) + '…' : (s
             </div>
 
             <!-- ── Table ─────────────────────────────────────────────────── -->
-            <div class="flex-1 px-4 sm:px-6 lg:px-8 md:pr-10 pb-4 overflow-x-auto">
+            <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pb-4 overflow-x-auto">
 
               <!-- Loading -->
               <div v-if="isLoading" class="flex items-center justify-center py-20 gap-3">
@@ -275,7 +275,7 @@ const truncate = (str, n = 38) => str?.length > n ? str.slice(0, n) + '…' : (s
             </div>
 
             <!-- ── Pagination footer ─────────────────────────────────────── -->
-            <div class="px-4 sm:px-6 lg:px-8 md:pr-10 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500 font-medium">
+            <div class="px-4 sm:px-6 lg:px-10 md:pr-10 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500 font-medium">
               <!-- Rows per page -->
               <div class="flex items-center gap-2">
                 <span>Filas por páginas</span>
