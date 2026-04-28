@@ -13,7 +13,7 @@ import JSZip from 'jszip'
 
 const router = useRouter()
 const route = useRoute()
-const auth = useAuthStore()
+const authStore = useAuthStore()
 const alertsModal = ref(false)
 const allRecords = ref([])
 const checklistSavedModal = ref({ open: false })
@@ -1234,7 +1234,7 @@ const exportChecklistPDF = async (record) => {
                       </div>
                       <!-- Exportar PDF en tabla: solo para ADMIN -->
                       <button
-                        v-if="!auth.isDireccion"
+                        v-if="!authStore.isDireccion"
                         @click="exportChecklistPDF(record)"
                         class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-primary transition-colors bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200 shadow-sm"
                       >
@@ -1528,13 +1528,13 @@ const exportChecklistPDF = async (record) => {
               Editar Check List
             </button>
             <button
-              v-if="!auth.isDireccion"
+              v-if="!authStore.isDireccion"
               @click="openDeleteModal(editModal.record); closeEditModal()"
               class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide">
               Eliminar Registro
             </button>
             <button
-              v-if="auth.isDireccion"
+              v-if="authStore.isDireccion"
               @click="exportChecklistPDF(editModal.record); closeEditModal()"
               class="flex-1 py-2 bg-[#C0392B] hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide">
               Exportar PDF
