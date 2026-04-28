@@ -12,19 +12,23 @@ import documentosIcon from '@/assets/images/Images admin nabvar left/enviar-arch
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
-const auth = useAuthStore()
+const authStore = useAuthStore()
 
-const allCards = [
-  { label: 'Usuarios',    icon: anadirGrupoIcon,  path: '/admin/gestion-usuarios', directionVisible: true  },
-  { label: 'Vehículos',   icon: camionIcon,        path: '/admin/vehiculos',        directionVisible: true  },
-  { label: 'Destinos',    icon: destinoIcon,       path: '/admin/destinos',         directionVisible: true  },
-  { label: 'Funcionario', icon: funcionarioIcon,   path: '/admin/funcionarios',     directionVisible: false },
-  { label: 'Documentos',  icon: documentosIcon,    path: '/admin/documentos',       directionVisible: false },
+const adminCards = [
+  { label: 'Usuarios',    icon: anadirGrupoIcon,  path: '/admin/gestion-usuarios' },
+  { label: 'Vehículos',   icon: camionIcon,        path: '/admin/vehiculos'        },
+  { label: 'Destinos',    icon: destinoIcon,       path: '/admin/destinos'         },
+  { label: 'Funcionario', icon: funcionarioIcon,   path: '/admin/funcionarios'     },
+  { label: 'Documentos',  icon: documentosIcon,    path: '/admin/documentos'       },
 ]
 
-const cards = computed(() =>
-  auth.isDireccion ? allCards.filter(c => c.directionVisible) : allCards
-)
+const directionCards = [
+  { label: 'Conductores', icon: anadirGrupoIcon, path: '/admin/gestion-usuarios' },
+  { label: 'Vehículos',   icon: camionIcon,      path: '/admin/vehiculos'        },
+  { label: 'Destinos',    icon: destinoIcon,     path: '/admin/destinos'         },
+]
+
+const cards = computed(() => authStore.isDireccion ? directionCards : adminCards)
 </script>
 
 <template>

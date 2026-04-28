@@ -234,7 +234,7 @@ onMounted(loadSolicitudes)
               <p class="text-slate-700 font-medium">{{ tipoLabel(selectedItem.tipo) }}</p>
             </div>
             <div v-if="selectedItem.nombre" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-              <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">Usuario</p>
+              <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">Nombre del conductor</p>
               <p class="text-slate-700 font-medium">{{ selectedItem.nombre }}</p>
             </div>
             <div v-if="selectedItem.patente" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">

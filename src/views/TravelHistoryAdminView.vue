@@ -938,7 +938,7 @@ watch(currentPage, () => {
           </div>
 
           <!-- MAP VIEW CARD -->
-          <div v-else class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative w-full p-8 hidden-scroll">
+          <div v-else class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative w-full min-h-[calc(100vh-10rem)] p-8 hidden-scroll">
             <div class="flex flex-col h-full min-h-0">
               <div class="relative w-full mb-6 shrink-0 flex flex-col sm:block items-center gap-1 sm:gap-0">
                 <h2 class="text-2xl font-bold font-titles text-center text-text-title w-full">Ruta de viaje</h2>
@@ -951,7 +951,7 @@ watch(currentPage, () => {
                   Puntos trazados: <span class="font-bold text-text-title">{{ selectedTripRoute?.snappedPoints?.length || 0 }}</span>
                 </div>
               </div>
-              <div class="flex-1 rounded-xl w-full h-full min-h-0 overflow-hidden shadow-inner bg-slate-100 relative">
+              <div class="flex-1 rounded-xl w-full h-full min-h-[420px] overflow-hidden shadow-inner bg-slate-100 relative">
                 <TripRouteMap v-if="selectedTripRoute" :snapped-points="selectedTripRoute.snappedPoints" />
                 <div v-else class="absolute inset-0 flex items-center justify-center text-center px-6">
                   <div>

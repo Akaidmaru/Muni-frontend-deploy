@@ -86,11 +86,11 @@ const enviar = async () => {
     <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 pt-4 pb-10 pr-4 overflow-y-auto flex flex-col">
+      <main class="flex-1 pt-4 pb-10 pl-4 pr-4 overflow-y-auto flex flex-col">
         <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden w-full">
 
           <!-- Card header -->
-          <div class="px-6 pt-5 shrink-0">
+            <div class="px-6 pt-7 shrink-0">
             <div class="flex items-center mb-4 relative">
               <button
                 @click="router.back()"
@@ -101,9 +101,9 @@ const enviar = async () => {
                 </svg>
                 Volver
               </button>
-              <h1 class="absolute inset-x-0 text-center text-xl font-bold font-titles text-text-title pointer-events-none">
-                Enviar una solicitud
-              </h1>
+                <h1 class="absolute inset-x-0 text-center text-2xl md:text-3xl font-bold font-titles text-text-title pointer-events-none">
+                  Enviar una solicitud
+                </h1>
             </div>
             <div class="border-b border-slate-200">
               <span class="inline-block text-sm font-titles font-semibold text-slate-800 pb-2 border-b-2 border-slate-800">
@@ -113,8 +113,9 @@ const enviar = async () => {
           </div>
 
           <!-- Formulario -->
-          <div class="flex-1 overflow-y-auto px-12 py-6">
-            <div class="max-w-lg mx-auto">
+          <div class="flex-1 overflow-y-auto px-6 py-6 sm:px-10">
+            <div class="mx-auto w-full max-w-2xl">
+              <div class="mx-auto w-full max-w-lg">
 
               <!-- Paso 1: tipo de solicitud -->
               <div class="mb-6">
@@ -263,6 +264,7 @@ const enviar = async () => {
                 </div>
               </template>
 
+              </div>
             </div>
           </div>
 

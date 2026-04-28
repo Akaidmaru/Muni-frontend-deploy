@@ -21,6 +21,12 @@ const statusFilter = ref('ALL')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
 
+const isDirectionView = computed(() => authStore.isDireccion)
+const entitySingular = computed(() => isDirectionView.value ? 'conductor' : 'usuario')
+const entityPlural = computed(() => isDirectionView.value ? 'conductores' : 'usuarios')
+const entitySingularTitle = computed(() => isDirectionView.value ? 'Conductor' : 'Usuario')
+const entityPluralTitle = computed(() => isDirectionView.value ? 'Conductores' : 'Usuarios')
+
 // ── Modales ─────────────────────────────────────────────────────────────────
 const isEditModalOpen = ref(false)
 const isViewModalOpen = ref(false)
@@ -102,14 +108,17 @@ const loadUsers = async () => {
   isLoading.value = true
   loadError.value = ''
   try {
-    const { data } = await api.get('/users', { params: { page: 1, pageSize: 200 } })
+    const request = isDirectionView.value
+      ? api.get('/users/by-roles', { params: { roles: 'DRIVER' } })
+      : api.get('/users', { params: { page: 1, pageSize: 200 } })
+    const { data } = await request
     const payload = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : []
     users.value = payload.map(mapUserFromApi)
   } catch (error) {
     const msg = error.response?.data?.message
     if (error.response?.status === 401) loadError.value = 'Tu sesión ya no es válida.'
-    else if (error.response?.status === 403) loadError.value = 'No tienes permisos para gestionar usuarios.'
-    else loadError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudieron cargar los usuarios.'
+    else if (error.response?.status === 403) loadError.value = `No tienes permisos para gestionar ${entityPlural.value}.`
+    else loadError.value = Array.isArray(msg) ? msg.join(', ') : msg || `No se pudieron cargar los ${entityPlural.value}.`
     users.value = []
   } finally {
     isLoading.value = false
@@ -120,8 +129,8 @@ const loadUsers = async () => {
 const filteredUsers = computed(() => {
   const q = normalize(searchQuery.value)
   return users.value.filter((u) => {
-    const matchRole = roleFilter.value === 'ALL' || u.role === roleFilter.value
-    const matchStatus = statusFilter.value === 'ALL' || u.status === statusFilter.value
+    const matchRole = isDirectionView.value || roleFilter.value === 'ALL' || u.role === roleFilter.value
+    const matchStatus = isDirectionView.value || statusFilter.value === 'ALL' || u.status === statusFilter.value
     const matchSearch =
       !q ||
       normalize(u.name).includes(q) ||
@@ -309,14 +318,16 @@ onMounted(() => { loadUsers() })
 
             <!-- ── Título ── -->
             <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-6 lg:pt-8 pb-2">
-              <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center">Administración de Usuarios</h1>
+              <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center">
+                Administración de {{ entityPluralTitle }}
+              </h1>
             </div>
 
             <!-- ── Filtros ── -->
             <div class="px-4 sm:px-6 lg:px-10 pt-2 pb-4 flex flex-wrap items-center justify-end gap-3">
               <div class="flex flex-wrap items-center gap-3">
                 <!-- Filtro rol -->
-                <div class="relative">
+                <div v-if="!isDirectionView" class="relative">
                   <select
                     v-model="roleFilter"
                     class="appearance-none bg-white border border-slate-300 rounded-[0.65rem] px-4 py-2 pr-9 text-sm focus:outline-none focus:border-primary shadow-sm min-w-[160px] text-slate-600 font-medium"
@@ -328,7 +339,7 @@ onMounted(() => { loadUsers() })
                 </div>
 
                 <!-- Filtro estado -->
-                <div class="relative">
+                <div v-if="!isDirectionView" class="relative">
                   <select
                     v-model="statusFilter"
                     class="appearance-none bg-white border border-slate-300 rounded-[0.65rem] px-4 py-2 pr-9 text-sm focus:outline-none focus:border-primary shadow-sm min-w-[150px] text-slate-600 font-medium"
@@ -344,7 +355,7 @@ onMounted(() => { loadUsers() })
                   <input
                     v-model="searchQuery"
                     type="text"
-                    placeholder="Buscar usuario"
+                    :placeholder="`Buscar ${entitySingular}`"
                     class="w-full bg-white border border-slate-300 rounded-[0.65rem] px-4 py-2 pr-10 text-sm focus:outline-none focus:border-primary shadow-sm text-slate-600 placeholder:text-slate-400 font-medium"
                   />
                   <svg class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -363,10 +374,10 @@ onMounted(() => { loadUsers() })
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                <span class="text-sm text-slate-500">Cargando usuarios...</span>
+                <span class="text-sm text-slate-500">Cargando {{ entityPlural }}...</span>
               </div>
 
-              <table v-else class="w-full border-collapse min-w-[1100px]">
+              <table v-else class="w-full border-collapse" :class="isDirectionView ? 'min-w-[820px]' : 'min-w-[1100px]'">
                 <thead>
                   <tr>
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Nombre</th>
@@ -376,14 +387,14 @@ onMounted(() => { loadUsers() })
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Correo</th>
                     <th v-if="!authStore.isDireccion" class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Estado</th>
                     <th v-if="!authStore.isDireccion" class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Seguridad</th>
-                    <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Acción</th>
+                    <th v-if="!isDirectionView" class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Acción</th>
                   </tr>
                 </thead>
 
                 <tbody>
                   <tr v-if="pagedUsers.length === 0">
-                    <td :colspan="authStore.isDireccion ? 6 : 8" class="border border-[#D3DCE6] py-16 text-center text-slate-400 text-sm">
-                      No hay usuarios para mostrar.
+                    <td :colspan="isDirectionView ? 5 : 8" class="border border-[#D3DCE6] py-16 text-center text-slate-400 text-sm">
+                      No hay {{ entityPlural }} para mostrar.
                     </td>
                   </tr>
 
@@ -453,13 +464,13 @@ onMounted(() => { loadUsers() })
                     
 
                     <!-- Acción: Ver + Editar -->
-                    <td class="border border-[#D3DCE6] py-4 px-4 text-center">
+                    <td v-if="!isDirectionView" class="border border-[#D3DCE6] py-4 px-4 text-center">
                       <div class="flex items-center justify-center gap-2">
                         <!-- Ver -->
                         <button
                           @click="openViewModal(user)"
                           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-                          title="Ver resumen del usuario"
+                          :title="`Ver resumen del ${entitySingular}`"
                         >
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
@@ -523,7 +534,7 @@ onMounted(() => { loadUsers() })
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════════════
-         MODAL: VER usuario
+         MODAL: VER usuario/conductor
     ═══════════════════════════════════════════════════════════════════════ -->
     <Teleport to="body">
       <div
@@ -535,7 +546,7 @@ onMounted(() => { loadUsers() })
           <!-- Cabecera -->
           <div class="px-8 pt-7 pb-5 flex items-start justify-between gap-4">
             <div>
-              <h2 class="text-2xl font-titles font-bold text-slate-900">Resumen del usuario</h2>
+              <h2 class="text-2xl font-titles font-bold text-slate-900">Resumen del {{ entitySingular }}</h2>
               <p class="mt-1 text-sm text-slate-500">Información general de la cuenta.</p>
             </div>
             <button @click="closeViewModal" class="text-slate-400 hover:text-slate-700 transition-colors">

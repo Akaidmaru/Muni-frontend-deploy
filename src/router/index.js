@@ -96,7 +96,7 @@ const router = createRouter({
             path: '/registro-diario-mantencion',
             name: 'daily-registration-maintenance',
             component: DailyRegistrationMaintenanceView,
-            meta: { requiresAuth: true, roles: ['DRIVER', 'ADMIN'] }
+            meta: { requiresAuth: true, roles: ['DRIVER', 'ADMIN', 'DIRECTION'] }
         },
         {
             path: '/historial-viajes',

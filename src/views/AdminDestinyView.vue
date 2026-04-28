@@ -90,6 +90,13 @@ const loadDestinations = async () => {
 const normalize = (v) =>
   String(v || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
+const getDestinationStatus = (destination) => {
+  if (destination?.status) return destination.status
+  return destination?.tripsCount ? 'Completado' : 'Nuevo'
+}
+
+const isDestinationInProgress = (destination) => getDestinationStatus(destination) === 'En transcurso'
+
 const filteredDestinations = computed(() => {
   const q = normalize(searchQuery.value)
   return destinations.value
@@ -99,8 +106,9 @@ const filteredDestinations = computed(() => {
       // Filtrar por estado
       const matchStatus =
         statusFilter.value === 'ALL' ||
-        (statusFilter.value === 'ACTIVE' && d.status === 'En transcurso') ||
-        (statusFilter.value === 'INACTIVE' && d.status === 'Completado')
+        (statusFilter.value === 'ACTIVE' && getDestinationStatus(d) === 'En transcurso') ||
+        (statusFilter.value === 'INACTIVE' && getDestinationStatus(d) === 'Completado') ||
+        (statusFilter.value === 'NEW' && getDestinationStatus(d) === 'Nuevo')
       // Mostrar todos los destinos sin importar si tienen viajes
       return matchSearch && matchStatus
     })
@@ -230,6 +238,7 @@ const saveCreate = async () => {
 }
 
 const selectedLocationForMap = ref(null)
+const canShowDestinationMap = false
 
 const showLocation = (dest) => {
   console.log('Botón presionado, abriendo mapa para:', dest.name)
@@ -258,7 +267,7 @@ onMounted(loadDestinations)
 
       <main class="flex-1 min-h-0 pl-4 pr-4 pt-4 pb-8 overflow-y-auto flex flex-col min-w-0">
         <!-- Volver -->
-        <div v-if="!selectedLocationForMap" class="w-full max-w-full mb-3 pl-0 shrink-0">
+        <div v-if="!selectedLocationForMap || !canShowDestinationMap" class="w-full max-w-full mb-3 pl-0 shrink-0">
           <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Volver
@@ -267,7 +276,7 @@ onMounted(loadDestinations)
 
         <div class="flex gap-6 w-full min-w-0 max-w-full">
           <!-- MAIN TABLE VIEW -->
-          <div v-if="!selectedLocationForMap" :class="[
+          <div v-if="!selectedLocationForMap || !canShowDestinationMap" :class="[
             'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col transition-all duration-300 relative min-w-0 overflow-hidden',
             isFilterOpen ? 'sm:max-w-[calc(100%-24rem)]' : 'w-full'
           ]">
@@ -309,14 +318,14 @@ onMounted(loadDestinations)
 
             <!-- Tabla -->
             <div class="px-8 md:px-12 overflow-x-auto mb-4">
-              <table class="w-full border-collapse min-w-[720px]">
+              <table class="w-full min-w-[920px] table-fixed border-collapse">
                 <thead>
                   <tr>
-                    <th class="border border-[#7EA0C4] py-4 px-6 text-left font-body text-[1.05rem] font-medium text-slate-700 bg-white">Destino</th>
-                    <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white w-48">Estado</th>
-                    <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white w-48">Viajes asociados</th>
-                    <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white w-48">Último viaje</th>
-                    <th v-if="canManageDestinations" class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white w-40">Acción</th>
+                    <th class="w-[48%] border border-[#7EA0C4] py-4 px-6 text-left font-body text-[1.05rem] font-medium text-slate-700 bg-white">Destino</th>
+                    <th class="w-[14%] border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Estado</th>
+                    <th class="w-[14%] border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Viajes asociados</th>
+                    <th class="w-[14%] border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Último viaje</th>
+                    <th v-if="canManageDestinations" class="w-[10%] border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -340,6 +349,7 @@ onMounted(loadDestinations)
                     <td class="border border-[#D3DCE6] py-3 px-6 text-slate-700 text-sm font-medium">
                       <div class="flex items-center justify-start gap-4">
                         <button
+                          v-if="canShowDestinationMap"
                           type="button"
                           @click.stop.prevent="showLocation(dest)"
                           title="Ver ubicación en mapa"
@@ -357,10 +367,10 @@ onMounted(loadDestinations)
                     <td class="border border-[#D3DCE6] py-4 px-4 text-center">
                       <span
                         class="inline-flex items-center justify-center gap-1.5 px-3 py-1 text-xs font-bold w-[120px]"
-                        :style="dest.status === 'En transcurso' ? 'color:#22c55e' : 'color:#94a3b8'"
+                        :style="isDestinationInProgress(dest) ? 'color:#22c55e' : 'color:#94a3b8'"
                       >
-                        <span class="w-2.5 h-2.5 rounded-full" :style="dest.status === 'En transcurso' ? 'background:#22c55e' : 'background:#94a3b8'" />
-                        {{ dest.status }}
+                        <span class="w-2.5 h-2.5 rounded-full" :style="isDestinationInProgress(dest) ? 'background:#22c55e' : 'background:#94a3b8'" />
+                        {{ getDestinationStatus(dest) }}
                       </span>
                     </td>
                     <td class="border border-[#D3DCE6] py-4 px-4 text-center text-slate-400 text-sm font-medium">
@@ -415,7 +425,7 @@ onMounted(loadDestinations)
           </div>
 
           <!-- MAP VIEW CARD -->
-          <div v-else class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-visible transition-all duration-300 relative w-full p-8 hidden-scroll">
+          <div v-else-if="canShowDestinationMap" class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-visible transition-all duration-300 relative w-full p-8 hidden-scroll">
             <button @click="selectedLocationForMap = null" style="top: 92px;" class="absolute left-6 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold text-primary hover:text-blue-900 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 z-20 bg-white">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
               Volver

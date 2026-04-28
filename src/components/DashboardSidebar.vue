@@ -82,7 +82,7 @@ ADMIN: [
       path: '/admin/registro',
       id: 'registro',
       subItems: [
-        { label: 'Usuarios',  path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Usuarios'  },
+        { label: 'Conductores', path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Conductores' },
         { label: 'Vehículos', path: '/admin/vehiculos',        icon: camionIcon,      alt: 'Vehículos' },
         { label: 'Destinos',  path: '/admin/destinos',         icon: destinoIcon,     alt: 'Destinos'  },
       ],
