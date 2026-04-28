@@ -162,15 +162,15 @@ const openAttachment = async (item) => {
     <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 py-6 pl-4 pr-4 md:pr-8 overflow-y-auto flex flex-col">
+      <main class="flex-1 pt-6 pb-10 pl-4 pr-4 sm:pr-6 lg:pr-8 overflow-y-auto flex flex-col">
         <div class="w-full flex flex-col flex-1">
 
           <!-- Card principal -->
           <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col overflow-hidden flex-1">
 
             <!-- Encabezado -->
-            <div class="shrink-0 px-4 sm:px-8 md:pr-10 pt-7 pb-4 sm:pb-6">
-              <div class="flex items-center mb-4 relative">
+            <div class="shrink-0 px-4 sm:px-6 lg:px-10 pt-6 pb-1">
+              <div class="relative mb-4 flex flex-col items-start gap-3 sm:block">
                 <button
                   @click="router.back()"
                   class="flex items-center gap-1 text-sm font-titles font-semibold text-slate-600 hover:text-primary transition-colors z-10"
@@ -180,7 +180,7 @@ const openAttachment = async (item) => {
                   </svg>
                   Volver
                 </button>
-                <h1 class="absolute inset-x-0 text-center text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight pointer-events-none sm:py-2">
+                <h1 class="w-full text-center text-2xl md:text-3xl font-bold font-titles text-text-title sm:absolute sm:inset-x-0 sm:pointer-events-none">
                   Historial de solicitudes
                 </h1>
               </div>
@@ -361,7 +361,7 @@ const openAttachment = async (item) => {
               <p class="text-slate-700 font-medium">{{ tipoLabel(selectedItem.tipo) }}</p>
             </div>
             <div v-if="selectedItem.nombre" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-              <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">Usuario</p>
+              <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">Nombre del conductor</p>
               <p class="text-slate-700 font-medium">{{ selectedItem.nombre }}</p>
             </div>
             <div v-if="selectedItem.patente" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">

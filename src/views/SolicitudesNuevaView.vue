@@ -86,12 +86,12 @@ const enviar = async () => {
     <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 pt-4 pb-10 pl-4 pr-4 overflow-y-auto flex flex-col">
-        <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden w-full">
+      <main class="flex-1 pt-6 pb-10 pl-4 pr-4 sm:pr-6 lg:pr-8 overflow-y-auto flex flex-col">
+        <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden w-full">
 
           <!-- Card header -->
-            <div class="px-6 pt-7 shrink-0">
-            <div class="flex items-center mb-4 relative">
+          <div class="px-4 sm:px-6 lg:px-10 pt-6 pb-1 shrink-0">
+            <div class="relative mb-4 flex flex-col items-start gap-3 sm:block">
               <button
                 @click="router.back()"
                 class="flex items-center gap-1 text-sm font-titles font-semibold text-slate-600 hover:text-primary transition-colors z-10"
@@ -101,9 +101,9 @@ const enviar = async () => {
                 </svg>
                 Volver
               </button>
-                <h1 class="absolute inset-x-0 text-center text-2xl md:text-3xl font-bold font-titles text-text-title pointer-events-none">
-                  Enviar una solicitud
-                </h1>
+              <h1 class="w-full text-center text-2xl md:text-3xl font-bold font-titles text-text-title sm:absolute sm:inset-x-0 sm:pointer-events-none">
+                Enviar una solicitud
+              </h1>
             </div>
             <div class="border-b border-slate-200">
               <span class="inline-block text-sm font-titles font-semibold text-slate-800 pb-2 border-b-2 border-slate-800">

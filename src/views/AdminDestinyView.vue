@@ -265,23 +265,21 @@ onMounted(loadDestinations)
     <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 min-h-0 pl-4 pr-4 pt-4 pb-8 overflow-y-auto flex flex-col min-w-0">
-        <!-- Volver -->
-        <div v-if="!selectedLocationForMap || !canShowDestinationMap" class="w-full max-w-full mb-3 pl-0 shrink-0">
-          <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            Volver
-          </button>
-        </div>
-
+      <main class="flex-1 min-h-0 pl-4 pr-4 sm:pr-6 lg:pr-8 pt-4 pb-10 overflow-y-auto flex flex-col min-w-0">
         <div class="flex gap-6 w-full min-w-0 max-w-full">
           <!-- MAIN TABLE VIEW -->
           <div v-if="!selectedLocationForMap || !canShowDestinationMap" :class="[
-            'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col transition-all duration-300 relative min-w-0 overflow-hidden',
+            'bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex-1 flex flex-col transition-all duration-300 relative min-w-0 overflow-hidden',
             isFilterOpen ? 'sm:max-w-[calc(100%-24rem)]' : 'w-full'
           ]">
+            <div class="px-4 sm:px-6 lg:px-8 pt-6 pb-1 shrink-0">
+              <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Volver
+              </button>
+            </div>
             <!-- Header Tabla -->
-            <div class="shrink-0 px-4 sm:px-8 md:pr-10 pt-5 pb-4 sm:pb-6">
+            <div class="shrink-0 px-4 sm:px-8 md:pr-10 pt-4 pb-4 sm:pb-6">
               <div class="relative flex flex-col items-center gap-3 sm:block">
                 <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center sm:py-2">Administración de Destinos</h1>
                 <div class="flex items-center gap-3 sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2">
@@ -425,7 +423,7 @@ onMounted(loadDestinations)
           </div>
 
           <!-- MAP VIEW CARD -->
-          <div v-else-if="canShowDestinationMap" class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-visible transition-all duration-300 relative w-full p-8 hidden-scroll">
+          <div v-else-if="canShowDestinationMap" class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-visible transition-all duration-300 relative w-full p-8 hidden-scroll">
             <button @click="selectedLocationForMap = null" style="top: 92px;" class="absolute left-6 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold text-primary hover:text-blue-900 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40 z-20 bg-white">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
               Volver

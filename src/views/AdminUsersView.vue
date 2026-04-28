@@ -306,25 +306,25 @@ onMounted(() => { loadUsers() })
     <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 py-6 pl-4 pr-4 md:pr-8 overflow-y-auto flex flex-col">
-        <div class="w-full flex flex-col">
-          <div class="mb-4 pl-0">
-            <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
-              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-              Volver
-            </button>
-          </div>
-          <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col overflow-hidden">
+      <main class="flex-1 min-h-0 pt-4 pb-10 pl-4 pr-4 sm:pr-6 lg:pr-8 overflow-y-auto flex flex-col min-w-0">
+        <div class="w-full flex flex-col min-w-0">
+          <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col overflow-hidden min-w-0">
+            <div class="px-4 sm:px-6 lg:px-8 pt-6 pb-1">
+              <button @click="goBack" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Volver
+              </button>
+            </div>
 
             <!-- ── Título ── -->
-            <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-6 lg:pt-8 pb-2">
+            <div class="px-4 sm:px-6 lg:px-8 md:pr-10 pt-4 lg:pt-6 pb-2">
               <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center">
                 Administración de {{ entityPluralTitle }}
               </h1>
             </div>
 
             <!-- ── Filtros ── -->
-            <div class="px-4 sm:px-6 lg:px-10 pt-2 pb-4 flex flex-wrap items-center justify-end gap-3">
+            <div class="px-4 sm:px-6 lg:px-8 pt-2 pb-4 flex flex-wrap items-center justify-end gap-3">
               <div class="flex flex-wrap items-center gap-3">
                 <!-- Filtro rol -->
                 <div v-if="!isDirectionView" class="relative">

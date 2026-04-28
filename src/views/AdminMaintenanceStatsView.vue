@@ -390,24 +390,25 @@ onBeforeUnmount(() => {
     <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 min-h-0 overflow-y-auto pl-4 pr-4 sm:pr-6 py-6">
+      <main class="flex-1 min-h-0 overflow-y-auto pt-4 pb-10 pl-4 pr-4 sm:pr-6 lg:pr-8 flex flex-col min-w-0">
+        <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-1 flex-col overflow-hidden w-full min-w-0 min-h-0">
+          <div class="px-4 sm:px-6 lg:px-8 pt-6 pb-1">
+            <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors py-1">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              Volver
+            </button>
+          </div>
+          <div class="px-4 sm:px-6 lg:px-8 pt-4 lg:pt-6 pb-6">
+            <h1 class="text-2xl sm:text-3xl font-titles font-bold text-slate-800 text-center">Estadísticas</h1>
+          </div>
 
-        <!-- Volver + Título -->
-        <div class="mb-2 pl-0">
-          <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors py-1">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            Volver
-          </button>
-        </div>
-        <h1 class="text-2xl sm:text-3xl font-titles font-bold text-slate-800 text-center mb-5">Estadísticas</h1>
+          <!-- Loading -->
+          <div v-if="isLoading" class="flex flex-1 items-center justify-center py-20 text-slate-400 min-h-[18rem]">
+            <svg class="animate-spin w-6 h-6 mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+            Cargando estadísticas...
+          </div>
 
-        <!-- Loading -->
-        <div v-if="isLoading" class="flex items-center justify-center py-20 text-slate-400">
-          <svg class="animate-spin w-6 h-6 mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-          Cargando estadísticas...
-        </div>
-
-        <template v-else>
+          <div v-else class="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 pb-8">
 
           <!-- ── KPI Row ─────────────────────────────────────────────────── -->
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -569,8 +570,8 @@ onBeforeUnmount(() => {
               </table>
             </div>
           </div>
-
-        </template>
+          </div>
+        </div>
       </main>
     </div>
   </div>

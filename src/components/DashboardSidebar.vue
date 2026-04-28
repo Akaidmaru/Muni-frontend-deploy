@@ -102,8 +102,8 @@ ADMIN: [
       path: '/admin/solicitudes',
       id: 'solicitudes',
       subItems: [
-        { label: 'Nueva\nsolicitud',          path: '/admin/solicitudes/nueva',     icon: nuevaSolicitudIcon,       alt: 'Nueva solicitud'         },
-        { label: 'Historial de\nsolicitudes', path: '/admin/solicitudes/historial', icon: historialSolicitudesIcon, alt: 'Historial de solicitudes' },
+        { label: 'Nueva solicitud',          path: '/admin/solicitudes/nueva',     icon: nuevaSolicitudIcon,       alt: 'Nueva solicitud'         },
+        { label: 'Historial de solicitudes', path: '/admin/solicitudes/historial', icon: historialSolicitudesIcon, alt: 'Historial de solicitudes' },
       ],
     },
   ],

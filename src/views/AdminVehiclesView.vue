@@ -365,21 +365,21 @@ onMounted(() => {
     <div class="flex flex-1 min-h-0 overflow-hidden min-w-0">
       <DashboardSidebar />
 
-      <main class="flex-1 min-h-0 pt-4 pb-10 pl-4 pr-3 sm:pr-6 lg:pr-8 overflow-y-auto flex flex-col min-w-0">
-        <div class="mb-3 pl-0 shrink-0">
-          <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            Volver
-          </button>
-        </div>
+      <main class="flex-1 min-h-0 pt-4 pb-10 pl-4 pr-4 sm:pr-6 lg:pr-8 overflow-y-auto flex flex-col min-w-0">
         <div class="flex gap-6 w-full min-w-0">
 
           <div :class="[
-            'bg-white rounded-[2rem] border-2 border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative min-w-0',
+            'bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden transition-all duration-300 relative min-w-0',
             isFilterOpen ? 'sm:max-w-[calc(100%-23rem)]' : 'w-full'
           ]">
+            <div class="px-4 sm:px-6 lg:px-8 pt-6 pb-1">
+              <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Volver
+              </button>
+            </div>
 
-            <div class="flex flex-col md:flex-row items-center justify-center p-4 sm:p-8 pb-4 sm:pb-6 relative min-h-[4rem] sm:min-h-[5rem] gap-3 md:gap-0">
+            <div class="flex flex-col md:flex-row items-center justify-center px-4 sm:px-8 pt-4 pb-4 sm:pb-6 relative min-h-[4rem] sm:min-h-[5rem] gap-3 md:gap-0">
                <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center order-1 md:absolute md:left-1/2 md:-translate-x-1/2">Administración de Vehículos</h1>
 
                <div class="order-2 flex items-center gap-2 md:absolute md:right-4 md:top-6 lg:right-8">

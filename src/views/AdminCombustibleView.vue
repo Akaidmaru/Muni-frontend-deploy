@@ -19,22 +19,24 @@ const router = useRouter()
     </div>
     <div class="flex flex-1 min-h-0 overflow-hidden min-w-0">
       <DashboardSidebar />
-      <main class="flex-1 min-h-0 overflow-y-auto pt-4 pb-10 pl-4 pr-3 sm:pr-6">
-        <div class="mb-3">
-          <button
-            type="button"
-            @click="router.back()"
-            class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors"
-          >
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            Volver
-          </button>
-        </div>
-        <div class="max-w-3xl">
-          <h1 class="text-2xl sm:text-3xl font-titles font-extrabold text-slate-900 tracking-tight mb-2">Combustible</h1>
-          <p class="text-sm text-slate-600 font-body">Sección en preparación. Próximamente podrás gestionar combustible desde aquí.</p>
+      <main class="flex-1 min-h-0 overflow-y-auto pt-4 pb-10 pl-4 pr-4 sm:pr-6 lg:pr-8 flex flex-col min-w-0">
+        <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col overflow-hidden w-full min-w-0">
+          <div class="px-4 sm:px-6 lg:px-10 pt-6 pb-1">
+            <button
+              type="button"
+              @click="router.back()"
+              class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors"
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Volver
+            </button>
+          </div>
+          <div class="px-4 sm:px-6 lg:px-10 pt-4 lg:pt-6 pb-8">
+            <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center mb-2">Combustible</h1>
+            <p class="text-sm text-slate-600 font-body text-center">Sección en preparación. Próximamente podrás gestionar combustible desde aquí.</p>
+          </div>
         </div>
       </main>
     </div>
