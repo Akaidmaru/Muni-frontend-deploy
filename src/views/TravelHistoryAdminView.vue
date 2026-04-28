@@ -289,6 +289,7 @@ const goToNextPage = () => {
 const applyFilters = () => {
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
+  isFilterOpen.value = false
   loadTravels()
 }
 

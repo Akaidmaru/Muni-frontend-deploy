@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSidebarStore } from '@/stores/sidebar'
@@ -637,7 +637,7 @@ onMounted(() => {
               </div>
 
               <div class="mt-6 flex justify-end">
-                <button class="px-6 py-2.5 bg-[#A61919] text-white text-xs rounded-xl font-bold shadow-sm hover:bg-red-800 transition-all w-28">
+                <button @click="isFilterOpen = false" class="px-6 py-2.5 bg-[#A61919] text-white text-xs rounded-xl font-bold shadow-sm hover:bg-red-800 transition-all w-28">
                   Aplicar
                 </button>
               </div>
@@ -690,9 +690,7 @@ onMounted(() => {
                   <option value="Por vencer">Por vencer</option>
                   <option value="Vencido">Vencido</option>
                 </select>
-                <div class="relative w-full overflow-hidden transition-all duration-300" :class="formEdit.circulationPermitStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
-                  <input type="date" v-model="formEdit.circulationPermitExpiresAt" class="date-input w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400" />
-                </div>
+                <input v-show="formEdit.circulationPermitStatus !== 'No tiene'" type="date" v-model="formEdit.circulationPermitExpiresAt" class="date-input w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400" />
               </div>
 
               <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3">
@@ -703,9 +701,7 @@ onMounted(() => {
                   <option value="Por vencer">Por vencer</option>
                   <option value="Vencido">Vencido</option>
                 </select>
-                <div class="relative w-full overflow-hidden transition-all duration-300" :class="formEdit.technicalReviewStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
-                  <input type="date" v-model="formEdit.technicalReviewExpiresAt" class="date-input w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400" />
-                </div>
+                <input v-show="formEdit.technicalReviewStatus !== 'No tiene'" type="date" v-model="formEdit.technicalReviewExpiresAt" class="date-input w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400" />
               </div>
 
               <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3">
@@ -716,9 +712,7 @@ onMounted(() => {
                   <option value="Por vencer">Por vencer</option>
                   <option value="Vencido">Vencido</option>
                 </select>
-                <div class="relative w-full overflow-hidden transition-all duration-300" :class="formEdit.emissionsStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
-                  <input type="date" v-model="formEdit.emissionsExpiresAt" class="date-input w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400" />
-                </div>
+                <input v-show="formEdit.emissionsStatus !== 'No tiene'" type="date" v-model="formEdit.emissionsExpiresAt" class="date-input w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400" />
               </div>
 
               <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3">
@@ -729,9 +723,7 @@ onMounted(() => {
                   <option value="Por vencer">Por vencer</option>
                   <option value="Vencido">Vencido</option>
                 </select>
-                <div class="relative w-full overflow-hidden transition-all duration-300" :class="formEdit.insuranceStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
-                  <input type="date" v-model="formEdit.insuranceExpiresAt" class="date-input w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400" />
-                </div>
+                <input v-show="formEdit.insuranceStatus !== 'No tiene'" type="date" v-model="formEdit.insuranceExpiresAt" class="date-input w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400" />
               </div>
 
             </div>
@@ -816,9 +808,7 @@ onMounted(() => {
                   <option value="Por vencer">Por vencer</option>
                   <option value="Vencido">Vencido</option>
                 </select>
-                <div class="relative w-full overflow-hidden transition-all duration-300" :class="formAdd.circulationPermitStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
-                  <input type="date" v-model="formAdd.circulationPermitExpiresAt" class="date-input w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400" />
-                </div>
+                <input v-show="formAdd.circulationPermitStatus !== 'No tiene'" type="date" v-model="formAdd.circulationPermitExpiresAt" class="date-input w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400" />
               </div>
               <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3">
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Revisión técnica</label>
@@ -828,9 +818,7 @@ onMounted(() => {
                   <option value="Por vencer">Por vencer</option>
                   <option value="Vencido">Vencido</option>
                 </select>
-                <div class="relative w-full overflow-hidden transition-all duration-300" :class="formAdd.technicalReviewStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
-                  <input type="date" v-model="formAdd.technicalReviewExpiresAt" class="date-input w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400" />
-                </div>
+                <input v-show="formAdd.technicalReviewStatus !== 'No tiene'" type="date" v-model="formAdd.technicalReviewExpiresAt" class="date-input w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400" />
               </div>
               <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3">
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Emisión contaminante</label>
@@ -840,9 +828,7 @@ onMounted(() => {
                   <option value="Por vencer">Por vencer</option>
                   <option value="Vencido">Vencido</option>
                 </select>
-                <div class="relative w-full overflow-hidden transition-all duration-300" :class="formAdd.emissionsStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
-                  <input type="date" v-model="formAdd.emissionsExpiresAt" class="date-input w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400" />
-                </div>
+                <input v-show="formAdd.emissionsStatus !== 'No tiene'" type="date" v-model="formAdd.emissionsExpiresAt" class="date-input w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400" />
               </div>
               <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3">
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Seguro obligatorio</label>
@@ -852,9 +838,7 @@ onMounted(() => {
                   <option value="Por vencer">Por vencer</option>
                   <option value="Vencido">Vencido</option>
                 </select>
-                <div class="relative w-full overflow-hidden transition-all duration-300" :class="formAdd.insuranceStatus === 'No tiene' ? 'h-0 opacity-0' : 'h-10 opacity-100'">
-                  <input type="date" v-model="formAdd.insuranceExpiresAt" class="date-input w-full absolute inset-0 text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400" />
-                </div>
+                <input v-show="formAdd.insuranceStatus !== 'No tiene'" type="date" v-model="formAdd.insuranceExpiresAt" class="date-input w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400" />
               </div>
             </div>
           </div>
