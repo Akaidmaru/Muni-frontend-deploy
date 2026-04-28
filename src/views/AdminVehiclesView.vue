@@ -11,8 +11,6 @@ import { useAuthStore } from '@/stores/auth'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const filterDesde = ref('')
-const filterHasta = ref('')
 const searchQuery = ref('')
 const filterPatente = ref('')
 const filterModelo = ref('')
@@ -174,8 +172,6 @@ const goToPreviousPage = () => { if (currentPage.value > 1) currentPage.value-- 
 const goToNextPage = () => { if (currentPage.value < totalPages.value) currentPage.value++ }
 
 const clearFilters = () => {
-  filterDesde.value = ''
-  filterHasta.value = ''
   searchQuery.value = ''
   filterPatente.value = ''
   filterModelo.value = ''
@@ -184,8 +180,6 @@ const clearFilters = () => {
 
 const activeFilterChips = computed(() => {
   const chips = []
-  if (filterDesde.value) chips.push({ label: 'Desde', value: filterDesde.value, field: 'filterDesde' })
-  if (filterHasta.value) chips.push({ label: 'Hasta', value: filterHasta.value, field: 'filterHasta' })
   if (searchQuery.value) chips.push({ label: 'Búsqueda', value: searchQuery.value, field: 'searchQuery' })
   if (filterPatente.value) chips.push({ label: 'Patente', value: filterPatente.value, field: 'filterPatente' })
   if (filterModelo.value) chips.push({ label: 'Modelo', value: filterModelo.value, field: 'filterModelo' })
@@ -193,8 +187,6 @@ const activeFilterChips = computed(() => {
 })
 
 const removeFilter = (field) => {
-  if (field === 'filterDesde') filterDesde.value = ''
-  if (field === 'filterHasta') filterHasta.value = ''
   if (field === 'searchQuery') searchQuery.value = ''
   if (field === 'filterPatente') filterPatente.value = ''
   if (field === 'filterModelo') filterModelo.value = ''
@@ -607,25 +599,7 @@ onMounted(() => {
               </div>
 
             <div class="flex flex-col gap-6 mt-4">
-              
-              <div class="grid grid-cols-2 gap-4">
-                <div class="flex flex-col relative w-full">
-                  <div class="z-10 bg-[#DADBDB] w-fit px-1 absolute -top-2 left-2 text-[10px] text-gray-500 font-bold ml-1 mb-0.5">Desde</div>
-                  <div class="relative w-full">
-                    <input type="date" v-model="filterDesde" class="text-[11px] px-3 py-2.5 pr-10 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
-                    <svg width="14" height="14" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                  </div>
-                </div>
-                <div class="flex flex-col relative w-full">
-                  <div class="text-[10px] text-gray-500 font-bold ml-1 mb-0.5 z-10 bg-[#DADBDB] w-fit px-1 absolute -top-2 left-2">Hasta</div>
-                  <div class="relative w-full">
-                    <input type="date" v-model="filterHasta" class="text-[11px] px-3 py-2.5 pr-10 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
-                    <svg width="14" height="14" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                  </div>
-                </div>
-              </div>
-
-              <div class="flex flex-col relative mt-2">
+              <div class="flex flex-col relative">
                 <div class="text-[10px] text-gray-500 font-bold ml-1 mb-0.5 z-10 bg-[#DADBDB] w-fit px-1 absolute -top-2 left-2">Usuarios</div>
                 <div class="relative">
                   <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
