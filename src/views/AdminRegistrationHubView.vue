@@ -41,16 +41,16 @@ const cards = computed(() => authStore.isDireccion ? directionCards : adminCards
     <div class="flex flex-1 min-h-0 overflow-hidden relative">
       <DashboardSidebar />
 
-      <main class="flex-1 min-h-0 overflow-y-auto flex flex-col pl-4 pr-4 sm:pr-6 lg:pr-8 pt-4 pb-10 min-w-0">
-        <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden w-full min-w-0">
+      <main class="flex-1 min-h-0 overflow-y-auto pl-4 pr-4 sm:pr-6 lg:pr-8 pt-4 pb-10 min-w-0">
+        <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm min-h-full flex flex-col w-full min-w-0">
           <div class="px-6 sm:px-8 pt-6 pb-1 shrink-0">
             <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors py-1">
               <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
               Volver
             </button>
           </div>
-          <div class="flex-1 flex flex-col items-center justify-center px-6 py-8 sm:px-8 sm:py-10">
-            <div class="w-full max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-4xl flex flex-col gap-5">
+          <div class="flex-1 min-h-0 overflow-y-auto flex flex-col items-center px-6 py-8 sm:px-8 sm:py-10">
+            <div class="w-full max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-4xl flex flex-col gap-5 my-auto">
             <button
               v-for="card in cards"
               :key="card.label"

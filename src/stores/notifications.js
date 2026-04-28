@@ -57,6 +57,17 @@ export const useNotificationStore = defineStore('notifications', () => {
         return `Camión ${plate}: ${label} vence ${when}${expires ? ` (${expires})` : ''}`
     }
 
+    const buildServiceRequestMessage = (data) => {
+        const requester = data?.requester?.name || data?.requester?.email || 'Dirección'
+        const labels = {
+            patente: 'acceso a patente',
+            conductor_anadir: 'añadir conductor',
+            conductor_baja: 'dar de baja a conductor',
+        }
+        const typeText = labels[data?.tipo] || 'solicitud'
+        return `Nueva solicitud recibida de ${requester}: ${typeText}`
+    }
+
     const buildUpdatedMessage = (data) => {
         const statusLabels = {
             OPEN: 'Nuevo',
@@ -303,6 +314,25 @@ export const useNotificationStore = defineStore('notifications', () => {
                 truckId: data.truckId,
                 type: 'truck-expiry',
                 message: buildExpiryMessage(data),
+                expiresAt: new Date(Date.now() + NOTIFICATION_TTL_MS),
+            })
+        })
+
+        socket.value.on('service-request:created', (data) => {
+            const serviceRequestId = data?.serviceRequestId || data?.id
+            const notificationId = serviceRequestId
+                ? `service-request-${serviceRequestId}`
+                : `service-request-${data?.createdAt || Date.now()}`
+
+            if (hasNotification(notificationId)) {
+                return
+            }
+
+            addNotification({
+                id: notificationId,
+                serviceRequestId,
+                type: 'service-request-created',
+                message: buildServiceRequestMessage(data),
                 expiresAt: new Date(Date.now() + NOTIFICATION_TTL_MS),
             })
         })
