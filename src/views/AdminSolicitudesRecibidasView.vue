@@ -138,20 +138,18 @@ onMounted(loadSolicitudes)
     <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 pt-4 pb-10 pr-4 overflow-y-auto flex flex-col">
-        <div class="w-full mb-3 shrink-0">
-          <button
-            @click="router.back()"
-            class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors"
-          >
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            Volver
-          </button>
-        </div>
-
-        <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden w-full">
-          <div class="px-6 py-5 border-b border-slate-200 shrink-0">
-            <h1 class="text-xl font-titles font-bold text-text-title text-center">Solicitudes recibidas</h1>
+      <main class="flex-1 min-h-0 pt-4 pb-10 pl-4 pr-4 sm:pr-6 lg:pr-8 overflow-y-auto flex flex-col min-w-0">
+        <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden w-full">
+          <div class="px-4 sm:px-6 lg:px-10 pt-6 pb-1 shrink-0">
+            <button
+              @click="router.back()"
+              class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors"
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              Volver
+            </button>
+            <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center">Solicitudes recibidas</h1>
+            <div class="mt-4 border-b border-slate-200" />
           </div>
 
           <div v-if="loadError" class="mx-6 mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 font-medium">
@@ -234,7 +232,7 @@ onMounted(loadSolicitudes)
               <p class="text-slate-700 font-medium">{{ tipoLabel(selectedItem.tipo) }}</p>
             </div>
             <div v-if="selectedItem.nombre" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-              <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">Usuario</p>
+              <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">Nombre del conductor</p>
               <p class="text-slate-700 font-medium">{{ selectedItem.nombre }}</p>
             </div>
             <div v-if="selectedItem.patente" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">

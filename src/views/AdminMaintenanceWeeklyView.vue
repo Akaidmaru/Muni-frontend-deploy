@@ -523,7 +523,7 @@ onBeforeUnmount(() => {
             Volver
           </button>
         </div>
-        <div class="max-w-6xl mx-auto bg-white rounded-2xl sm:rounded-3xl border border-slate-300 shadow-sm p-4 sm:p-10 overflow-visible">
+        <div class="max-w-6xl mx-auto bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm p-4 sm:p-10 overflow-visible">
 
           <div class="relative mb-6">
             <h1 class="text-2xl font-bold text-center text-slate-900 uppercase tracking-wide">{{ tituloMesPrincipal }}</h1>

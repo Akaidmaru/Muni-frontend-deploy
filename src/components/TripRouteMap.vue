@@ -18,6 +18,7 @@ let snappedPolyline = null
 let startMarker = null
 let endMarker = null
 let markerLibraryPromise = null
+let resizeObserver = null
 
 const loadGoogleMapsApi = () => {
   if (!GOOGLE_MAPS_API_KEY) {
@@ -93,6 +94,12 @@ const fitBoundsIfPossible = (layers) => {
     return
   }
 
+  if (allLatLngs.length === 1) {
+    mapInstance.setCenter(allLatLngs[0])
+    mapInstance.setZoom(16)
+    return
+  }
+
   const bounds = new window.google.maps.LatLngBounds()
   allLatLngs.forEach((point) => bounds.extend(point))
   mapInstance.fitBounds(bounds, 32)
@@ -156,7 +163,7 @@ const redrawRoute = async () => {
       position: firstPoint,
       title: 'Inicio',
       map: mapInstance,
-      content: startPin,
+      content: startPin.element,
     })
 
     const endPin = new PinElement({
@@ -170,10 +177,17 @@ const redrawRoute = async () => {
       position: lastPoint,
       title: 'Fin',
       map: mapInstance,
-      content: endPin,
+      content: endPin.element,
     })
   }
 
+  fitBoundsIfPossible([snappedLatLngs].filter((points) => points.length > 0))
+}
+
+const refreshMapSize = () => {
+  if (!mapInstance || !window.google?.maps) return
+  window.google.maps.event.trigger(mapInstance, 'resize')
+  const snappedLatLngs = toLatLng(props.snappedPoints)
   fitBoundsIfPossible([snappedLatLngs].filter((points) => points.length > 0))
 }
 
@@ -195,6 +209,12 @@ onMounted(async () => {
     })
 
     await redrawRoute()
+
+    resizeObserver = new ResizeObserver(() => {
+      window.requestAnimationFrame(refreshMapSize)
+    })
+    resizeObserver.observe(mapContainer.value)
+    window.requestAnimationFrame(refreshMapSize)
   } catch (error) {
     console.error(error)
     statusMessage.value =
@@ -211,14 +231,16 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+  resizeObserver = null
   clearLayers()
   mapInstance = null
 })
 </script>
 
 <template>
-  <div class="h-full w-full rounded-xl overflow-hidden bg-slate-100 relative">
-    <div ref="mapContainer" class="h-full w-full" />
+  <div class="h-full min-h-[420px] w-full rounded-xl overflow-hidden bg-slate-100 relative">
+    <div ref="mapContainer" class="h-full min-h-[420px] w-full" />
     <div
       v-if="statusMessage"
       class="absolute inset-0 flex items-center justify-center p-6 text-center text-sm font-medium text-red-700 bg-white/80"

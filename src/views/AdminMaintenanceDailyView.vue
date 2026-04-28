@@ -13,7 +13,7 @@ import JSZip from 'jszip'
 
 const router = useRouter()
 const route = useRoute()
-const auth = useAuthStore()
+const authStore = useAuthStore()
 const alertsModal = ref(false)
 const allRecords = ref([])
 const checklistSavedModal = ref({ open: false })
@@ -956,17 +956,17 @@ const exportChecklistPDF = async (record) => {
     <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 min-w-0 pt-4 pb-10 pl-4 pr-3 overflow-y-auto flex flex-col">
-        <div class="w-full mb-3 pl-0 shrink-0">
-          <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            Volver
-          </button>
-        </div>
-        <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm w-full flex flex-col overflow-visible max-md:flex-none">
+      <main class="flex-1 min-w-0 pt-4 pb-10 pl-4 pr-4 sm:pr-6 lg:pr-8 overflow-y-auto flex flex-col">
+        <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm w-full flex flex-col overflow-visible max-md:flex-none">
+          <div class="px-4 sm:px-6 lg:px-8 pt-6 pb-1 shrink-0">
+            <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              Volver
+            </button>
+          </div>
 
           <!-- Título -->
-          <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-6 pb-6 flex flex-col lg:flex-row items-start justify-between gap-6">
+          <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-4 pb-6 flex flex-col lg:flex-row items-start justify-between gap-6">
   <h1 class="text-2xl md:text-3xl font-titles font-extrabold text-slate-900 leading-tight shrink-0">
     Historial de mantenimiento<br />vehicular diario
   </h1>
@@ -1234,7 +1234,7 @@ const exportChecklistPDF = async (record) => {
                       </div>
                       <!-- Exportar PDF en tabla: solo para ADMIN -->
                       <button
-                        v-if="!auth.isDireccion"
+                        v-if="!authStore.isDireccion"
                         @click="exportChecklistPDF(record)"
                         class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-primary transition-colors bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200 shadow-sm"
                       >
@@ -1528,13 +1528,13 @@ const exportChecklistPDF = async (record) => {
               Editar Check List
             </button>
             <button
-              v-if="!auth.isDireccion"
+              v-if="!authStore.isDireccion"
               @click="openDeleteModal(editModal.record); closeEditModal()"
               class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide">
               Eliminar Registro
             </button>
             <button
-              v-if="auth.isDireccion"
+              v-if="authStore.isDireccion"
               @click="exportChecklistPDF(editModal.record); closeEditModal()"
               class="flex-1 py-2 bg-[#C0392B] hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-all uppercase tracking-wide">
               Exportar PDF

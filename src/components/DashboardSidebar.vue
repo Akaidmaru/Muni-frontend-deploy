@@ -82,7 +82,7 @@ ADMIN: [
       path: '/admin/registro',
       id: 'registro',
       subItems: [
-        { label: 'Usuarios',  path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Usuarios'  },
+        { label: 'Conductores', path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Conductores' },
         { label: 'Vehículos', path: '/admin/vehiculos',        icon: camionIcon,      alt: 'Vehículos' },
         { label: 'Destinos',  path: '/admin/destinos',         icon: destinoIcon,     alt: 'Destinos'  },
       ],
@@ -102,8 +102,8 @@ ADMIN: [
       path: '/admin/solicitudes',
       id: 'solicitudes',
       subItems: [
-        { label: 'Nueva\nsolicitud',          path: '/admin/solicitudes/nueva',     icon: nuevaSolicitudIcon,       alt: 'Nueva solicitud'         },
-        { label: 'Historial de\nsolicitudes', path: '/admin/solicitudes/historial', icon: historialSolicitudesIcon, alt: 'Historial de solicitudes' },
+        { label: 'Nueva solicitud',          path: '/admin/solicitudes/nueva',     icon: nuevaSolicitudIcon,       alt: 'Nueva solicitud'         },
+        { label: 'Historial de solicitudes', path: '/admin/solicitudes/historial', icon: historialSolicitudesIcon, alt: 'Historial de solicitudes' },
       ],
     },
   ],

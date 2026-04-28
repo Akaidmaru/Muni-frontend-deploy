@@ -162,29 +162,37 @@ const openAttachment = async (item) => {
     <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 py-6 pr-4 md:pr-8 overflow-y-auto flex flex-col">
+      <main class="flex-1 pt-6 pb-10 pl-4 pr-4 sm:pr-6 lg:pr-8 overflow-y-auto flex flex-col">
         <div class="w-full flex flex-col flex-1">
-
-          <!-- Volver -->
-          <div class="mb-4 pl-10 sm:pl-12">
-            <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
-              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-              Volver
-            </button>
-          </div>
 
           <!-- Card principal -->
           <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col overflow-hidden flex-1">
 
-            <!-- Título -->
-            <div class="px-6 lg:px-10 pt-6 pb-2">
-              <h1 class="text-2xl md:text-3xl font-titles font-extrabold text-slate-900 text-center">
-                Historial de solicitudes
-              </h1>
+            <!-- Encabezado -->
+            <div class="shrink-0 px-4 sm:px-6 lg:px-10 pt-6 pb-1">
+              <div class="relative mb-4 flex flex-col items-start gap-3 sm:block">
+                <button
+                  @click="router.back()"
+                  class="flex items-center gap-1 text-sm font-titles font-semibold text-slate-600 hover:text-primary transition-colors z-10"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Volver
+                </button>
+                <h1 class="w-full text-center text-2xl md:text-3xl font-bold font-titles text-text-title sm:absolute sm:inset-x-0 sm:pointer-events-none">
+                  Historial de solicitudes
+                </h1>
+              </div>
+              <div class="border-b border-slate-200">
+                <span class="inline-block text-sm font-titles font-semibold text-slate-800 pb-2 border-b-2 border-slate-800">
+                  Detalles
+                </span>
+              </div>
             </div>
 
             <!-- Filtros -->
-            <div class="px-6 lg:px-10 pt-2 pb-4 flex flex-wrap items-center gap-3">
+            <div class="px-6 lg:px-10 pt-6 pb-4 flex flex-wrap items-center gap-3">
               <span class="text-sm font-titles font-semibold text-slate-600 shrink-0">Filtrar por:</span>
 
               <!-- Tipo -->
@@ -353,7 +361,7 @@ const openAttachment = async (item) => {
               <p class="text-slate-700 font-medium">{{ tipoLabel(selectedItem.tipo) }}</p>
             </div>
             <div v-if="selectedItem.nombre" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-              <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">Usuario</p>
+              <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">Nombre del conductor</p>
               <p class="text-slate-700 font-medium">{{ selectedItem.nombre }}</p>
             </div>
             <div v-if="selectedItem.patente" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">

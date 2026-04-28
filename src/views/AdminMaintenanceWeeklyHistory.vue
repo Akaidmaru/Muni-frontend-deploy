@@ -903,15 +903,15 @@ const confirmDeleteRecord = async () => {
     <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 min-w-0 pt-4 pb-10 pl-4 pr-4 overflow-y-auto flex flex-col">
-        <div class="w-full mb-3 shrink-0">
-          <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            Volver
-          </button>
-        </div>
-        <div class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm w-full flex flex-col overflow-visible max-md:flex-none">
-            <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-6 lg:pt-10 pb-6 flex flex-col lg:flex-row items-start justify-between gap-6">
+      <main class="flex-1 min-w-0 pt-4 pb-10 pl-4 pr-4 sm:pr-6 lg:pr-8 overflow-y-auto flex flex-col">
+        <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm w-full flex flex-col overflow-visible max-md:flex-none">
+            <div class="px-4 sm:px-6 lg:px-8 pt-6 pb-1 shrink-0">
+              <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Volver
+              </button>
+            </div>
+            <div class="px-4 sm:px-6 lg:px-10 md:pr-10 pt-4 lg:pt-6 pb-6 flex flex-col lg:flex-row items-start justify-between gap-6">
     <h1 class="text-2xl md:text-3xl font-titles font-extrabold text-slate-900 leading-tight">
       Historial de mantenimiento<br />vehicular mensual
     </h1>

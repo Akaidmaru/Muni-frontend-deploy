@@ -8,16 +8,17 @@ import api from '@/services/axios'
 
 const router = useRouter()
 
-/** Tipos alineados al backend (SOAT en API; en pantalla se muestra SOAP) */
+/** Tipos alineados al backend */
 const DOCUMENT_ROWS = [
   { kind: 'CIRCULATION_PERMIT', label: 'Permiso de circulación' },
-  { kind: 'SOAT', label: 'SOAP' },
+  { kind: 'INSURANCE', label: 'SOAP' },
   { kind: 'TECHNICAL_REVIEW', label: 'Revisión técnica' },
   { kind: 'EMISSIONS', label: 'Emisión de contaminantes' },
 ]
 
 /** Año corriente: documentación organizada según el año actual */
 const currentDocumentationYear = computed(() => new Date().getFullYear())
+const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024
 
 const DOCUMENT_FILE_ACCEPT =
   'application/pdf,.pdf,image/png,.png,image/jpeg,.jpg,.jpeg,image/webp,.webp'
@@ -77,7 +78,7 @@ const sortedVehicles = computed(() =>
 const docsByKind = computed(() => {
   const m = {}
   for (const d of docsList.value) {
-    m[d.documentKind] = d
+    m[d.documentType] = d
   }
   return m
 })
@@ -159,10 +160,14 @@ async function uploadDocument(truckId, kind, file) {
     )
     return
   }
+  if (file.size > MAX_DOCUMENT_BYTES) {
+    showAlert('Error', 'El archivo no puede superar los 20 MB.', true)
+    return
+  }
   uploadingKind.value = kind
   try {
     const fd = new FormData()
-    fd.append('kind', kind)
+    fd.append('documentType', kind)
     fd.append('file', file)
     await api.post(`/trucks/${truckId}/documents`, fd)
     await loadDocuments()
@@ -196,9 +201,23 @@ function tipoLabelClass(loaded) {
 
 function onViewDocument(kind) {
   const doc = docsByKind.value[kind]
-  if (doc?.downloadUrl) {
-    window.open(doc.downloadUrl, '_blank', 'noopener,noreferrer')
-  }
+  if (!selectedTruckId.value || !doc) return
+  api
+    .get(`/trucks/${selectedTruckId.value}/documents/${kind}/url`)
+    .then(({ data }) => {
+      if (data?.url) {
+        window.open(data.url, '_blank', 'noopener,noreferrer')
+      }
+    })
+    .catch((e) => {
+      console.error(e)
+      const msg = e.response?.data?.message || 'No se pudo abrir el documento.'
+      showAlert(
+        'Error',
+        typeof msg === 'string' ? msg : 'No se pudo abrir el documento.',
+        true
+      )
+    })
 }
 
 async function confirmDeleteDocument() {
@@ -286,33 +305,32 @@ onMounted(async () => {
       <main
         class="flex-1 min-h-0 pt-4 pb-10 pl-4 pr-3 sm:pr-6 lg:pr-8 overflow-y-auto flex flex-col min-w-0"
       >
-        <div class="mb-3 pl-0 shrink-0">
-          <button
-            type="button"
-            @click="router.push('/admin/registro')"
-            class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors"
-          >
-            <svg
-              width="16"
-              height="16"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              viewBox="0 0 24 24"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            Volver
-          </button>
-        </div>
-
         <div
-          class="bg-white rounded-[2rem] border-2 border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden min-h-0 min-w-0 w-full max-w-[1400px] mx-auto"
+          class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-hidden min-h-0 min-w-0 w-full"
         >
+          <div class="px-4 sm:px-6 lg:px-8 pt-6 pb-1">
+            <button
+              type="button"
+              @click="router.push('/admin/registro')"
+              class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors"
+            >
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                viewBox="0 0 24 24"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Volver
+            </button>
+          </div>
           <div
-            class="flex flex-col md:flex-row items-center justify-center p-4 sm:p-8 pb-4 sm:pb-5 relative min-h-[4rem] sm:min-h-[5rem] gap-3 md:gap-0 border-b border-slate-100"
+            class="flex flex-col md:flex-row items-center justify-center px-4 sm:px-8 pt-4 pb-4 sm:pb-5 relative min-h-[4rem] sm:min-h-[5rem] gap-3 md:gap-0 border-b border-slate-100"
           >
             <h1
               class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center order-1 md:absolute md:left-1/2 md:-translate-x-1/2 px-4"
@@ -321,9 +339,7 @@ onMounted(async () => {
             </h1>
           </div>
 
-          <div
-            class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-8 md:px-10 py-4 border-b border-slate-100 bg-white"
-          >
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-8 md:px-10 py-4 border-b border-slate-100 bg-white">
             <div class="w-full sm:max-w-xs md:max-w-sm">
               <label class="sr-only" for="patente-select">Patente</label>
               <div class="relative">
@@ -449,7 +465,7 @@ onMounted(async () => {
                           type="button"
                           title="Abrir el documento en otra pestaña"
                           class="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-slate-600 hover:text-slate-900 transition-colors bg-white rounded-full px-2.5 py-1.5 shadow-sm border border-gray-300 disabled:opacity-50 shrink-0"
-                          :disabled="!selectedTruckId || !docsByKind[row.kind]?.downloadUrl"
+                          :disabled="!selectedTruckId || !docsByKind[row.kind]"
                           @click="onViewDocument(row.kind)"
                         >
                           <svg
@@ -611,7 +627,7 @@ onMounted(async () => {
                 <option value="CIRCULATION_PERMIT">
                   Permiso de circulación
                 </option>
-                <option value="SOAT">SOAP</option>
+                <option value="INSURANCE">SOAP</option>
                 <option value="TECHNICAL_REVIEW">Revisión técnica</option>
                 <option value="EMISSIONS">
                   Emisión de contaminantes
