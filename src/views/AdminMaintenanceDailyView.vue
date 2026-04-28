@@ -1136,7 +1136,7 @@ const exportChecklistPDF = async (record) => {
             <input
               type="date"
               v-model="filterDate"
-              class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+              class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary min-w-[140px]"
             />
 
             <!-- Buscar -->

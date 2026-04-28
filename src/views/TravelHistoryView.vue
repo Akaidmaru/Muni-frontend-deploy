@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSidebarStore } from '@/stores/sidebar'
@@ -182,6 +182,7 @@ const goToNextPage = () => {
 const applyFilters = () => {
   appliedFilters.value = { ...filters.value }
   currentPage.value = 1
+  isFilterOpen.value = false
   loadTravels()
 }
 
@@ -436,13 +437,13 @@ watch(currentPage, () => {
                   <div class="flex flex-col relative">
                     <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Desde</label>
                     <div class="relative">
-                      <input type="date" v-model="filters.from" class="text-[11px] px-3 py-[9px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
+                      <input type="date" v-model="filters.from" class="text-[11px] px-3 py-[9px] w-full rounded-xl border border-[#b2b2b2] bg-white text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors" />
                     </div>
                   </div>
                   <div class="flex flex-col relative">
                     <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Hasta</label>
                     <div class="relative">
-                      <input type="date" v-model="filters.to" class="text-[11px] px-3 py-[9px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
+                      <input type="date" v-model="filters.to" class="text-[11px] px-3 py-[9px] w-full rounded-xl border border-[#b2b2b2] bg-white text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors" />
                     </div>
                   </div>
                 </div>

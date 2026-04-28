@@ -426,7 +426,7 @@ onBeforeUnmount(() => {
                   <!-- X -->
                   <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </div>
-                <span :class="['text-4xl font-titles font-extrabold leading-none', kpiClasses[kpiVariant(fleetAvailability)].num]">
+                <span :class="['text-3xl font-titles font-extrabold leading-none', kpiClasses[kpiVariant(fleetAvailability)].num]">
                   {{ fleetAvailability }}%
                 </span>
               </div>
@@ -440,7 +440,7 @@ onBeforeUnmount(() => {
                   <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 </div>
                 <div>
-                  <span class="text-4xl font-titles font-extrabold text-blue-700 leading-none">{{ upcomingExpiries }}</span>
+                  <span class="text-3xl font-titles font-extrabold text-blue-700 leading-none">{{ upcomingExpiries }}</span>
                   <p class="text-[11px] text-blue-600 font-semibold mt-0.5 leading-tight">Documentación<br>por vencer</p>
                 </div>
               </div>
@@ -454,7 +454,7 @@ onBeforeUnmount(() => {
                   <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </div>
                 <div>
-                  <span class="text-4xl font-titles font-extrabold text-red-700 leading-none">{{ safetyAlerts }}</span>
+                  <span class="text-3xl font-titles font-extrabold text-red-700 leading-none">{{ safetyAlerts }}</span>
                   <p class="text-[11px] text-red-600 font-semibold mt-0.5 leading-tight">Fallos<br>críticos</p>
                 </div>
               </div>
@@ -470,7 +470,7 @@ onBeforeUnmount(() => {
                   <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </div>
                 <div>
-                  <span :class="['text-4xl font-titles font-extrabold leading-none', kpiClasses[kpiVariant(weeklyChecklistPct)].num]">
+                  <span :class="['text-3xl font-titles font-extrabold leading-none', kpiClasses[kpiVariant(weeklyChecklistPct)].num]">
                     {{ weeklyChecklistPct }}%
                   </span>
                   <p :class="['text-[11px] font-semibold mt-0.5', kpiClasses[kpiVariant(weeklyChecklistPct)].num]">Del mes</p>
