@@ -161,7 +161,7 @@ const reportProblem = () => {
 
 <template>
   <div
-    class="fixed md:relative h-screen max-h-dvh md:h-full md:max-h-none md:min-h-0 self-stretch transition-all duration-300 ease-in-out flex flex-col z-50 shrink-0"
+    class="fixed md:relative h-[calc(100dvh-6rem)] max-h-[calc(100dvh-6rem)] md:h-full md:max-h-none md:min-h-0 self-stretch transition-all duration-300 ease-in-out flex flex-col z-50 shrink-0"
     :class="
       open
         ? 'w-48 flex-shrink-0 bg-white border-r border-gray-200 shadow-xl'
@@ -199,7 +199,7 @@ const reportProblem = () => {
     </button>
 
     <div v-show="open" class="h-full w-full min-h-0 flex-1 min-w-0 overflow-hidden">
-    <div class="flex flex-col h-full w-48 min-w-48 flex-shrink-0">
+    <div class="flex flex-col h-full min-h-0 w-48 min-w-48 flex-shrink-0">
       <div class="flex justify-end px-2 pt-2">
         <button
           @click="setOpen(false)"
@@ -212,7 +212,7 @@ const reportProblem = () => {
         </button>
       </div>
 
-      <nav class="flex flex-col flex-1 overflow-y-auto">
+      <nav class="flex flex-col flex-1 min-h-0 overflow-y-auto">
           <template v-for="item in navItems">
             <div
               v-if="item && item.subItems"
@@ -349,7 +349,7 @@ const reportProblem = () => {
           </template>
         </nav>
 
-        <div class="px-2 pb-3 pt-1 border-t border-gray-100">
+        <div class="shrink-0 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1 border-t border-gray-100 bg-white">
           <button
             @click="reportProblem"
             class="flex items-center gap-2 px-2 py-2 rounded-lg w-full text-left text-slate-500 hover:bg-red-50 hover:text-red-600 group transition-all duration-150"
