@@ -2,7 +2,6 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useNotificationStore } from '@/stores/notifications'
 
 const email    = ref('')
 const password = ref('')
@@ -22,8 +21,6 @@ const handleSubmit = async () => {
   loading.value = false
 
   if (result.success) {
-    const notifStore = useNotificationStore()
-    notifStore.connect(auth.token)
     // Redirigir según el rol
     const roleRoutes = {
       DRIVER: '/dashboard',
