@@ -161,10 +161,10 @@ const reportProblem = () => {
 
 <template>
   <div
-    class="fixed md:relative h-[calc(100dvh-6rem)] max-h-[calc(100dvh-6rem)] md:h-full md:max-h-none md:min-h-0 self-stretch transition-all duration-300 ease-in-out flex flex-col z-50 shrink-0"
+    class="fixed md:relative h-[calc(100dvh-6rem)] max-h-[calc(100dvh-6rem)] md:h-full md:max-h-none transition-all duration-300 ease-in-out flex flex-col z-[60] shrink-0"
     :class="
       open
-        ? 'w-64 min-w-[16rem] flex-shrink-0 overflow-y-hidden pointer-events-auto bg-white border-r border-gray-200 shadow-xl'
+        ? 'w-64 min-w-[16rem] flex-shrink-0 overflow-hidden pointer-events-auto bg-white border-r border-gray-200 shadow-xl'
         : 'w-0 overflow-visible pointer-events-none md:w-10 md:min-w-[2.5rem] md:max-w-[2.5rem] md:overflow-hidden md:pointer-events-auto md:border-transparent md:bg-background md:shadow-none'
     "
   >
@@ -201,8 +201,7 @@ const reportProblem = () => {
       <span v-for="i in 3" :key="i" class="block w-4 h-[2px] bg-gray-600 rounded-full" />
     </button>
 
-    <div v-show="open" class="h-full w-full min-h-0 flex-1 min-w-0 overflow-hidden">
-    <div class="flex flex-col h-full min-h-0 w-48 min-w-48 flex-shrink-0">
+    <div v-show="open" class="flex flex-col h-full w-full min-h-0">
       <div class="flex justify-end px-2 pt-2">
         <button
           @click="setOpen(false)"
@@ -352,7 +351,7 @@ const reportProblem = () => {
           </template>
         </nav>
 
-        <div class="shrink-0 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1 border-t border-gray-100 bg-white">
+        <div class="shrink-0 w-full px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1 border-t border-gray-100 bg-white">
           <button
             @click="reportProblem"
             class="flex items-center gap-2 px-2 py-2 rounded-lg w-full text-left text-slate-500 hover:bg-red-50 hover:text-red-600 group transition-all duration-150"
@@ -363,7 +362,6 @@ const reportProblem = () => {
             <span class="text-xs font-titles font-semibold">Reportar un problema</span>
           </button>
         </div>
-    </div>
     </div>
 
     <Teleport to="body">

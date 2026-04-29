@@ -223,18 +223,8 @@ const saveUser = async () => {
       email: editForm.value.email.trim() || undefined,
     }
     await api.patch(`/users/${editForm.value.id}`, payload)
-    const userIndex = users.value.findIndex(u => u.id === editForm.value.id)
-    if (userIndex !== -1) {
-      users.value[userIndex] = {
-        ...users.value[userIndex],
-        id: editForm.value.id,
-        name: editForm.value.name.trim() || 'Sin nombre',
-        rut: editForm.value.rut || '',
-        role: editForm.value.role,
-        phone: editForm.value.phone.trim() || '',
-        email: editForm.value.email.trim() || '',
-      }
-    }
+    await loadUsers()
+    
     saveSuccess.value = 'Cambios guardados correctamente.'
     setTimeout(() => closeEditModal(), 800)
   } catch (error) {
