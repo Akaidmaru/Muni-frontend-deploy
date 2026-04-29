@@ -566,10 +566,16 @@ const handleConfirm = async () => {
   await loadMileageSuggestionByPlate(plate);
 
   await checkDailyMaintenanceByDriverAndTruck();
-  if (!alreadyRegisteredToday.value) {
-    maintenanceForm.value = createDefaultMaintenanceForm(suggestedMileage.value);
-    syncAnnexFromSelectedTruck();
+  if (alreadyRegisteredToday.value) {
+    await router.push({
+      name: 'daily-registration-driver',
+      query: { plate },
+    });
+    return;
   }
+
+  maintenanceForm.value = createDefaultMaintenanceForm(suggestedMileage.value);
+  syncAnnexFromSelectedTruck();
   confirmed.value = true;
 };
 
@@ -1024,6 +1030,7 @@ const startTrip = async (trip) => {
       destinationId: Number(trip.destination),
       employeeId: Number(trip.employee.id),
       startTime,
+      clientDate: getLocalDateParam(),
     });
 
     const createdHistoryId = Number(data?.id);

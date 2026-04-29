@@ -37,7 +37,7 @@ const router = useRouter()
           <div class="px-4 sm:px-6 lg:px-10 pt-4 lg:pt-6 pb-4 shrink-0">
             <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center">Solicitudes</h1>
           </div>
-          <div class="flex-1 flex items-center justify-center px-6 py-8 sm:px-8 sm:py-10">
+          <div class="solicitudes-scroll flex-1 min-h-0 overflow-y-scroll flex items-start sm:items-center justify-center px-6 py-8 sm:px-8 sm:py-10">
             <div class="w-full max-w-2xl">
               <div class="space-y-6">
 
@@ -69,3 +69,28 @@ const router = useRouter()
     </div>
   </div>
 </template>
+
+<style scoped>
+.solicitudes-scroll {
+  scrollbar-gutter: stable;
+}
+
+.solicitudes-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.solicitudes-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 999px;
+}
+
+.solicitudes-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+  border: 2px solid #f1f5f9;
+}
+
+.solicitudes-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+</style>
