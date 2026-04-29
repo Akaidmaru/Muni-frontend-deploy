@@ -998,15 +998,17 @@ const confirmDeleteRecord = async () => {
               </div>
             </div>
 
-            <button @click="openExportZipModal" class="bg-[#C0392B] hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-bold text-xs tracking-wider shadow-md transition-all flex items-center gap-2 uppercase shrink-0">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
-              </svg>
-              Exportar ZIP
-            </button>
-            <button @click="router.push('/admin/mantencion-vehicular/mensual')" class="bg-[#1b2e4b] text-white px-5 py-2.5 rounded-lg font-bold text-xs tracking-wider shadow-md hover:bg-opacity-90 transition-all flex items-center gap-2 uppercase shrink-0">
-              <span>+</span> NUEVO CHECK LIST
-            </button>
+            <div class="flex items-center gap-3 shrink-0">
+              <button @click="openExportZipModal" class="bg-[#C0392B] hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-bold text-xs tracking-wider shadow-md transition-all flex items-center gap-2 uppercase">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
+                </svg>
+                Exportar ZIP
+              </button>
+              <button @click="router.push('/admin/mantencion-vehicular/mensual')" class="bg-[#1b2e4b] text-white px-5 py-2.5 rounded-lg font-bold text-xs tracking-wider shadow-md hover:bg-opacity-90 transition-all flex items-center gap-2 uppercase">
+                <span>+</span> NUEVO CHECK LIST
+              </button>
+            </div>
           </div>
 
           <div class="custom-scrollbar overflow-x-auto px-4 sm:px-6 lg:px-10 md:pr-10 pt-4">

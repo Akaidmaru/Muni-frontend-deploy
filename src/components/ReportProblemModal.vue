@@ -17,6 +17,11 @@ const isSubmitting = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const MIN_LOADING_DISPLAY_MS = 400
+const MIN_TITLE_LENGTH = 2
+const MAX_TITLE_LENGTH = 120
+const MIN_DESCRIPTION_LENGTH = 5
+const MAX_DESCRIPTION_LENGTH = 3000
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
 
 const handleClose = () => {
   isSubmitting.value = false
@@ -34,8 +39,17 @@ const triggerFileInput = () => {
 const handleFileChange = (event) => {
   const file = event.target.files[0]
   if (file) {
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      selectedFileName.value = ''
+      selectedFile.value = null
+      errorMessage.value = 'La captura no puede superar 5 MB.'
+      event.target.value = ''
+      return
+    }
+
     selectedFileName.value = file.name
     selectedFile.value = file
+    errorMessage.value = ''
   } else {
     selectedFileName.value = ''
     selectedFile.value = null
@@ -57,8 +71,35 @@ const resetForm = () => {
   }
 }
 
+const getBackendMessage = (error) => {
+  const message = error?.response?.data?.message
+
+  if (Array.isArray(message)) {
+    return message.join(' ')
+  }
+
+  if (typeof message === 'string' && message.trim()) {
+    return message
+  }
+
+  return 'Lo sentimos, ha ocurrido un error al enviar el reporte. Por favor intenta más tarde.'
+}
+
 const submitReport = async () => {
-  if (!title.value || !description.value || isSubmitting.value) return
+  if (isSubmitting.value) return
+
+  const normalizedTitle = title.value.trim()
+  const normalizedDescription = description.value.trim()
+
+  if (normalizedTitle.length < MIN_TITLE_LENGTH) {
+    errorMessage.value = 'El título debe tener al menos 2 caracteres.'
+    return
+  }
+
+  if (normalizedDescription.length < MIN_DESCRIPTION_LENGTH) {
+    errorMessage.value = 'La descripción debe tener al menos 5 caracteres.'
+    return
+  }
 
   isSubmitting.value = true
   errorMessage.value = ''
@@ -68,17 +109,13 @@ const submitReport = async () => {
 
   try {
     const formData = new FormData()
-    formData.append('title', title.value)
-    formData.append('description', description.value)
+    formData.append('title', normalizedTitle)
+    formData.append('description', normalizedDescription)
     if (selectedFile.value) {
       formData.append('file', selectedFile.value)
     }
 
-    await api.post('/reports', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
+    await api.post('/reports', formData)
 
     successMessage.value = 'Reporte enviado con éxito. Gracias por tu ayuda.'
     setTimeout(() => {
@@ -87,7 +124,7 @@ const submitReport = async () => {
 
   } catch (error) {
     console.error('Error al enviar el reporte:', error)
-    errorMessage.value = 'Lo sentimos, ha ocurrido un error al enviar el reporte. Por favor intenta más tarde.'
+    errorMessage.value = getBackendMessage(error)
     isSubmitting.value = false
   }
 }
@@ -144,6 +181,8 @@ const submitReport = async () => {
                   v-model="title" 
                   type="text" 
                   required
+                  :minlength="MIN_TITLE_LENGTH"
+                  :maxlength="MAX_TITLE_LENGTH"
                   placeholder="Ej. No recibí el código de verificación" 
                   class="flex-1 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-[13px] text-gray-700 outline-none focus:border-red-700 focus:ring-1 focus:ring-red-700 transition-colors placeholder:text-[#a8a8a8] font-body"
                 />
@@ -157,6 +196,8 @@ const submitReport = async () => {
                 <textarea 
                   v-model="description" 
                   required
+                  :minlength="MIN_DESCRIPTION_LENGTH"
+                  :maxlength="MAX_DESCRIPTION_LENGTH"
                   rows="6" 
                   placeholder="Describe qué intentabas hacer y que pasó al momento del error..." 
                   class="w-full rounded-lg border border-gray-300 p-4 text-[13px] text-gray-700 outline-none focus:border-red-700 focus:ring-1 focus:ring-red-700 transition-colors resize-none placeholder:text-[#a8a8a8] font-body"
@@ -200,7 +241,7 @@ const submitReport = async () => {
               <div class="pt-4 sm:pt-6 flex flex-col items-center gap-4">
                 <button 
                   type="submit" 
-                  :disabled="isSubmitting || !title || !description"
+                  :disabled="isSubmitting || title.trim().length < MIN_TITLE_LENGTH || description.trim().length < MIN_DESCRIPTION_LENGTH"
                   :aria-busy="isSubmitting"
                   class="bg-[#B71C1C] hover:bg-red-800 disabled:bg-slate-400 disabled:hover:bg-slate-400 disabled:opacity-100 disabled:cursor-not-allowed text-white text-xs font-bold px-8 py-3 rounded-xl transition-all w-full sm:w-[240px] tracking-wide flex items-center justify-center font-body min-h-[44px]"
                 >

@@ -212,7 +212,88 @@ export const useNotificationStore = defineStore('notifications', () => {
         return `report-${reportId}-${updatedAt}`
     }
 
-    async function hydrateFromReportsHistory() {
+    const isWithinTtl = (dateStr) => {
+        if (!dateStr) return false
+        const ts = new Date(dateStr).getTime()
+        return !Number.isNaN(ts) && Date.now() - ts < NOTIFICATION_TTL_MS
+    }
+
+    async function hydrateAdminNotifications() {
+        // Reportes creados por cualquier usuario (report:created para admins)
+        try {
+            const { data } = await api.get('/reports')
+            const reports = Array.isArray(data) ? data : []
+            reports
+                .filter((report) => isWithinTtl(report.createdAt))
+                .forEach((report) => {
+                    const id = `report-${report.id}-${report.createdAt}`
+                    if (!hasNotification(id)) {
+                        notifications.value.push({
+                            id,
+                            reportId: report.id,
+                            type: 'report-created',
+                            message: buildCreatedMessage({ title: report.title }),
+                            read: isReadId(id),
+                            at: new Date(report.createdAt),
+                            expiresAt: new Date(new Date(report.createdAt).getTime() + NOTIFICATION_TTL_MS),
+                        })
+                    }
+                })
+        } catch {
+            // Si falla no afecta el canal en tiempo real
+        }
+
+        // Solicitudes de servicio (service-request:created para admins)
+        try {
+            const { data } = await api.get('/solicitudes/all')
+            const requests = Array.isArray(data) ? data : []
+            requests
+                .filter((req) => isWithinTtl(req.createdAt))
+                .forEach((req) => {
+                    const id = `service-request-${req.id}`
+                    if (!hasNotification(id)) {
+                        notifications.value.push({
+                            id,
+                            serviceRequestId: req.id,
+                            type: 'service-request-created',
+                            message: buildServiceRequestMessage({ tipo: req.tipo, requester: req.requester }),
+                            read: isReadId(id),
+                            at: new Date(req.createdAt),
+                            expiresAt: new Date(new Date(req.createdAt).getTime() + NOTIFICATION_TTL_MS),
+                        })
+                    }
+                })
+        } catch {
+            // Si falla no afecta el canal en tiempo real
+        }
+
+        // Vencimientos de documentos de camiones (truck:expiry para admins)
+        try {
+            const { data } = await api.get('/trucks/expiry-notifications')
+            const payloads = Array.isArray(data) ? data : []
+            payloads.forEach((payload) => {
+                if (!hasNotification(payload.notificationId)) {
+                    notifications.value.push({
+                        id: payload.notificationId,
+                        truckId: payload.truckId,
+                        type: 'truck-expiry',
+                        message: buildExpiryMessage(payload),
+                        read: isReadId(payload.notificationId),
+                        at: new Date(),
+                        expiresAt: new Date(Date.now() + NOTIFICATION_TTL_MS),
+                    })
+                }
+            })
+        } catch {
+            // Si falla no afecta el canal en tiempo real
+        }
+
+        notifications.value.sort((a, b) => new Date(b.at) - new Date(a.at))
+        pruneExpiredNotifications()
+        persistNotifications()
+    }
+
+    async function hydrateUserReportUpdates() {
         try {
             const { data } = await api.get('/reports/me')
             const reports = Array.isArray(data) ? data : []
@@ -253,12 +334,22 @@ export const useNotificationStore = defineStore('notifications', () => {
         }
     }
 
+    async function hydrateNotifications() {
+        const authStore = useAuthStore()
+        const isAdmin = authStore.isAdmin || authStore.user?.role === 'ADMIN'
+        if (isAdmin) {
+            await hydrateAdminNotifications()
+        } else {
+            await hydrateUserReportUpdates()
+        }
+    }
+
     function connect(token) {
         if (!token) {
             return
         }
 
-        if (socket.value?.connected) {
+        if (socket.value !== null) {
             return
         }
 
@@ -270,7 +361,7 @@ export const useNotificationStore = defineStore('notifications', () => {
             auth: { token }
         })
 
-        void hydrateFromReportsHistory()
+        void hydrateNotifications()
         startExpirationCleanup()
 
         socket.value.on('report:created', (data) => {

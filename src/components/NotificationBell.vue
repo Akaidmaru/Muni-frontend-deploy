@@ -44,7 +44,7 @@ const close = () => { open.value = false }
     >
       <div
         v-if="open"
-        class="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-100 z-50 overflow-hidden"
+        class="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-[90vw] sm:w-80 bg-white rounded-xl shadow-lg border border-gray-100 z-[70] overflow-hidden"
       >
         <!-- Header -->
         <div class="px-4 py-3 border-b border-gray-100">
@@ -69,6 +69,6 @@ const close = () => { open.value = false }
     </transition>
 
     <!-- Backdrop -->
-    <div v-if="open" class="fixed inset-0 z-40" @click="close" />
+    <div v-if="open" class="fixed inset-0 z-[65]" @click="close" />
   </div>
 </template>

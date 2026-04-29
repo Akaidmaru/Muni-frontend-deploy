@@ -17,7 +17,7 @@ const goToAdminHistory = () => {
   router.push('/historial-viajes-admin')
 }
 const goToAdminUsers = () => {
-  router.push('/admin/gestion-usuarios')
+  router.push('/admin/registro')
 }
 const goToAdminReports = () => {
   router.push('/admin/reportes')
