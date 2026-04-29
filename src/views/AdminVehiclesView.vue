@@ -135,7 +135,7 @@ const loadVehicles = async () => {
   }
 }
 
-const appliedFilters = ref({ desde: '', hasta: '', search: '', patente: '', modelo: '' })
+const appliedFilters = ref({ search: '', patente: '', modelo: '' })
 
 const filteredVehicles = computed(() => {
   const normalizedSearch = appliedFilters.value.search.toLowerCase()
@@ -175,8 +175,6 @@ const goToNextPage = () => { if (currentPage.value < totalPages.value) currentPa
 
 const applyFilters = () => {
   appliedFilters.value = {
-    desde: filterDesde.value,
-    hasta: filterHasta.value,
     search: searchQuery.value,
     patente: filterPatente.value,
     modelo: filterModelo.value,
@@ -189,14 +187,12 @@ const clearFilters = () => {
   searchQuery.value = ''
   filterPatente.value = ''
   filterModelo.value = ''
-  appliedFilters.value = { desde: '', hasta: '', search: '', patente: '', modelo: '' }
+  appliedFilters.value = { search: '', patente: '', modelo: '' }
   currentPage.value = 1
 }
 
 const activeFilterChips = computed(() => {
   const chips = []
-  if (appliedFilters.value.desde) chips.push({ label: 'Desde', value: appliedFilters.value.desde, field: 'filterDesde' })
-  if (appliedFilters.value.hasta) chips.push({ label: 'Hasta', value: appliedFilters.value.hasta, field: 'filterHasta' })
   if (appliedFilters.value.search) chips.push({ label: 'Búsqueda', value: appliedFilters.value.search, field: 'searchQuery' })
   if (appliedFilters.value.patente) chips.push({ label: 'Patente', value: appliedFilters.value.patente, field: 'filterPatente' })
   if (appliedFilters.value.modelo) chips.push({ label: 'Modelo', value: appliedFilters.value.modelo, field: 'filterModelo' })
@@ -204,8 +200,6 @@ const activeFilterChips = computed(() => {
 })
 
 const removeFilter = (field) => {
-  if (field === 'filterDesde') { filterDesde.value = ''; appliedFilters.value.desde = '' }
-  if (field === 'filterHasta') { filterHasta.value = ''; appliedFilters.value.hasta = '' }
   if (field === 'searchQuery') { searchQuery.value = ''; appliedFilters.value.search = '' }
   if (field === 'filterPatente') { filterPatente.value = ''; appliedFilters.value.patente = '' }
   if (field === 'filterModelo') { filterModelo.value = ''; appliedFilters.value.modelo = '' }
@@ -619,18 +613,7 @@ onMounted(() => {
 
             <div class="flex flex-col gap-6 mt-4">
               
-              <div class="grid grid-cols-2 gap-4">
-                <div class="flex flex-col relative w-full">
-                  <div class="z-10 bg-[#DADBDB] w-fit px-1 absolute -top-2 left-2 text-[10px] text-gray-500 font-bold ml-1 mb-0.5">Desde</div>
-                  <input type="date" v-model="filterDesde" class="text-[11px] px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors" />
-                </div>
-                <div class="flex flex-col relative w-full">
-                  <div class="text-[10px] text-gray-500 font-bold ml-1 mb-0.5 z-10 bg-[#DADBDB] w-fit px-1 absolute -top-2 left-2">Hasta</div>
-                  <input type="date" v-model="filterHasta" class="text-[11px] px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors" />
-                </div>
-              </div>
-
-              <div class="flex flex-col relative mt-2">
+              <div class="flex flex-col relative">
                 <div class="text-[10px] text-gray-500 font-bold ml-1 mb-0.5 z-10 bg-[#DADBDB] w-fit px-1 absolute -top-2 left-2">Usuarios</div>
                 <div class="relative">
                   <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
