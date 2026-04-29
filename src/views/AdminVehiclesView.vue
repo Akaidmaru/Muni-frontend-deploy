@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSidebarStore } from '@/stores/sidebar'
@@ -11,8 +11,6 @@ import { useAuthStore } from '@/stores/auth'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const filterDesde = ref('')
-const filterHasta = ref('')
 const searchQuery = ref('')
 const filterPatente = ref('')
 const filterModelo = ref('')
@@ -188,8 +186,6 @@ const applyFilters = () => {
 }
 
 const clearFilters = () => {
-  filterDesde.value = ''
-  filterHasta.value = ''
   searchQuery.value = ''
   filterPatente.value = ''
   filterModelo.value = ''

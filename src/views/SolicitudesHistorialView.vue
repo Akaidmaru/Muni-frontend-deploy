@@ -102,6 +102,8 @@ const filtered = computed(() => {
     const matchQ     = !q
       || normalize(s.id).includes(q)
       || normalize(tipoLabel(s.tipo)).includes(q)
+      || normalize(formatDate(s.createdAt)).includes(q)
+      || normalize(estadoCfg(s.estado || s.status).label).includes(q)
     return matchTipo && matchFecha && matchQ
   })
 })

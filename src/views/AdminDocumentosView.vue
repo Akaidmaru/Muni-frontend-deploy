@@ -34,6 +34,12 @@ const deletingId = ref(null)
 const isAddModalOpen = ref(false)
 const addFormKind = ref('CIRCULATION_PERMIT')
 const addFileInput = ref(null)
+const viewDocumentModal = ref({
+  open: false,
+  title: '',
+  url: '',
+  type: 'pdf',
+})
 
 /** Mismo patrón que AdminMaintenanceWeeklyView (éxito / error) */
 const alertModal = ref({
@@ -64,6 +70,10 @@ const closeDeleteModal = () => {
   deleteModal.value = { open: false, docId: null }
 }
 
+const closeViewDocumentModal = () => {
+  viewDocumentModal.value = { open: false, title: '', url: '', type: 'pdf' }
+}
+
 const itemsPerPage = ref(100)
 const currentPage = ref(1)
 
@@ -83,7 +93,7 @@ const docsByKind = computed(() => {
   return m
 })
 
-const totalItems = computed(() => DOCUMENT_ROWS.length)
+const totalItems = computed(() => (selectedTruckId.value ? DOCUMENT_ROWS.length : 0))
 const totalPages = computed(() => Math.ceil(totalItems.value / itemsPerPage.value) || 1)
 const firstVisibleRow = computed(() =>
   totalItems.value === 0 ? 0 : (currentPage.value - 1) * itemsPerPage.value + 1
@@ -199,25 +209,41 @@ function tipoLabelClass(loaded) {
   ]
 }
 
-function onViewDocument(kind) {
+function getDocumentViewerType(doc, url) {
+  const source = `${doc?.bucketKey || ''} ${doc?.originalName || ''} ${url || ''}`
+    .split('?')[0]
+    .toLowerCase()
+
+  return /\.(png|jpe?g|webp)$/i.test(source) ? 'image' : 'pdf'
+}
+
+async function onViewDocument(kind) {
   const doc = docsByKind.value[kind]
   if (!selectedTruckId.value || !doc) return
-  api
-    .get(`/trucks/${selectedTruckId.value}/documents/${kind}/url`)
-    .then(({ data }) => {
-      if (data?.url) {
-        window.open(data.url, '_blank', 'noopener,noreferrer')
-      }
-    })
-    .catch((e) => {
-      console.error(e)
-      const msg = e.response?.data?.message || 'No se pudo abrir el documento.'
-      showAlert(
-        'Error',
-        typeof msg === 'string' ? msg : 'No se pudo abrir el documento.',
-        true
-      )
-    })
+  try {
+    const { data } = await api.get(
+      `/trucks/${selectedTruckId.value}/documents/${kind}/url`
+    )
+    if (!data?.url) {
+      showAlert('Error', 'No se pudo abrir el documento.', true)
+      return
+    }
+    const row = DOCUMENT_ROWS.find((item) => item.kind === kind)
+    viewDocumentModal.value = {
+      open: true,
+      title: row?.label || 'Documento',
+      url: data.url,
+      type: getDocumentViewerType(doc, data.url),
+    }
+  } catch (e) {
+    console.error(e)
+    const msg = e.response?.data?.message || 'No se pudo abrir el documento.'
+    showAlert(
+      'Error',
+      typeof msg === 'string' ? msg : 'No se pudo abrir el documento.',
+      true
+    )
+  }
 }
 
 async function confirmDeleteDocument() {
@@ -390,6 +416,7 @@ onMounted(async () => {
           </div>
 
           <div
+            v-if="selectedTruckId"
             class="flex-1 w-full overflow-x-auto overflow-y-auto px-3 sm:px-6 md:px-10 relative pb-4 min-w-0 custom-scrollbar"
           >
             <table class="w-full table-fixed text-sm border-collapse min-w-[560px]">
@@ -463,7 +490,7 @@ onMounted(async () => {
                       >
                         <button
                           type="button"
-                          title="Abrir el documento en otra pestaña"
+                          title="Ver documento"
                           class="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-slate-600 hover:text-slate-900 transition-colors bg-white rounded-full px-2.5 py-1.5 shadow-sm border border-gray-300 disabled:opacity-50 shrink-0"
                           :disabled="!selectedTruckId || !docsByKind[row.kind]"
                           @click="onViewDocument(row.kind)"
@@ -522,6 +549,7 @@ onMounted(async () => {
           </div>
 
           <div
+            v-if="selectedTruckId"
             class="px-3 sm:px-6 md:px-10 py-4 sm:py-5 bg-white flex flex-wrap justify-between items-center gap-2 text-xs font-semibold text-slate-500 border-t border-gray-100 mt-auto rounded-b-[2rem]"
           >
             <div class="flex items-center gap-3">
@@ -636,7 +664,7 @@ onMounted(async () => {
             </div>
             <div>
               <label class="block text-xs font-bold text-slate-500 mb-1"
-                >Archivo PDF</label
+                >Archivo PDF o imagen</label
               >
               <input
                 ref="addFileInput"
@@ -662,6 +690,79 @@ onMounted(async () => {
             >
               {{ uploadingKind ? 'Subiendo…' : 'Subir' }}
             </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Visor de documento -->
+    <Teleport to="body">
+      <div
+        v-if="viewDocumentModal.open"
+        class="fixed inset-0 z-[105] flex items-center justify-center p-3 sm:p-5 bg-black/50 backdrop-blur-sm"
+        @click.self="closeViewDocumentModal"
+      >
+        <div
+          class="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-6xl h-[88dvh] overflow-hidden flex flex-col"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="view-doc-title"
+        >
+          <div class="shrink-0 flex items-center justify-between gap-3 px-4 sm:px-5 py-3 border-b border-slate-200 bg-white">
+            <h2
+              id="view-doc-title"
+              class="text-base sm:text-lg font-titles font-bold text-[#0B2545] truncate"
+            >
+              {{ viewDocumentModal.title }}
+            </h2>
+            <div class="flex items-center gap-2 shrink-0">
+              <a
+                :href="viewDocumentModal.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Abrir
+              </a>
+              <button
+                type="button"
+                class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                aria-label="Cerrar visor"
+                @click="closeViewDocumentModal"
+              >
+                <svg
+                  class="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="flex-1 min-h-0 bg-slate-100">
+            <div
+              v-if="viewDocumentModal.type === 'image'"
+              class="h-full w-full overflow-auto p-3 sm:p-5 flex items-center justify-center"
+            >
+              <img
+                :src="viewDocumentModal.url"
+                :alt="viewDocumentModal.title"
+                class="max-h-full max-w-full object-contain rounded-lg shadow-sm bg-white"
+              />
+            </div>
+            <iframe
+              v-else
+              :src="viewDocumentModal.url"
+              title="Visor de documento"
+              class="block h-full w-full border-0 bg-white"
+            />
           </div>
         </div>
       </div>

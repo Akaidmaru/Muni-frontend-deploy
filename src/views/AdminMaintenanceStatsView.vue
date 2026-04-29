@@ -78,6 +78,82 @@ const kpiClasses = {
   red:   { card: 'border-red-200 bg-red-50',   num: 'text-red-700',   icon: 'text-red-600 bg-red-100'   },
 }
 
+const startOfDay = (date) => {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+const formatWeekRange = (week) => {
+  const start = String(week.start.getDate()).padStart(2, '0')
+  const end = String(week.end.getDate()).padStart(2, '0')
+  return `${start}-${end}`
+}
+
+const getMonthWeeks = (date = new Date()) => {
+  const year = date.getFullYear()
+  const month = date.getMonth()
+  const monthStart = startOfDay(new Date(year, month, 1))
+  const monthEnd = startOfDay(new Date(year, month + 1, 0))
+  const weeks = []
+  let cursor = new Date(monthStart)
+
+  while (cursor <= monthEnd) {
+    const weekStart = new Date(cursor)
+    const weekEnd = new Date(cursor)
+    const daysUntilSunday = 7 - (weekStart.getDay() || 7)
+    weekEnd.setDate(weekStart.getDate() + daysUntilSunday)
+
+    weeks.push({
+      start: new Date(weekStart),
+      end: weekEnd > monthEnd ? new Date(monthEnd) : weekEnd,
+    })
+
+    cursor = new Date(weeks[weeks.length - 1].end)
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  return weeks
+}
+
+const parseTripDate = (trip) => {
+  const value = trip?.dateIso || trip?.rawDate || trip?.date
+  if (!value) return null
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : startOfDay(value)
+  }
+
+  const text = String(value).trim()
+  const isoDate = text.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (isoDate) {
+    return startOfDay(
+      new Date(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3]))
+    )
+  }
+
+  const slashDate = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (slashDate) {
+    return startOfDay(
+      new Date(Number(slashDate[3]), Number(slashDate[2]) - 1, Number(slashDate[1]))
+    )
+  }
+
+  const parsed = new Date(text)
+  return Number.isNaN(parsed.getTime()) ? null : startOfDay(parsed)
+}
+
+const getTripHours = (trip) => {
+  if (!trip.startTime || !trip.endTime || trip.startTime === '--:--' || trip.endTime === '--:--') {
+    return 0
+  }
+
+  const [sh, sm] = trip.startTime.split(':').map(Number)
+  const [eh, em] = trip.endTime.split(':').map(Number)
+  const minutes = (eh * 60 + em) - (sh * 60 + sm)
+  return minutes > 0 ? minutes / 60 : 0
+}
+
 // ── Driver modal ───────────────────────────────────────────────────────────
 const modalFilteredDrivers = computed(() => {
   const q = driverModalSearch.value.toLowerCase()
@@ -99,11 +175,13 @@ const driverMonthTrips = computed(() => {
   if (!selectedDriver.value) return []
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
   return allTrips.value.filter(t => {
     const driverMatch = (t.driverId === selectedDriver.value.id) ||
                         (t.driver?.id === selectedDriver.value.id) ||
                         (t.driver === selectedDriver.value.name)
-    const dateMatch = new Date(t.rawDate || t.date) >= startOfMonth
+    const tripDate = parseTripDate(t)
+    const dateMatch = tripDate && tripDate >= startOfMonth && tripDate <= endOfMonth
     return driverMatch && dateMatch
   })
 })
@@ -127,24 +205,27 @@ const getDriverDisplayName = (trip) => {
 const driverRanking = computed(() => {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-  const monthTrips = allTrips.value.filter(t => new Date(t.rawDate || t.date) >= startOfMonth)
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const monthTrips = allTrips.value.filter(t => {
+    const tripDate = parseTripDate(t)
+    return tripDate && tripDate >= startOfMonth && tripDate <= endOfMonth
+  })
 
   const byDriver = {}
   monthTrips.forEach(trip => {
     const key = getDriverDisplayName(trip)
     if (!byDriver[key]) byDriver[key] = { name: key, totalMinutes: 0, trips: [] }
     byDriver[key].trips.push(trip)
-    if (trip.startTime && trip.endTime && trip.startTime !== '--:--' && trip.endTime !== '--:--') {
-      const [sh, sm] = trip.startTime.split(':').map(Number)
-      const [eh, em] = trip.endTime.split(':').map(Number)
-      const mins = (eh * 60 + em) - (sh * 60 + sm)
-      if (mins > 0) byDriver[key].totalMinutes += mins
-    }
+    byDriver[key].totalMinutes += getTripHours(trip) * 60
   })
 
   return Object.values(byDriver).map(d => {
     const totalH = d.totalMinutes / 60
-    const workDays = new Set(d.trips.map(t => t.dateIso || t.date)).size || 1
+    const workDays = new Set(
+      d.trips
+        .map(t => parseTripDate(t)?.toISOString().slice(0, 10))
+        .filter(Boolean)
+    ).size || 1
     const dailyH = totalH / workDays
     const weeklyH = dailyH * 5
     const restH = Math.max(0, (dailyH * workDays * 0.25))
@@ -288,26 +369,32 @@ const buildDriverWorkChart = () => {
     return
   }
 
-  // Group by day
-  const byDay = {}
+  const weeks = getMonthWeeks(new Date())
+  const byWeek = weeks.map(() => ({
+    worked: 0,
+    completed: 0,
+    activeDays: new Set(),
+  }))
+
   trips.forEach(t => {
-    const day = t.dateIso || (t.date ? t.date.split('/').reverse().join('-') : '')
-    if (!day) return
-    if (!byDay[day]) byDay[day] = { worked: 0, completed: 0, running: 0 }
-    byDay[day].completed++
-    if (t.startTime && t.endTime && t.startTime !== '--:--' && t.endTime !== '--:--') {
-      const [sh, sm] = t.startTime.split(':').map(Number)
-      const [eh, em] = t.endTime.split(':').map(Number)
-      const h = ((eh * 60 + em) - (sh * 60 + sm)) / 60
-      if (h > 0) byDay[day].worked += h
-    }
+    const tripDate = parseTripDate(t)
+    if (!tripDate) return
+
+    const weekIndex = weeks.findIndex(week => tripDate >= week.start && tripDate <= week.end)
+    if (weekIndex < 0) return
+
+    byWeek[weekIndex].completed++
+    byWeek[weekIndex].worked += getTripHours(t)
+    byWeek[weekIndex].activeDays.add(tripDate.toISOString().slice(0, 10))
   })
 
-  const days = Object.keys(byDay).sort().slice(-10)
-  const labels = days.map(d => { const [,, day] = d.split('-'); return day })
-  const worked = days.map(d => parseFloat(byDay[d].worked.toFixed(1)))
-  const rest = days.map(d => parseFloat(Math.max(0, 8 - byDay[d].worked).toFixed(1)))
-  const completed = days.map(d => byDay[d].completed)
+  const labels = weeks.map((_, index) => `Semana ${index + 1}`)
+  const worked = byWeek.map(week => parseFloat(week.worked.toFixed(1)))
+  const rest = byWeek.map(week => {
+    const expectedWorkHours = Math.max(week.activeDays.size, 1) * 8
+    return parseFloat(Math.max(0, expectedWorkHours - week.worked).toFixed(1))
+  })
+  const completed = byWeek.map(week => week.completed)
 
   chartDriverWork = new Chart(canvasDriverWork.value, {
     type: 'line',
@@ -321,10 +408,27 @@ const buildDriverWorkChart = () => {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }, padding: 8 } } },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }, padding: 8 } },
+        tooltip: {
+          callbacks: {
+            afterTitle: (items) => {
+              const week = weeks[items[0]?.dataIndex]
+              return week ? `Días ${formatWeekRange(week)}` : ''
+            },
+          },
+        },
+      },
       scales: {
         y: { beginAtZero: true, grid: { color: '#f3f4f6' } },
-        x: { grid: { display: false } },
+        x: {
+          grid: { display: false },
+          ticks: {
+            maxRotation: 0,
+            minRotation: 0,
+            font: { size: 10 },
+          },
+        },
       },
     },
   })
