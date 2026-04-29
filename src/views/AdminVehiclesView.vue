@@ -137,19 +137,21 @@ const loadVehicles = async () => {
   }
 }
 
+const appliedFilters = ref({ desde: '', hasta: '', search: '', patente: '', modelo: '' })
+
 const filteredVehicles = computed(() => {
-  const normalizedSearch = searchQuery.value.toLowerCase()
+  const normalizedSearch = appliedFilters.value.search.toLowerCase()
   return vehicles.value.filter((v) => {
-    const matchSearch = !normalizedSearch || 
-      (v.plate && v.plate.toLowerCase().includes(normalizedSearch)) || 
+    const matchSearch = !normalizedSearch ||
+      (v.plate && v.plate.toLowerCase().includes(normalizedSearch)) ||
       (v.model && v.model.toLowerCase().includes(normalizedSearch)) ||
-      (v.users && v.users.some(u => 
+      (v.users && v.users.some(u =>
         (u.user?.name && u.user.name.toLowerCase().includes(normalizedSearch)) ||
         (u.user?.email && u.user.email.toLowerCase().includes(normalizedSearch))
       ))
-      
-    const matchPatente = !filterPatente.value || v.plate === filterPatente.value
-    const matchModelo = !filterModelo.value || v.model === filterModelo.value
+
+    const matchPatente = !appliedFilters.value.patente || v.plate === appliedFilters.value.patente
+    const matchModelo = !appliedFilters.value.modelo || v.model === appliedFilters.value.modelo
 
     return matchSearch && matchPatente && matchModelo
   })
@@ -173,31 +175,44 @@ const lastVisibleRow = computed(() => Math.min(currentPage.value * itemsPerPage.
 const goToPreviousPage = () => { if (currentPage.value > 1) currentPage.value-- }
 const goToNextPage = () => { if (currentPage.value < totalPages.value) currentPage.value++ }
 
+const applyFilters = () => {
+  appliedFilters.value = {
+    desde: filterDesde.value,
+    hasta: filterHasta.value,
+    search: searchQuery.value,
+    patente: filterPatente.value,
+    modelo: filterModelo.value,
+  }
+  isFilterOpen.value = false
+  currentPage.value = 1
+}
+
 const clearFilters = () => {
   filterDesde.value = ''
   filterHasta.value = ''
   searchQuery.value = ''
   filterPatente.value = ''
   filterModelo.value = ''
+  appliedFilters.value = { desde: '', hasta: '', search: '', patente: '', modelo: '' }
   currentPage.value = 1
 }
 
 const activeFilterChips = computed(() => {
   const chips = []
-  if (filterDesde.value) chips.push({ label: 'Desde', value: filterDesde.value, field: 'filterDesde' })
-  if (filterHasta.value) chips.push({ label: 'Hasta', value: filterHasta.value, field: 'filterHasta' })
-  if (searchQuery.value) chips.push({ label: 'Búsqueda', value: searchQuery.value, field: 'searchQuery' })
-  if (filterPatente.value) chips.push({ label: 'Patente', value: filterPatente.value, field: 'filterPatente' })
-  if (filterModelo.value) chips.push({ label: 'Modelo', value: filterModelo.value, field: 'filterModelo' })
+  if (appliedFilters.value.desde) chips.push({ label: 'Desde', value: appliedFilters.value.desde, field: 'filterDesde' })
+  if (appliedFilters.value.hasta) chips.push({ label: 'Hasta', value: appliedFilters.value.hasta, field: 'filterHasta' })
+  if (appliedFilters.value.search) chips.push({ label: 'Búsqueda', value: appliedFilters.value.search, field: 'searchQuery' })
+  if (appliedFilters.value.patente) chips.push({ label: 'Patente', value: appliedFilters.value.patente, field: 'filterPatente' })
+  if (appliedFilters.value.modelo) chips.push({ label: 'Modelo', value: appliedFilters.value.modelo, field: 'filterModelo' })
   return chips
 })
 
 const removeFilter = (field) => {
-  if (field === 'filterDesde') filterDesde.value = ''
-  if (field === 'filterHasta') filterHasta.value = ''
-  if (field === 'searchQuery') searchQuery.value = ''
-  if (field === 'filterPatente') filterPatente.value = ''
-  if (field === 'filterModelo') filterModelo.value = ''
+  if (field === 'filterDesde') { filterDesde.value = ''; appliedFilters.value.desde = '' }
+  if (field === 'filterHasta') { filterHasta.value = ''; appliedFilters.value.hasta = '' }
+  if (field === 'searchQuery') { searchQuery.value = ''; appliedFilters.value.search = '' }
+  if (field === 'filterPatente') { filterPatente.value = ''; appliedFilters.value.patente = '' }
+  if (field === 'filterModelo') { filterModelo.value = ''; appliedFilters.value.modelo = '' }
 }
 
 const viewVehicle = (vehicle) => {
@@ -611,11 +626,11 @@ onMounted(() => {
               <div class="grid grid-cols-2 gap-4">
                 <div class="flex flex-col relative w-full">
                   <div class="z-10 bg-[#DADBDB] w-fit px-1 absolute -top-2 left-2 text-[10px] text-gray-500 font-bold ml-1 mb-0.5">Desde</div>
-                  <input type="date" v-model="filterDesde" class="text-[11px] px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-white text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors" />
+                  <input type="date" v-model="filterDesde" class="text-[11px] px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors" />
                 </div>
                 <div class="flex flex-col relative w-full">
                   <div class="text-[10px] text-gray-500 font-bold ml-1 mb-0.5 z-10 bg-[#DADBDB] w-fit px-1 absolute -top-2 left-2">Hasta</div>
-                  <input type="date" v-model="filterHasta" class="text-[11px] px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-white text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors" />
+                  <input type="date" v-model="filterHasta" class="text-[11px] px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors" />
                 </div>
               </div>
 
@@ -657,7 +672,7 @@ onMounted(() => {
               </div>
 
               <div class="mt-6 flex justify-end">
-                <button @click="isFilterOpen = false" class="px-6 py-2.5 bg-[#A61919] text-white text-xs rounded-xl font-bold shadow-sm hover:bg-red-800 transition-all w-28">
+                <button @click="applyFilters" class="px-6 py-2.5 bg-[#A61919] text-white text-xs rounded-xl font-bold shadow-sm hover:bg-red-800 transition-all w-28">
                   Aplicar
                 </button>
               </div>
