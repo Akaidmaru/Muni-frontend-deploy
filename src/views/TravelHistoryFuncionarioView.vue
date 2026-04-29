@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useSidebarStore } from '@/stores/sidebar'
 import logoCompleto from '@/assets/images/Logo-completo.png'
@@ -343,13 +343,13 @@ watch(currentPage, () => {
                     <div class="flex flex-col relative w-full">
                       <div class="z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2 text-[10px] text-gray-500 font-bold ml-1 mb-0.5">Desde</div>
                       <div class="relative w-full">
-                        <input type="date" v-model="filters.from" class="text-[11px] px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
+                        <input type="date" v-model="filters.from" class="text-[11px] px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors" />
                       </div>
                     </div>
                     <div class="flex flex-col relative w-full">
                       <div class="text-[10px] text-gray-500 font-bold ml-1 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Hasta</div>
                       <div class="relative w-full">
-                        <input type="date" v-model="filters.to" class="text-[11px] px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors appearance-none" />
+                        <input type="date" v-model="filters.to" class="text-[11px] px-3 py-2.5 w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors" />
                       </div>
                     </div>
                   </div>
@@ -431,17 +431,6 @@ watch(currentPage, () => {
 .history-table tbody td {
   border: 1px solid #d1d1d1 !important;
   padding: 12px 8px;
-}
-
-/* Native date picker pseudo-element styling */
-input[type="date"]::-webkit-calendar-picker-indicator {
-  opacity: 0;
-  cursor: pointer;
-  z-index: 10;
-  position: absolute;
-  right: 8px;
-  width: 24px;
-  height: 24px;
 }
 
 /* Subtle scrollbar */

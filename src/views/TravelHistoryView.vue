@@ -534,16 +534,6 @@ watch(currentPage, () => {
   padding: 12px 8px;
 }
 
-/* Native date picker pseudo-element styling to look good */
-input[type="date"]::-webkit-calendar-picker-indicator {
-  opacity: 0; /* completely hide native icon over our custom one */
-  cursor: pointer;
-  z-index: 10;
-  position: absolute;
-  right: 8px;
-  width: 24px;
-  height: 24px;
-}
 
 /* Subtle scrollbar */
 .overflow-auto::-webkit-scrollbar {

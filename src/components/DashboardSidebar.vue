@@ -164,19 +164,20 @@ const reportProblem = () => {
     class="fixed md:relative h-[calc(100dvh-6rem)] max-h-[calc(100dvh-6rem)] md:h-full md:max-h-none md:min-h-0 self-stretch transition-all duration-300 ease-in-out flex flex-col z-50 shrink-0"
     :class="
       open
-        ? 'w-48 flex-shrink-0 bg-white border-r border-gray-200 shadow-xl'
-        : 'w-0 overflow-visible md:w-10 md:min-w-[2.5rem] md:max-w-[2.5rem] md:overflow-hidden md:border-transparent md:bg-background md:shadow-none'
+        ? 'w-64 min-w-[16rem] flex-shrink-0 overflow-y-hidden pointer-events-auto bg-white border-r border-gray-200 shadow-xl'
+        : 'w-0 overflow-visible pointer-events-none md:w-10 md:min-w-[2.5rem] md:max-w-[2.5rem] md:overflow-hidden md:pointer-events-auto md:border-transparent md:bg-background md:shadow-none'
     "
   >
     <!-- Overlay solo en móvil -->
     <Teleport to="body">
       <div
         v-if="open"
-        class="fixed inset-0 bg-black/30 z-40 md:hidden"
+        class="fixed inset-0 bg-black/30 z-[50] md:hidden"
         @click="setOpen(false)"
       />
     </Teleport>
-    <!-- Móvil: en body con fixed para no quedar recortada por overflow-hidden de ancestros; Escritorio: al borde de la raíz w-0 -->
+
+    <!-- Botón hamburguesa móvil (sidebar cerrado) -->
     <Teleport to="body">
       <button
         v-if="!open && !mobileFiltersOverlayOpen"
@@ -188,6 +189,8 @@ const reportProblem = () => {
         <span v-for="i in 3" :key="i" class="block w-4 h-[2px] bg-gray-600 rounded-full" />
       </button>
     </Teleport>
+
+    <!-- Botón hamburguesa desktop (sidebar cerrado) -->
     <button
       v-if="!open"
       type="button"
@@ -203,7 +206,7 @@ const reportProblem = () => {
       <div class="flex justify-end px-2 pt-2">
         <button
           @click="setOpen(false)"
-          aria-label="Cerrar men\xFA"
+          aria-label="Cerrar menú"
           class="w-6 h-6 rounded border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-all active:scale-95"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -371,3 +374,10 @@ const reportProblem = () => {
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+/* Ocultar scrollbar visual del nav en Chrome/Safari/iOS */
+nav::-webkit-scrollbar {
+  display: none;
+}
+</style>
