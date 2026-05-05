@@ -36,8 +36,10 @@ const isSaving = ref(false)
 const saveError = ref('')
 const saveSuccess = ref('')
 const selectedUser = ref(null)
+const managerSearchQuery = ref('')
+const isManagerPickerOpen = ref(false)
 
-const editForm = ref({ id: null, name: '', rut: '', role: 'EMPLOYEE', phone: '', email: '' })
+const editForm = ref({ id: null, name: '', rut: '', role: 'EMPLOYEE', phone: '', email: '', managedById: null })
 
 const passwordForm = ref({ newPassword: '', confirmPassword: '' })
 const passwordError = ref('')
@@ -49,6 +51,7 @@ const showConfirmPwd = ref(false)
 const ROLE_OPTIONS = [
   { value: 'PENDING_APPROVAL', label: 'Pendiente aprobación' },
   { value: 'ADMIN', label: 'Administrador' },
+  { value: 'DIRECTION', label: 'Dirección' },
   { value: 'DRIVER', label: 'Conductor' },
   { value: 'EMPLOYEE', label: 'Funcionario' },
 ]
@@ -62,6 +65,7 @@ const STATUS_OPTIONS = [
 const roleLabelMap = {
   PENDING_APPROVAL: 'Pendiente aprobación',
   ADMIN: 'Administrador',
+  DIRECTION: 'Dirección',
   DRIVER: 'Conductor',
   EMPLOYEE: 'Funcionario',
 }
@@ -85,6 +89,8 @@ const mapUserFromApi = (u) => ({
   role: u?.role || 'Sin rol',
   phone: u?.phone || '',
   email: u?.email || '',
+  managedById: u?.managedById ?? u?.managedByUser?.id ?? null,
+  managedBy: u?.managedByUser?.email || '—',
   status:
     u?.role === 'PENDING_APPROVAL'
       ? 'PENDING_APPROVAL'
@@ -143,6 +149,7 @@ const filteredUsers = computed(() => {
 
 const totalItems = computed(() => filteredUsers.value.length)
 const totalPages = computed(() => Math.max(Math.ceil(totalItems.value / itemsPerPage.value), 1))
+const tableColspan = computed(() => (isDirectionView.value ? 5 : authStore.isAdmin ? 9 : 8))
 const pagedUsers = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   return filteredUsers.value.slice(start, start + itemsPerPage.value)
@@ -151,6 +158,26 @@ const firstRow = computed(() => (totalItems.value === 0 ? 0 : (currentPage.value
 const lastRow = computed(() => Math.min(currentPage.value * itemsPerPage.value, totalItems.value))
 
 const roleOptions = computed(() => ROLE_OPTIONS)
+const managerOptions = computed(() =>
+  users.value
+    .filter((user) => ['ADMIN', 'DIRECTION'].includes(user.role) && user.id !== editForm.value.id)
+    .map((user) => ({
+      id: user.id,
+      label: `${user.email} (${formatRoleLabel(user.role)})`,
+      searchText: normalize(`${user.email} ${user.name} ${user.role}`),
+    }))
+)
+const filteredManagerOptions = computed(() => {
+  const q = normalize(managerSearchQuery.value)
+  if (!q) return managerOptions.value
+  return managerOptions.value.filter((option) => option.searchText.includes(q))
+})
+const selectedManagedByLabel = computed(() => {
+  const selected = managerOptions.value.find((option) => option.id === editForm.value.managedById)
+  return selected?.label || 'Selecciona un usuario gestor'
+})
+const showManagedByPicker = computed(() => authStore.isAdmin && editForm.value.role !== 'ADMIN')
+const isManagedByRequired = computed(() => authStore.isAdmin && editForm.value.role === 'DRIVER')
 
 watch([searchQuery, roleFilter, statusFilter, itemsPerPage], () => { currentPage.value = 1 })
 const prevPage = () => { if (currentPage.value > 1) currentPage.value-- }
@@ -180,18 +207,38 @@ const openEditModal = (user) => {
     role: user.role || 'EMPLOYEE',
     phone: user.phone || '',
     email: user.email || '',
+    managedById: user.managedById ?? null,
   }
+  managerSearchQuery.value = ''
+  isManagerPickerOpen.value = false
   saveError.value = ''
   saveSuccess.value = ''
   isEditModalOpen.value = true
 }
 const closeEditModal = () => {
+  if (isSaving.value) return
   isEditModalOpen.value = false
   isDeleteConfirmOpen.value = false
+  isManagerPickerOpen.value = false
   isSaving.value = false
   saveError.value = ''
   saveSuccess.value = ''
   selectedUser.value = null
+}
+
+const openManagerPicker = () => {
+  if (!showManagedByPicker.value) return
+  managerSearchQuery.value = ''
+  isManagerPickerOpen.value = true
+}
+
+const closeManagerPicker = () => {
+  isManagerPickerOpen.value = false
+}
+
+const selectManager = (managerId) => {
+  editForm.value.managedById = managerId
+  closeManagerPicker()
 }
 
 const deleteUser = async () => {
@@ -211,6 +258,7 @@ const deleteUser = async () => {
 }
 
 const saveUser = async () => {
+  if (isSaving.value || saveSuccess.value) return
   if (!editForm.value.id) return
   isSaving.value = true
   saveError.value = ''
@@ -221,6 +269,7 @@ const saveUser = async () => {
       role: editForm.value.role || undefined,
       phone: editForm.value.phone.trim() || undefined,
       email: editForm.value.email.trim() || undefined,
+      managedById: editForm.value.role === 'ADMIN' ? null : editForm.value.managedById,
     }
     await api.patch(`/users/${editForm.value.id}`, payload)
     await loadUsers()
@@ -246,6 +295,7 @@ const openPasswordModal = (user) => {
   isPasswordModalOpen.value = true
 }
 const closePasswordModal = () => {
+  if (isSaving.value) return
   isPasswordModalOpen.value = false
   passwordError.value = ''
   passwordSuccess.value = ''
@@ -253,6 +303,7 @@ const closePasswordModal = () => {
 }
 
 const savePassword = async () => {
+  if (isSaving.value || passwordSuccess.value) return
   passwordError.value = ''
   passwordSuccess.value = ''
   if (passwordForm.value.newPassword.length < 6) {
@@ -296,7 +347,7 @@ onMounted(() => { loadUsers() })
     <div class="flex flex-1 min-h-0 overflow-hidden">
       <DashboardSidebar />
 
-      <main class="flex-1 min-h-0 pt-4 pb-10 pl-4 pr-4 sm:pr-6 lg:pr-8 overflow-y-auto flex flex-col min-w-0">
+      <main class="flex-1 min-h-0 pt-14 md:pt-4 pb-10 pl-4 pr-4 sm:pr-6 lg:pr-8 overflow-y-auto flex flex-col min-w-0">
         <div class="w-full flex flex-col min-w-0">
           <div class="bg-white rounded-[2rem] border-2 border-slate-300 shadow-sm flex flex-col overflow-hidden min-w-0">
             <div class="px-4 sm:px-6 lg:px-8 pt-6 pb-1">
@@ -344,7 +395,11 @@ onMounted(() => { loadUsers() })
                 <div class="relative w-[240px]">
                   <input
                     v-model="searchQuery"
-                    type="text"
+                    type="search"
+                    name="admin-users-search"
+                    autocomplete="off"
+                    autocorrect="off"
+                    spellcheck="false"
                     :placeholder="`Buscar ${entitySingular}`"
                     class="w-full bg-white border border-slate-300 rounded-[0.65rem] px-4 py-2 pr-10 text-sm focus:outline-none focus:border-primary shadow-sm text-slate-600 placeholder:text-slate-400 font-medium"
                   />
@@ -367,12 +422,13 @@ onMounted(() => { loadUsers() })
                 <span class="text-sm text-slate-500">Cargando {{ entityPlural }}...</span>
               </div>
 
-              <table v-else class="w-full border-collapse" :class="isDirectionView ? 'min-w-[820px]' : 'min-w-[1100px]'">
+              <table v-else class="w-full border-collapse" :class="isDirectionView ? 'min-w-[820px]' : authStore.isAdmin ? 'min-w-[1220px]' : 'min-w-[1100px]'">
                 <thead>
                   <tr>
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Nombre</th>
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">RUT</th>
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Rol</th>
+                    <th v-if="authStore.isAdmin" class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Gestionado por</th>
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Teléfono</th>
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Correo</th>
                     <th v-if="!authStore.isDireccion" class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Estado</th>
@@ -383,7 +439,7 @@ onMounted(() => { loadUsers() })
 
                 <tbody>
                   <tr v-if="pagedUsers.length === 0">
-                    <td :colspan="isDirectionView ? 5 : 8" class="border border-[#D3DCE6] py-16 text-center text-slate-400 text-sm">
+                    <td :colspan="tableColspan" class="border border-[#D3DCE6] py-16 text-center text-slate-400 text-sm">
                       No hay {{ entityPlural }} para mostrar.
                     </td>
                   </tr>
@@ -399,6 +455,10 @@ onMounted(() => { loadUsers() })
                     <td class="border border-[#D3DCE6] py-4 px-4 text-center text-slate-400 text-sm">{{ user.rut || '—' }}</td>
                     <!-- Rol -->
                     <td class="border border-[#D3DCE6] py-4 px-4 text-center text-slate-500 text-sm">{{ formatRoleLabel(user.role) }}</td>
+                    <!-- Gestionado por -->
+                    <td v-if="authStore.isAdmin" class="border border-[#D3DCE6] py-4 px-4 text-center text-slate-500 text-sm">
+                      {{ user.managedBy || '—' }}
+                    </td>
                     <!-- Teléfono -->
                     <td class="border border-[#D3DCE6] py-4 px-4 text-center text-slate-400 text-sm">{{ user.phone || '—' }}</td>
                     <!-- Correo -->
@@ -681,6 +741,31 @@ onMounted(() => { loadUsers() })
                 <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 pl-1">Correo</label>
                 <input v-model="editForm.email" type="email" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 outline-none focus:border-primary" />
               </div>
+
+              <!-- Gestionado por -->
+              <div v-if="showManagedByPicker" class="md:col-span-2">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 pl-1">
+                  Gestionado por <span v-if="isManagedByRequired" class="text-red-500">*</span>
+                </label>
+                <div class="rounded-2xl border border-slate-300 bg-white px-4 py-3 shadow-sm">
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                      <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Usuario actual</p>
+                      <p class="truncate text-sm font-medium text-slate-700">{{ selectedManagedByLabel }}</p>
+                    </div>
+                    <button
+                      type="button"
+                      @click="openManagerPicker"
+                      class="shrink-0 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+                    >
+                      Cambiar
+                    </button>
+                  </div>
+                </div>
+                <div class="mt-2 flex items-center justify-between gap-3 text-xs text-slate-500">
+                  <span>{{ isManagedByRequired ? 'Obligatorio para conductores' : 'Opcional para este rol' }}</span>
+                </div>
+              </div>
             </div>
 
             <div class="mt-7 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
@@ -688,7 +773,8 @@ onMounted(() => { loadUsers() })
               <button
                 @click="isDeleteConfirmOpen = true"
                 type="button"
-                class="order-2 sm:order-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors text-sm"
+                :disabled="isSaving || !!saveSuccess"
+                class="order-2 sm:order-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
@@ -698,14 +784,71 @@ onMounted(() => { loadUsers() })
               </button>
               <!-- En mobile: aparece arriba (order-1). En desktop: derecha (order-2) -->
               <div class="order-1 sm:order-2 flex gap-3">
-                <button @click="closeEditModal" type="button" class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors text-sm">Cancelar</button>
-                <button @click="saveUser" type="button" :disabled="isSaving" class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm">
+                <button @click="closeEditModal" type="button" :disabled="isSaving || !!saveSuccess" class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed">Cancelar</button>
+                <button @click="saveUser" type="button" :disabled="isSaving || !!saveSuccess || (isManagedByRequired && !editForm.managedById)" class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm">
                   <svg v-if="isSaving" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
                   {{ isSaving ? 'Guardando...' : 'Guardar cambios' }}
                 </button>
               </div>
             </div>
           </div>
+
+          <Teleport to="body">
+            <div
+              v-if="isManagerPickerOpen"
+              class="fixed inset-0 z-[70] bg-black/35 flex items-center justify-center px-4 py-4"
+              @click.self="closeManagerPicker"
+            >
+              <div class="w-full max-w-lg rounded-[1.75rem] bg-white shadow-2xl border border-slate-200 overflow-hidden">
+                <div class="px-6 pt-6 pb-4 flex items-start justify-between gap-4 border-b border-slate-100">
+                  <div>
+                    <h3 class="text-xl font-titles font-bold text-slate-900">Seleccionar gestionado por</h3>
+                    <p class="mt-1 text-sm text-slate-500">Busca un usuario con rol ADMIN o DIRECTION.</p>
+                  </div>
+                  <button @click="closeManagerPicker" type="button" class="text-slate-400 hover:text-slate-700 transition-colors">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
+                  </button>
+                </div>
+
+                <div class="p-6 space-y-4">
+                  <div class="relative">
+                    <input
+                      v-model="managerSearchQuery"
+                      type="text"
+                      placeholder="Buscar por correo, nombre o rol"
+                      class="w-full rounded-xl border border-slate-300 px-4 py-3 pr-10 text-sm text-slate-700 outline-none focus:border-primary"
+                    />
+                    <svg class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+
+                  <div class="max-h-72 overflow-y-auto rounded-2xl border border-slate-200">
+                    <button
+                      v-for="option in filteredManagerOptions"
+                      :key="option.id"
+                      type="button"
+                      @click="selectManager(option.id)"
+                      class="w-full px-4 py-3 text-left text-sm transition-colors border-b border-slate-100 last:border-b-0"
+                      :class="editForm.managedById === option.id ? 'bg-primary/10 text-primary font-semibold' : 'bg-white text-slate-700 hover:bg-slate-50'"
+                    >
+                      <div class="flex items-center justify-between gap-3">
+                        <span class="truncate">{{ option.label }}</span>
+                        <span v-if="editForm.managedById === option.id" class="text-xs font-bold">Seleccionado</span>
+                      </div>
+                    </button>
+                    <div v-if="filteredManagerOptions.length === 0" class="px-4 py-6 text-sm text-slate-400 text-center">
+                      No se encontraron usuarios gestores.
+                    </div>
+                  </div>
+
+                  <div class="flex justify-end">
+                    <button @click="closeManagerPicker" type="button" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors text-sm">Cerrar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Teleport>
 
           <!-- Confirmación eliminación superpuesta -->
           <div v-if="isDeleteConfirmOpen" class="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-[1.75rem] flex flex-col items-center justify-center gap-6 p-10 z-10">
@@ -721,7 +864,7 @@ onMounted(() => { loadUsers() })
               </p>
             </div>
             <div class="flex gap-3">
-              <button @click="isDeleteConfirmOpen = false" type="button" class="px-6 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors">
+              <button @click="isDeleteConfirmOpen = false" type="button" :disabled="isSaving" class="px-6 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
                 Cancelar
               </button>
               <button @click="deleteUser" type="button" :disabled="isSaving" class="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors disabled:opacity-60 flex items-center gap-2">
@@ -771,6 +914,8 @@ onMounted(() => { loadUsers() })
                 <input
                   v-model="passwordForm.newPassword"
                   :type="showNewPwd ? 'text' : 'password'"
+                  name="admin-user-new-password"
+                  autocomplete="new-password"
                   placeholder="Mínimo 6 caracteres"
                   class="w-full rounded-xl border border-slate-300 px-4 py-3 pr-11 text-sm text-slate-700 outline-none focus:border-primary"
                 />
@@ -788,6 +933,8 @@ onMounted(() => { loadUsers() })
                 <input
                   v-model="passwordForm.confirmPassword"
                   :type="showConfirmPwd ? 'text' : 'password'"
+                  name="admin-user-confirm-password"
+                  autocomplete="new-password"
                   placeholder="Repite la contraseña"
                   class="w-full rounded-xl border border-slate-300 px-4 py-3 pr-11 text-sm text-slate-700 outline-none focus:border-primary"
                 />
@@ -799,7 +946,7 @@ onMounted(() => { loadUsers() })
             </div>
 
             <div class="flex justify-end gap-3 pt-2">
-              <button @click="closePasswordModal" type="button" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors">Cancelar</button>
+              <button @click="closePasswordModal" type="button" :disabled="isSaving || !!passwordSuccess" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">Cancelar</button>
               <button @click="savePassword" type="button" :disabled="isSaving || !!passwordSuccess" class="px-5 py-2.5 rounded-xl bg-amber-500 text-white font-semibold hover:bg-amber-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2">
                 <svg v-if="isSaving" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
                 {{ isSaving ? 'Guardando...' : 'Actualizar contraseña' }}

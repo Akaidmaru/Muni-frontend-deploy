@@ -12,6 +12,7 @@ import { useAuthStore } from '@/stores/auth'
 const router = useRouter()
 const authStore = useAuthStore()
 const canManageDestinations = computed(() => !authStore.isDireccion)
+const showManagedByColumn = computed(() => authStore.isAdmin)
 
 // ── Estado principal ────────────────────────────────────────────────────────
 const destinations = ref([])
@@ -22,6 +23,9 @@ const searchQuery = ref('')
 const statusFilter = ref('ALL')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
+const managers = ref([])
+const managerSearchQuery = ref('')
+const isManagerPickerOpen = ref(false)
 
 const isFilterOpen = ref(false)
 const sidebarStore = useSidebarStore()
@@ -64,7 +68,7 @@ const isSaving = ref(false)
 const saveError = ref('')
 const saveSuccess = ref('')
 
-const editForm = ref({ id: null, name: '', active: true })
+const editForm = ref({ id: null, name: '', active: true, managedById: null })
 const createForm = ref({ name: '' })
 const createError = ref('')
 
@@ -89,6 +93,29 @@ const loadDestinations = async () => {
 // ── Filtrado y paginación ───────────────────────────────────────────────────
 const normalize = (v) =>
   String(v || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+const roleLabelMap = {
+  ADMIN: 'Administrador',
+  DIRECTION: 'Dirección',
+}
+const formatRoleLabel = (role) => roleLabelMap[role] || role || 'Sin rol'
+
+const managerOptions = computed(() =>
+  managers.value.map((user) => ({
+    id: user.id,
+    label: `${user.email} (${formatRoleLabel(user.role)})`,
+    searchText: normalize(`${user.email} ${user.name} ${user.role}`),
+  }))
+)
+const filteredManagerOptions = computed(() => {
+  const q = normalize(managerSearchQuery.value)
+  if (!q) return managerOptions.value
+  return managerOptions.value.filter((option) => option.searchText.includes(q))
+})
+const selectedManagedByLabel = computed(() => {
+  const selected = managerOptions.value.find((option) => option.id === editForm.value.managedById)
+  return selected?.label || 'Selecciona un usuario gestor'
+})
 
 const getDestinationStatus = (destination) => {
   if (destination?.status) return destination.status
@@ -134,21 +161,51 @@ const goBack = () => {
   router.push('/dashboard-admin')
 }
 
+const loadManagers = async () => {
+  if (!authStore.isAdmin) return
+  try {
+    const { data } = await api.get('/users/by-roles', { params: { roles: 'ADMIN,DIRECTION' } })
+    managers.value = Array.isArray(data) ? data : []
+  } catch {
+    managers.value = []
+  }
+}
+
 // ── Modal EDITAR ─────────────────────────────────────────────────────────────
 const openEditModal = (dest) => {
-  editForm.value = { id: dest.id, name: dest.name, active: dest.active }
+  editForm.value = { id: dest.id, name: dest.name, active: dest.active, managedById: dest.managedById ?? dest.managedBy?.id ?? null }
+  managerSearchQuery.value = ''
+  isManagerPickerOpen.value = false
   saveError.value = ''
   saveSuccess.value = ''
   isEditModalOpen.value = true
 }
 
 const closeEditModal = () => {
+  if (isSaving.value) return
   isEditModalOpen.value = false
+  isManagerPickerOpen.value = false
   saveError.value = ''
   saveSuccess.value = ''
 }
 
+const openManagerPicker = () => {
+  if (!authStore.isAdmin) return
+  managerSearchQuery.value = ''
+  isManagerPickerOpen.value = true
+}
+
+const closeManagerPicker = () => {
+  isManagerPickerOpen.value = false
+}
+
+const selectManager = (managerId) => {
+  editForm.value.managedById = managerId
+  closeManagerPicker()
+}
+
 const saveEdit = async () => {
+  if (isSaving.value || saveSuccess.value) return
   if (!editForm.value.name.trim()) {
     saveError.value = 'El nombre no puede estar vacío.'
     return
@@ -160,6 +217,9 @@ const saveEdit = async () => {
     const { data } = await api.patch(`/destinations/${editForm.value.id}`, {
       name: editForm.value.name.trim(),
       active: editForm.value.active,
+      ...(authStore.isAdmin && editForm.value.managedById != null
+        ? { managedById: editForm.value.managedById }
+        : {}),
     })
     const idx = destinations.value.findIndex((d) => d.id === data.id)
     if (idx !== -1) destinations.value[idx] = data
@@ -177,28 +237,65 @@ const saveEdit = async () => {
 const isDeleteConfirmOpen = ref(false)
 const isDeleting = ref(false)
 const deleteError = ref('')
+const isConflict = ref(false)
 
 const openDeleteConfirm = () => {
   deleteError.value = ''
+  isConflict.value = false
   isDeleteConfirmOpen.value = true
 }
 
 const closeDeleteConfirm = () => {
+  if (isDeleting.value) return
   isDeleteConfirmOpen.value = false
   deleteError.value = ''
+  isConflict.value = false
+}
+
+const resetDeleteConfirm = () => {
+  isDeleteConfirmOpen.value = false
+  deleteError.value = ''
+  isConflict.value = false
 }
 
 const confirmDelete = async () => {
+  if (isDeleting.value) return
   isDeleting.value = true
   deleteError.value = ''
   try {
     await api.delete(`/destinations/${editForm.value.id}`)
     destinations.value = destinations.value.filter((d) => d.id !== editForm.value.id)
-    closeDeleteConfirm()
+    resetDeleteConfirm()
+    closeEditModal()
+  } catch (error) {
+    const status = error.response?.status
+    const msg = error.response?.data?.message
+    if (status === 409) {
+      isConflict.value = true
+      deleteError.value = 'Este destino tiene viajes asociados y no puede eliminarse. Puedes desactivarlo en su lugar.'
+    } else {
+      deleteError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo eliminar el destino.'
+    }
+  } finally {
+    isDeleting.value = false
+  }
+}
+
+const deactivateDestination = async () => {
+  if (isDeleting.value) return
+  isDeleting.value = true
+  deleteError.value = ''
+  try {
+    const { data } = await api.patch(`/destinations/${editForm.value.id}`, { active: false })
+    destinations.value = destinations.value.map((d) =>
+      d.id === editForm.value.id ? { ...d, ...data, active: false } : d
+    )
+    editForm.value.active = false
+    resetDeleteConfirm()
     closeEditModal()
   } catch (error) {
     const msg = error.response?.data?.message
-    deleteError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo eliminar el destino.'
+    deleteError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo desactivar el destino.'
   } finally {
     isDeleting.value = false
   }
@@ -212,11 +309,13 @@ const openCreateModal = () => {
 }
 
 const closeCreateModal = () => {
+  if (isSaving.value) return
   isCreateModalOpen.value = false
   createError.value = ''
 }
 
 const saveCreate = async () => {
+  if (isSaving.value) return
   if (!createForm.value.name.trim()) {
     createError.value = 'El nombre no puede estar vacío.'
     return
@@ -240,6 +339,8 @@ const saveCreate = async () => {
 const selectedLocationForMap = ref(null)
 const canShowDestinationMap = false
 
+const formatManagedBy = (item) => item?.managedBy?.email || item?.managedBy?.name || '—'
+
 const showLocation = (dest) => {
   console.log('Botón presionado, abriendo mapa para:', dest.name)
   selectedLocationForMap.value = {
@@ -251,7 +352,10 @@ const showLocation = (dest) => {
   }
 }
 
-onMounted(loadDestinations)
+onMounted(() => {
+  loadDestinations()
+  loadManagers()
+})
 </script>
 
 <template>
@@ -316,10 +420,11 @@ onMounted(loadDestinations)
 
             <!-- Tabla -->
             <div class="px-8 md:px-12 overflow-x-auto mb-4">
-              <table class="w-full min-w-[920px] table-fixed border-collapse">
+              <table class="w-full min-w-[1040px] table-fixed border-collapse">
                 <thead>
                   <tr>
-                    <th class="w-[48%] border border-[#7EA0C4] py-4 px-6 text-left font-body text-[1.05rem] font-medium text-slate-700 bg-white">Destino</th>
+                    <th class="w-[34%] border border-[#7EA0C4] py-4 px-6 text-left font-body text-[1.05rem] font-medium text-slate-700 bg-white">Destino</th>
+                    <th v-if="showManagedByColumn" class="w-[22%] border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Gestionado por</th>
                     <th class="w-[14%] border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Estado</th>
                     <th class="w-[14%] border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Viajes asociados</th>
                     <th class="w-[14%] border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Último viaje</th>
@@ -328,7 +433,7 @@ onMounted(loadDestinations)
                 </thead>
                 <tbody>
                   <tr v-if="isLoading">
-                    <td :colspan="canManageDestinations ? 5 : 4" class="border border-[#D3DCE6] text-center py-16 text-slate-400 font-body">
+                    <td :colspan="(canManageDestinations ? 5 : 4) + (showManagedByColumn ? 1 : 0)" class="border border-[#D3DCE6] text-center py-16 text-slate-400 font-body">
                       <div class="flex items-center justify-center gap-2">
                         <svg class="animate-spin w-5 h-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -339,7 +444,7 @@ onMounted(loadDestinations)
                     </td>
                   </tr>
                   <tr v-else-if="pagedDestinations.length === 0">
-                    <td :colspan="canManageDestinations ? 5 : 4" class="border border-[#D3DCE6] text-center py-16 text-slate-400 font-body">
+                    <td :colspan="(canManageDestinations ? 5 : 4) + (showManagedByColumn ? 1 : 0)" class="border border-[#D3DCE6] text-center py-16 text-slate-400 font-body">
                       No se encontraron destinos.
                     </td>
                   </tr>
@@ -361,6 +466,9 @@ onMounted(loadDestinations)
                         </button>
                         {{ dest.name }}
                       </div>
+                    </td>
+                    <td v-if="showManagedByColumn" class="border border-[#D3DCE6] py-4 px-4 text-center text-slate-500 text-sm font-medium">
+                      <span class="block truncate" :title="formatManagedBy(dest)">{{ formatManagedBy(dest) }}</span>
                     </td>
                     <td class="border border-[#D3DCE6] py-4 px-4 text-center">
                       <span
@@ -548,20 +656,34 @@ onMounted(loadDestinations)
                 <select v-model="editForm.active" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-body focus:outline-none focus:ring-2 focus:ring-primary/30">
                   <option :value="true">Activo</option>
                   <option :value="false">Inactivo</option>
-                  <option :value="null">Nuevo</option>
                 </select>
+              </div>
+              <div v-if="showManagedByColumn">
+                <label class="block text-sm font-titles font-semibold text-slate-600 mb-1">Gestionado por</label>
+                <div class="rounded-xl border border-gray-200 bg-white px-3 py-2">
+                  <div class="flex items-center justify-between gap-3">
+                    <p class="min-w-0 truncate text-sm text-slate-700">{{ selectedManagedByLabel }}</p>
+                    <button
+                      type="button"
+                      @click="openManagerPicker"
+                      class="shrink-0 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+                    >
+                      Cambiar
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             <div v-if="saveError" class="mt-3 text-sm text-red-600 font-body bg-red-50 border border-red-200 rounded-lg px-3 py-2">{{ saveError }}</div>
             <div v-if="saveSuccess" class="mt-3 text-sm text-green-600 font-body bg-green-50 border border-green-200 rounded-lg px-3 py-2">{{ saveSuccess }}</div>
             <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-6 gap-3">
-              <button @click="openDeleteConfirm" class="order-2 sm:order-1 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-titles font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all active:scale-95 w-full sm:w-auto">
+              <button @click="openDeleteConfirm" :disabled="isSaving || !!saveSuccess" class="order-2 sm:order-1 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-titles font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all active:scale-95 w-full sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 Eliminar
               </button>
               <div class="order-1 sm:order-2 flex gap-3 w-full sm:w-auto">
-                <button @click="closeEditModal" class="flex-1 sm:flex-none justify-center px-4 py-2 text-sm font-titles font-semibold text-slate-600 hover:bg-gray-100 rounded-lg transition-colors flex items-center">Cancelar</button>
-                <button @click="saveEdit" :disabled="isSaving" class="flex-1 sm:flex-none justify-center px-4 py-2 text-sm font-titles font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2">
+                <button @click="closeEditModal" :disabled="isSaving || !!saveSuccess" class="flex-1 sm:flex-none justify-center px-4 py-2 text-sm font-titles font-semibold text-slate-600 hover:bg-gray-100 rounded-lg transition-colors flex items-center disabled:opacity-60 disabled:cursor-not-allowed">Cancelar</button>
+                <button @click="saveEdit" :disabled="isSaving || !!saveSuccess" class="flex-1 sm:flex-none justify-center px-4 py-2 text-sm font-titles font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2">
                   {{ isSaving ? 'Guardando...' : 'Guardar' }}
                 </button>
               </div>
@@ -569,6 +691,63 @@ onMounted(loadDestinations)
           </div>
         </div>
       </transition>
+    </Teleport>
+
+    <Teleport to="body">
+      <div
+        v-if="isManagerPickerOpen"
+        class="fixed inset-0 z-[70] bg-black/35 flex items-center justify-center px-4 py-4"
+        @click.self="closeManagerPicker"
+      >
+        <div class="w-full max-w-lg rounded-[1.75rem] bg-white shadow-2xl border border-slate-200 overflow-hidden">
+          <div class="px-6 pt-6 pb-4 flex items-start justify-between gap-4 border-b border-slate-100">
+            <div>
+              <h3 class="text-xl font-titles font-bold text-slate-900">Seleccionar gestionado por</h3>
+              <p class="mt-1 text-sm text-slate-500">Busca un usuario con rol ADMIN o Dirección.</p>
+            </div>
+            <button @click="closeManagerPicker" type="button" class="text-slate-400 hover:text-slate-700 transition-colors">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
+            </button>
+          </div>
+
+          <div class="p-6 space-y-4">
+            <div class="relative">
+              <input
+                v-model="managerSearchQuery"
+                type="text"
+                placeholder="Buscar por correo, nombre o rol"
+                class="w-full rounded-xl border border-slate-300 px-4 py-3 pr-10 text-sm text-slate-700 outline-none focus:border-primary"
+              />
+              <svg class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
+            <div class="max-h-72 overflow-y-auto rounded-2xl border border-slate-200">
+              <button
+                v-for="option in filteredManagerOptions"
+                :key="option.id"
+                type="button"
+                @click="selectManager(option.id)"
+                class="w-full px-4 py-3 text-left text-sm transition-colors border-b border-slate-100 last:border-b-0"
+                :class="editForm.managedById === option.id ? 'bg-primary/10 text-primary font-semibold' : 'bg-white text-slate-700 hover:bg-slate-50'"
+              >
+                <div class="flex items-center justify-between gap-3">
+                  <span class="truncate">{{ option.label }}</span>
+                  <span v-if="editForm.managedById === option.id" class="text-xs font-bold">Seleccionado</span>
+                </div>
+              </button>
+              <div v-if="filteredManagerOptions.length === 0" class="px-4 py-6 text-sm text-slate-400 text-center">
+                No se encontraron usuarios gestores.
+              </div>
+            </div>
+
+            <div class="flex justify-end">
+              <button @click="closeManagerPicker" type="button" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors text-sm">Cerrar</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </Teleport>
 
     <!-- Modal Eliminar -->
@@ -585,8 +764,16 @@ onMounted(loadDestinations)
             </div>
             <div v-if="deleteError" class="mb-4 text-sm text-red-600 font-body bg-red-50 border border-red-200 rounded-lg px-3 py-2">{{ deleteError }}</div>
             <div class="flex gap-3">
-              <button @click="closeDeleteConfirm" :disabled="isDeleting" class="flex-1 px-4 py-2 text-sm font-titles font-semibold text-slate-600 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
-              <button @click="confirmDelete" :disabled="isDeleting" class="flex-1 px-4 py-2 text-sm font-titles font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all active:scale-95">
+              <button @click="closeDeleteConfirm" :disabled="isDeleting" class="flex-1 px-4 py-2 text-sm font-titles font-semibold text-slate-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed">Cancelar</button>
+              <button
+                v-if="isConflict"
+                @click="deactivateDestination"
+                :disabled="isDeleting"
+                class="flex-1 px-4 py-2 text-sm font-titles font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-lg transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {{ isDeleting ? 'Desactivando...' : 'Desactivar' }}
+              </button>
+              <button v-else @click="confirmDelete" :disabled="isDeleting" class="flex-1 px-4 py-2 text-sm font-titles font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed">
                 {{ isDeleting ? 'Eliminando...' : 'Sí, eliminar' }}
               </button>
             </div>
@@ -607,8 +794,8 @@ onMounted(loadDestinations)
             </div>
             <div v-if="createError" class="mt-3 text-sm text-red-600 font-body bg-red-50 border border-red-200 rounded-lg px-3 py-2">{{ createError }}</div>
             <div class="flex flex-col sm:flex-row justify-end gap-3 mt-6">
-              <button @click="closeCreateModal" class="w-full sm:w-auto px-4 py-2 text-sm font-titles font-semibold text-slate-600 hover:bg-gray-100 rounded-lg transition-colors flex justify-center items-center">Cancelar</button>
-              <button @click="saveCreate" :disabled="isSaving" class="w-full sm:w-auto px-4 py-2 text-sm font-titles font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-all active:scale-95 flex justify-center items-center gap-2">
+              <button @click="closeCreateModal" :disabled="isSaving" class="w-full sm:w-auto px-4 py-2 text-sm font-titles font-semibold text-slate-600 hover:bg-gray-100 rounded-lg transition-colors flex justify-center items-center disabled:opacity-60 disabled:cursor-not-allowed">Cancelar</button>
+              <button @click="saveCreate" :disabled="isSaving" class="w-full sm:w-auto px-4 py-2 text-sm font-titles font-bold text-white bg-primary hover:bg-primary-hover rounded-lg transition-all active:scale-95 flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
                 {{ isSaving ? 'Creando...' : 'Crear destino' }}
               </button>
             </div>

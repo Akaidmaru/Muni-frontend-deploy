@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import NotificationBell from '@/components/NotificationBell.vue'
@@ -19,22 +19,31 @@ const handleLogout = () => {
   auth.logout()
   router.push('/')
 }
+
+const roleConfig = {
+  ADMIN:     { label: 'Administrador', class: 'bg-primary/10 text-primary' },
+  DRIVER:    { label: 'Conductor',     class: 'bg-green-100 text-green-700' },
+  EMPLOYEE:  { label: 'Funcionario',   class: 'bg-amber-100 text-amber-700' },
+  DIRECTION: { label: 'Dirección',     class: 'bg-indigo-100 text-indigo-700' },
+  PATIENT:   { label: 'Paciente',      class: 'bg-teal-100 text-teal-700' },
+}
+const roleInfo = computed(() => roleConfig[auth.userRole] ?? null)
 </script>
 
 <template>
-  <div class="relative flex items-center gap-2">
+  <div class="relative flex items-center gap-0.5 sm:gap-1.5">
     <NotificationBell />
     <button
       @click="toggle"
-      class="flex items-center gap-3 cursor-pointer group"
+      class="flex items-center gap-1 sm:gap-2 rounded-full border border-transparent py-1 pl-1 sm:pl-3 pr-1.5 cursor-pointer group hover:border-slate-200 hover:bg-slate-50 transition-all"
     >
-      <span class="font-body text-text-title font-semibold group-hover:text-primary transition-colors">{{ auth.fullName }}</span>
-      <div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg group-hover:ring-2 group-hover:ring-primary/30 transition-all">
+      <span class="hidden sm:block max-w-[9rem] truncate whitespace-nowrap text-right font-body text-sm font-semibold text-text-title group-hover:text-primary transition-colors">{{ auth.fullName }}</span>
+      <div class="w-11 h-11 rounded-full bg-primary text-white flex items-center justify-center font-bold text-base shadow-sm ring-2 ring-white group-hover:ring-primary/20 transition-all">
         {{ auth.initials }}
       </div>
       <!-- Chevron -->
       <svg
-        class="w-4 h-4 text-gray-400 transition-transform duration-200"
+        class="w-4 h-4 text-slate-400 transition-transform duration-200 group-hover:text-primary"
         :class="{ 'rotate-180': open }"
         fill="none" viewBox="0 0 24 24" stroke="currentColor"
       >
@@ -58,7 +67,14 @@ const handleLogout = () => {
         <!-- User info -->
         <div class="px-4 py-3 border-b border-gray-100">
           <p class="text-sm font-semibold text-text-title font-titles">{{ auth.fullName }}</p>
-          <p class="text-xs text-text-secondary font-body mt-0.5">{{ auth.user?.email }}</p>
+          <p class="text-xs text-text-secondary font-body mt-0.5 truncate whitespace-nowrap" :title="auth.user?.email">
+            {{ auth.user?.email }}
+          </p>
+          <span
+            v-if="roleInfo"
+            class="inline-block mt-2 px-2 py-0.5 rounded-full text-xs font-semibold font-titles"
+            :class="roleInfo.class"
+          >{{ roleInfo.label }}</span>
         </div>
 
 

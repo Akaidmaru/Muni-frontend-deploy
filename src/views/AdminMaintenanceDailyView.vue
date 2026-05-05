@@ -1167,12 +1167,12 @@ const exportChecklistPDF = async (record) => {
             <table class="w-full text-sm" style="border-collapse: collapse;">
               <thead>
                 <tr>
-                  <th class="py-3 px-5 text-center font-semibold text-slate-700 whitespace-nowrap border border-gray-300">Fecha</th>
-                  <th class="py-3 px-5 text-center font-semibold text-slate-700 whitespace-nowrap border border-gray-300">Patente</th>
-                  <th class="py-3 px-5 text-center font-semibold text-slate-700 whitespace-nowrap border border-gray-300">Conductor</th>
-                  <th class="py-3 px-5 text-center font-semibold text-slate-700 whitespace-nowrap border border-gray-300">Resumen de fallos</th>
-                  <th class="py-3 px-5 text-center font-semibold text-slate-700 whitespace-nowrap border border-gray-300">Estado</th>
-                  <th class="py-3 px-5 text-center font-semibold text-slate-700 whitespace-nowrap border border-gray-300">Registro</th>
+                  <th class="py-3 px-5 text-center font-semibold text-slate-700 whitespace-nowrap border border-[#7EA0C4]">Fecha</th>
+                  <th class="py-3 px-5 text-center font-semibold text-slate-700 whitespace-nowrap border border-[#7EA0C4]">Patente</th>
+                  <th class="py-3 px-5 text-center font-semibold text-slate-700 whitespace-nowrap border border-[#7EA0C4]">Conductor</th>
+                  <th class="py-3 px-5 text-center font-semibold text-slate-700 whitespace-nowrap border border-[#7EA0C4]">Resumen de fallos</th>
+                  <th class="py-3 px-5 text-center font-semibold text-slate-700 whitespace-nowrap border border-[#7EA0C4]">Estado</th>
+                  <th class="py-3 px-5 text-center font-semibold text-slate-700 whitespace-nowrap border border-[#7EA0C4]">Registro</th>
                 </tr>
               </thead>
               <tbody>

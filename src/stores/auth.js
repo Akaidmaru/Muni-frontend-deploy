@@ -55,6 +55,8 @@ export const useAuthStore = defineStore('auth', () => {
                 email: backendUser.email,
                 name: backendUser.name || 'Usuario',
                 role: backendUser.role,
+                managedById: backendUser.managedById ?? null,
+                managedByRole: backendUser.managedByRole ?? null,
             }
             localStorage.setItem('user', JSON.stringify(user.value))
         }

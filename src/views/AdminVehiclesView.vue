@@ -27,8 +27,13 @@ const itemsPerPage = ref(100)
 const currentPage = ref(1)
 
 const vehicles = ref([])
+const drivers = ref([])
+const managers = ref([])
 const isLoading = ref(false)
 const loadError = ref('')
+const isSaving = ref(false)
+const isDeleting = ref(false)
+const isAdding = ref(false)
 
 const isEditModalOpen = ref(false)
 const vehicleToEdit = ref(null)
@@ -40,7 +45,15 @@ const vehicleToView = ref(null)
 const isAddModalOpen = ref(false)
 const addError = ref('')
 const editError = ref('')
+const editSuccess = ref('')
 const deleteError = ref('')
+const isConflict = ref(false)
+const driverLoadError = ref('')
+const editDriverSearch = ref('')
+const addDriverSearch = ref('')
+const selectedEditDriverIds = ref([])
+const selectedAddDriverIds = ref([])
+const managerSearchQuery = ref('')
 
 const formAdd = ref({
   plate: '',
@@ -60,6 +73,7 @@ const formEdit = ref({
   plate: '',
   model: '',
   mileage: 0,
+  managedById: null,
   circulationPermitStatus: 'No tiene',
   circulationPermitExpiresAt: '',
   technicalReviewStatus: 'No tiene',
@@ -135,6 +149,29 @@ const loadVehicles = async () => {
   }
 }
 
+const loadDrivers = async () => {
+  driverLoadError.value = ''
+  try {
+    const { data } = await api.get('/users/by-roles', { params: { roles: 'DRIVER' } })
+    drivers.value = Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('Error cargando conductores:', error)
+    driverLoadError.value = 'No se pudieron cargar los conductores.'
+    drivers.value = []
+  }
+}
+
+const loadManagers = async () => {
+  if (!authStore.isAdmin) return
+  try {
+    const { data } = await api.get('/users/by-roles', { params: { roles: 'ADMIN,DIRECTION' } })
+    managers.value = Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('Error cargando gestores:', error)
+    managers.value = []
+  }
+}
+
 const appliedFilters = ref({ search: '', patente: '', modelo: '' })
 
 const filteredVehicles = computed(() => {
@@ -157,9 +194,59 @@ const filteredVehicles = computed(() => {
 
 const uniquePlates = computed(() => [...new Set(vehicles.value.map(v => v.plate).filter(Boolean))].sort())
 const uniqueModels = computed(() => [...new Set(vehicles.value.map(v => v.model).filter(Boolean))].sort())
+const showManagedByColumn = computed(() => authStore.isAdmin)
+
+const normalize = (value) =>
+  String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+const managerOptions = computed(() =>
+  managers.value.map((user) => ({
+    id: user.id,
+    label: `${user.email} (${user.role === 'DIRECTION' ? 'Dirección' : 'Administrador'})`,
+    searchText: normalize(`${user.email} ${user.name} ${user.role}`),
+  }))
+)
+
+const filteredManagerOptions = computed(() => {
+  const q = normalize(managerSearchQuery.value)
+  if (!q) return managerOptions.value
+  return managerOptions.value.filter((option) => option.searchText.includes(q))
+})
+
+const selectedManagedByLabel = computed(() => {
+  const selected = managerOptions.value.find((option) => option.id === formEdit.value.managedById)
+  return selected?.label || 'Sin gestor'
+})
+
+const formatManagedBy = (vehicle) => vehicle?.managedBy?.email || vehicle?.managedBy?.name || '—'
+
+const filterDriversBySearch = (query) => {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) return drivers.value
+  return drivers.value.filter((driver) => {
+    const name = driver.name?.toLowerCase() || ''
+    const email = driver.email?.toLowerCase() || ''
+    const rut = driver.rut?.toLowerCase() || ''
+    return name.includes(normalized) || email.includes(normalized) || rut.includes(normalized)
+  })
+}
+
+const filteredEditDrivers = computed(() => filterDriversBySearch(editDriverSearch.value))
+const filteredAddDrivers = computed(() => filterDriversBySearch(addDriverSearch.value))
+const driverDisplayName = (driver) => driver.name || driver.email || `Conductor ${driver.id}`
+
+const toggleDriverSelection = (selectedRef, driverId) => {
+  selectedRef.value = selectedRef.value.includes(driverId)
+    ? selectedRef.value.filter((id) => id !== driverId)
+    : [...selectedRef.value, driverId]
+}
+
+const toggleEditDriver = (driverId) => toggleDriverSelection(selectedEditDriverIds, driverId)
+const toggleAddDriver = (driverId) => toggleDriverSelection(selectedAddDriverIds, driverId)
 
 const totalItems = computed(() => filteredVehicles.value.length)
 const totalPages = computed(() => Math.ceil(totalItems.value / itemsPerPage.value) || 1)
+const tableColspan = computed(() => showManagedByColumn.value ? 10 : 9)
 
 const paginatedVehicles = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
@@ -231,12 +318,20 @@ const editVehicle = (vehicle) => {
   }
 
   editError.value = ''
+  editSuccess.value = ''
   deleteError.value = ''
+  isConflict.value = false
+  editDriverSearch.value = ''
+  managerSearchQuery.value = ''
+  selectedEditDriverIds.value = Array.isArray(vehicle.users)
+    ? vehicle.users.map((assignment) => assignment.userId).filter(Boolean)
+    : []
   vehicleToEdit.value = vehicle
   formEdit.value = {
     plate: vehicle.plate || '',
     model: vehicle.model || '',
     mileage: vehicle.mileage || 0,
+    managedById: vehicle.managedById ?? vehicle.managedBy?.id ?? null,
     circulationPermitStatus: inferStatusFromDate(vehicle.circulationPermitExpiresAt),
     circulationPermitExpiresAt: formatForInput(vehicle.circulationPermitExpiresAt),
     technicalReviewStatus: inferStatusFromDate(vehicle.technicalReviewExpiresAt),
@@ -249,16 +344,51 @@ const editVehicle = (vehicle) => {
   isEditModalOpen.value = true
 }
 
-const closeEditModal = () => {
+const resetEditModal = () => {
   editError.value = ''
+  editSuccess.value = ''
   deleteError.value = ''
+  isConflict.value = false
+  isDeleteConfirmOpen.value = false
   isEditModalOpen.value = false
   vehicleToEdit.value = null
+  editDriverSearch.value = ''
+  managerSearchQuery.value = ''
+  selectedEditDriverIds.value = []
+}
+
+const closeEditModal = () => {
+  if (isSaving.value || isDeleting.value) return
+  resetEditModal()
+}
+
+const openDeleteConfirm = () => {
+  if (isSaving.value || isDeleting.value) return
+  deleteError.value = ''
+  isConflict.value = false
+  isDeleteConfirmOpen.value = true
+}
+
+const closeDeleteConfirm = () => {
+  if (isDeleting.value) return
+  deleteError.value = ''
+  isConflict.value = false
+  isDeleteConfirmOpen.value = false
+}
+
+const resetDeleteConfirm = () => {
+  deleteError.value = ''
+  isConflict.value = false
+  isDeleteConfirmOpen.value = false
 }
 
 const saveEdit = async () => {
+  if (isSaving.value || editSuccess.value) return
   if (!vehicleToEdit.value) return
-  isLoading.value = true
+  const vehicleId = vehicleToEdit.value.id
+  isSaving.value = true
+  editError.value = ''
+  editSuccess.value = ''
   try {
     const mapDocDate = (statusStr, dateStr) => {
       if (statusStr === 'No tiene' || !dateStr) return null
@@ -266,46 +396,92 @@ const saveEdit = async () => {
     }
 
     const payload = {
-      plate: formEdit.value.plate,
+      plate: formEdit.value.plate.toUpperCase(),
       model: formEdit.value.model,
       mileage: Number(formEdit.value.mileage) || 0,
       circulationPermitExpiresAt: mapDocDate(formEdit.value.circulationPermitStatus, formEdit.value.circulationPermitExpiresAt),
       technicalReviewExpiresAt: mapDocDate(formEdit.value.technicalReviewStatus, formEdit.value.technicalReviewExpiresAt),
       emissionsExpiresAt: mapDocDate(formEdit.value.emissionsStatus, formEdit.value.emissionsExpiresAt),
       insuranceExpiresAt: mapDocDate(formEdit.value.insuranceStatus, formEdit.value.insuranceExpiresAt),
+      ...(authStore.isAdmin ? { managedById: formEdit.value.managedById } : {}),
     }
 
-    await api.patch(`/trucks/${vehicleToEdit.value.id}`, payload)
-    await loadVehicles()
-    closeEditModal()
+    const { data } = await api.patch(`/trucks/${vehicleId}`, payload)
+    const usersResponse = await api.put(`/trucks/${vehicleId}/users`, {
+      userIds: selectedEditDriverIds.value,
+    })
+    const updatedVehicle = usersResponse.data || data
+    vehicles.value = vehicles.value.map((vehicle) =>
+      vehicle.id === vehicleId
+        ? { ...vehicle, ...data, ...updatedVehicle }
+        : vehicle
+    )
+    editSuccess.value = 'Vehículo actualizado correctamente.'
+    setTimeout(() => closeEditModal(), 900)
   } catch (error) {
     console.error('Error updating vehicle:', error)
     const msg = error.response?.data?.message
     editError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo actualizar el vehículo.'
   } finally {
-    isLoading.value = false
+    isSaving.value = false
   }
 }
 
 const deleteVehicle = async () => {
+  if (isDeleting.value) return
   if (!vehicleToEdit.value) return
-  isLoading.value = true
+  const vehicleId = vehicleToEdit.value.id
+  isDeleting.value = true
+  deleteError.value = ''
+  isConflict.value = false
   try {
-    await api.delete(`/trucks/${vehicleToEdit.value.id}`)
-    await loadVehicles()
-    isDeleteConfirmOpen.value = false
-    closeEditModal()
+    await api.delete(`/trucks/${vehicleId}`)
+    vehicles.value = vehicles.value.filter((vehicle) => vehicle.id !== vehicleId)
+    resetDeleteConfirm()
+    resetEditModal()
   } catch (error) {
     console.error('Error deleting vehicle:', error)
+    const status = error.response?.status
     const msg = error.response?.data?.message
-    deleteError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo eliminar el vehículo.'
+    if (status === 409) {
+      isConflict.value = true
+      deleteError.value = 'Esta patente tiene registros asociados y no puede eliminarse. Puedes desactivarla en su lugar.'
+    } else {
+      deleteError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo eliminar el vehículo.'
+    }
   } finally {
-    isLoading.value = false
+    isDeleting.value = false
+  }
+}
+
+const deactivateVehicle = async () => {
+  if (isDeleting.value) return
+  if (!vehicleToEdit.value) return
+  const vehicleId = vehicleToEdit.value.id
+  isDeleting.value = true
+  deleteError.value = ''
+  try {
+    const { data } = await api.patch(`/trucks/${vehicleId}`, { status: 'INACTIVE' })
+    vehicles.value = vehicles.value.map((vehicle) =>
+      vehicle.id === vehicleId
+        ? { ...vehicle, ...data }
+        : vehicle
+    )
+    resetDeleteConfirm()
+    resetEditModal()
+  } catch (error) {
+    console.error('Error deactivating vehicle:', error)
+    const msg = error.response?.data?.message
+    deleteError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo desactivar el vehículo.'
+  } finally {
+    isDeleting.value = false
   }
 }
 
 const openAddModal = () => {
   addError.value = ''
+  addDriverSearch.value = ''
+  selectedAddDriverIds.value = []
   formAdd.value = {
     plate: '',
     model: '',
@@ -321,17 +497,29 @@ const openAddModal = () => {
   }
   isAddModalOpen.value = true
 }
-const closeAddModal = () => { addError.value = ''; isAddModalOpen.value = false }
+
+const resetAddModal = () => {
+  addError.value = ''
+  isAddModalOpen.value = false
+  addDriverSearch.value = ''
+  selectedAddDriverIds.value = []
+}
+
+const closeAddModal = () => {
+  if (isAdding.value) return
+  resetAddModal()
+}
 
 const saveAdd = async () => {
+  if (isAdding.value) return
   if (!formAdd.value.plate || !formAdd.value.model) return
-  isLoading.value = true
+  isAdding.value = true
   try {
     const mapDocDate = (statusStr, dateStr) => {
       if (statusStr === 'No tiene' || !dateStr) return null
       return new Date(`${dateStr}T00:00:00`).toISOString()
     }
-    await api.post('/trucks', {
+    const { data } = await api.post('/trucks', {
       plate: formAdd.value.plate.toUpperCase(),
       model: formAdd.value.model,
       mileage: Number(formAdd.value.mileage) || 0,
@@ -340,19 +528,28 @@ const saveAdd = async () => {
       emissionsExpiresAt: mapDocDate(formAdd.value.emissionsStatus, formAdd.value.emissionsExpiresAt),
       insuranceExpiresAt: mapDocDate(formAdd.value.insuranceStatus, formAdd.value.insuranceExpiresAt),
     })
-    await loadVehicles()
-    closeAddModal()
+    let createdVehicle = data
+    if (data?.id) {
+      const usersResponse = await api.put(`/trucks/${data.id}/users`, {
+        userIds: selectedAddDriverIds.value,
+      })
+      createdVehicle = usersResponse.data || data
+    }
+    vehicles.value.unshift(createdVehicle)
+    resetAddModal()
   } catch (error) {
     console.error('Error creating vehicle:', error)
     const msg = error.response?.data?.message
     addError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo crear el vehículo.'
   } finally {
-    isLoading.value = false
+    isAdding.value = false
   }
 }
 
 onMounted(() => {
   loadVehicles()
+  loadDrivers()
+  loadManagers()
 })
 </script>
 
@@ -414,28 +611,29 @@ onMounted(() => {
             </div>
 
             <div class="w-full overflow-x-auto px-3 sm:px-6 md:px-10 md:pr-10 relative pb-6 min-w-0 custom-scrollbar">
-              <table class="w-full text-sm border-collapse min-w-[1000px]">
+              <table class="w-full text-sm border-collapse min-w-[1120px]">
                 <thead class="bg-white sticky top-0 z-10 shadow-sm border-b border-gray-100">
                   <tr>
-                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-gray-300">Patente</th>
-                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-gray-300">Modelo</th>
-                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-gray-300">Kilometraje</th>
-                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-gray-300">Usuarios</th>
-                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-gray-300 leading-tight">Permiso de<br>circulación</th>
-                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-gray-300 leading-tight">Revisión<br>técnica</th>
-                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-gray-300 leading-tight">Emisión<br>contaminante</th>
-                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-gray-300 leading-tight">Seguro<br>obligatorio</th>
-                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-gray-300">Acción</th>
+                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-[#7EA0C4]">Patente</th>
+                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-[#7EA0C4]">Modelo</th>
+                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-[#7EA0C4]">Kilometraje</th>
+                    <th v-if="showManagedByColumn" class="py-3 px-3 text-center font-bold text-slate-700 border border-[#7EA0C4]">Gestionado por</th>
+                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-[#7EA0C4]">Usuarios</th>
+                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-[#7EA0C4] leading-tight">Permiso de<br>circulación</th>
+                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-[#7EA0C4] leading-tight">Revisión<br>técnica</th>
+                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-[#7EA0C4] leading-tight">Emisión<br>contaminante</th>
+                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-[#7EA0C4] leading-tight">Seguro<br>obligatorio</th>
+                    <th class="py-3 px-3 text-center font-bold text-slate-700 border border-[#7EA0C4]">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-if="isLoading">
-                    <td colspan="9" class="py-8 text-center text-slate-400 text-sm border border-gray-300">
+                    <td :colspan="tableColspan" class="py-8 text-center text-slate-400 text-sm border border-gray-300">
                       Cargando vehículos...
                     </td>
                   </tr>
                   <tr v-else-if="paginatedVehicles.length === 0">
-                    <td colspan="9" class="py-8 text-center text-slate-400 text-sm border border-gray-300">
+                    <td :colspan="tableColspan" class="py-8 text-center text-slate-400 text-sm border border-gray-300">
                       No hay vehículos que coincidan con los filtros.
                     </td>
                   </tr>
@@ -443,6 +641,7 @@ onMounted(() => {
                     <td class="py-4 px-3 text-center text-slate-500 font-medium text-xs border border-gray-300">{{ vehicle.plate }}</td>
                     <td class="py-4 px-3 text-center text-slate-500 font-medium text-xs border border-gray-300">{{ vehicle.model }}</td>
                     <td class="py-4 px-3 text-center text-slate-500 font-medium text-xs border border-gray-300">{{ vehicle.mileage != null ? Math.floor(vehicle.mileage) : 0 }}</td>
+                    <td v-if="showManagedByColumn" class="py-4 px-3 text-center text-slate-500 font-medium text-xs border border-gray-300">{{ formatManagedBy(vehicle) }}</td>
                     <td class="py-4 px-3 text-center border border-gray-300">
                       <div class="flex flex-col items-center justify-center gap-1">
                         <div class="flex -space-x-2">
@@ -674,7 +873,11 @@ onMounted(() => {
                 <span class="font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded ml-1">{{ vehicleToEdit?.plate }}</span>
               </p>
             </div>
-            <button @click="closeEditModal" class="text-gray-400 hover:text-gray-700 hover:bg-gray-100 p-1.5 rounded-xl transition-colors outline-none cursor-pointer">
+            <button
+              @click="closeEditModal"
+              :disabled="isSaving || isDeleting || !!editSuccess"
+              class="text-gray-400 hover:text-gray-700 hover:bg-gray-100 p-1.5 rounded-xl transition-colors outline-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
           </div>
@@ -694,6 +897,81 @@ onMounted(() => {
                 <input v-model.number="formEdit.mileage" type="number" min="0" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400" />
               </div>
             </div>
+
+            <div v-if="authStore.isAdmin" class="mb-6 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              <div class="flex items-center justify-between gap-3 mb-3">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Gestionado por</label>
+                <span class="text-[11px] font-bold text-slate-500">{{ selectedManagedByLabel }}</span>
+              </div>
+              <input
+                v-model="managerSearchQuery"
+                type="search"
+                placeholder="Buscar administrador o dirección..."
+                :disabled="isSaving || isDeleting || !!editSuccess"
+                class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400 disabled:opacity-60"
+              />
+              <div class="mt-3 max-h-40 overflow-y-auto rounded-xl border border-gray-200 bg-white">
+                <button
+                  type="button"
+                  :disabled="isSaving || isDeleting || !!editSuccess"
+                  @click="formEdit.managedById = null"
+                  class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  :class="formEdit.managedById === null ? 'bg-primary/10 text-primary font-semibold' : 'text-slate-700'"
+                >
+                  <span class="text-sm font-bold">Sin gestor</span>
+                  <span v-if="formEdit.managedById === null" class="text-xs font-bold">Seleccionado</span>
+                </button>
+                <button
+                  v-for="option in filteredManagerOptions"
+                  :key="option.id"
+                  type="button"
+                  :disabled="isSaving || isDeleting || !!editSuccess"
+                  @click="formEdit.managedById = option.id"
+                  class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  :class="formEdit.managedById === option.id ? 'bg-primary/10 text-primary font-semibold' : 'text-slate-700'"
+                >
+                  <span class="min-w-0 truncate text-sm font-bold">{{ option.label }}</span>
+                  <span v-if="formEdit.managedById === option.id" class="text-xs font-bold">Seleccionado</span>
+                </button>
+                <div v-if="filteredManagerOptions.length === 0" class="px-4 py-4 text-sm text-slate-400 text-center">No hay gestores disponibles.</div>
+              </div>
+            </div>
+
+            <div class="mb-6 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              <div class="flex items-center justify-between gap-3 mb-3">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Conductores asignados</label>
+                <span class="text-[11px] font-bold text-slate-500">{{ selectedEditDriverIds.length }} seleccionado{{ selectedEditDriverIds.length === 1 ? '' : 's' }}</span>
+              </div>
+              <input
+                v-model="editDriverSearch"
+                type="search"
+                placeholder="Buscar conductor..."
+                :disabled="isSaving || isDeleting || !!editSuccess"
+                class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-primary hover:border-gray-400 disabled:opacity-60"
+              />
+              <p v-if="driverLoadError" class="mt-3 text-sm text-red-600 font-medium">{{ driverLoadError }}</p>
+              <div v-else class="mt-3 max-h-44 overflow-y-auto rounded-xl border border-gray-200 bg-white">
+                <button
+                  v-for="driver in filteredEditDrivers"
+                  :key="driver.id"
+                  type="button"
+                  :disabled="isSaving || isDeleting || !!editSuccess"
+                  @click="toggleEditDriver(driver.id)"
+                  class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded border"
+                    :class="selectedEditDriverIds.includes(driver.id) ? 'border-primary bg-primary text-white' : 'border-slate-300 bg-white text-transparent'">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
+                  <span class="min-w-0">
+                    <span class="block text-sm font-bold text-slate-700 truncate">{{ driverDisplayName(driver) }}</span>
+                    <span class="block text-xs text-slate-400 truncate">{{ driver.email }}</span>
+                  </span>
+                </button>
+                <div v-if="filteredEditDrivers.length === 0" class="px-4 py-4 text-sm text-slate-400 text-center">No hay conductores disponibles.</div>
+              </div>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
               <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3">
@@ -744,8 +1022,13 @@ onMounted(() => {
           </div>
 
           <div v-if="editError" class="mx-6 md:mx-8 mb-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700 font-medium">{{ editError }}</div>
+          <div v-if="editSuccess" class="mx-6 md:mx-8 mb-2 px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-700 font-medium">{{ editSuccess }}</div>
           <div class="px-6 md:px-8 py-5 border-t border-gray-100 bg-gray-50 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
-            <button @click="isDeleteConfirmOpen = true" class="order-2 md:order-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white shadow transition-colors">
+            <button
+              @click="openDeleteConfirm"
+              :disabled="isSaving || isDeleting || !!editSuccess"
+              class="order-2 md:order-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white shadow transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
                 <line x1="12" y1="9" x2="12" y2="13"/>
@@ -754,10 +1037,10 @@ onMounted(() => {
               Borrar patente
             </button>
             <div class="order-1 md:order-2 flex gap-3">
-              <button @click="closeEditModal" class="flex-1 md:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 shadow-sm border border-slate-300 hover:bg-slate-100 transition-colors flex items-center">Cancelar</button>
-              <button @click="saveEdit" :disabled="isLoading" class="flex-1 md:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-blue-600 text-white shadow hover:bg-blue-800 transition-colors flex items-center gap-2">
-                <svg v-if="isLoading" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                <span>Actualizar</span>
+              <button @click="closeEditModal" :disabled="isSaving || isDeleting || !!editSuccess" class="flex-1 md:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 shadow-sm border border-slate-300 hover:bg-slate-100 transition-colors flex items-center disabled:opacity-60 disabled:cursor-not-allowed">Cancelar</button>
+              <button @click="saveEdit" :disabled="isSaving || isDeleting || !!editSuccess" class="flex-1 md:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-blue-600 text-white shadow hover:bg-blue-800 transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                <svg v-if="isSaving" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <span>{{ isSaving ? 'Actualizando...' : 'Actualizar' }}</span>
               </button>
             </div>
           </div>
@@ -775,10 +1058,14 @@ onMounted(() => {
             </div>
             <p v-if="deleteError" class="text-sm text-red-600 font-medium text-center">{{ deleteError }}</p>
             <div class="flex gap-3 w-full sm:w-auto justify-center">
-              <button @click="isDeleteConfirmOpen = false" class="flex-1 sm:flex-none justify-center px-6 py-2.5 rounded-xl font-bold text-sm bg-white text-slate-600 border border-slate-300 hover:bg-slate-100 transition-colors flex items-center">Cancelar</button>
-              <button @click="deleteVehicle" :disabled="isLoading" class="flex-1 sm:flex-none justify-center px-6 py-2.5 rounded-xl font-bold text-sm bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center gap-2">
-                <svg v-if="isLoading" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                Sí, eliminar
+              <button @click="closeDeleteConfirm" :disabled="isDeleting" class="flex-1 sm:flex-none justify-center px-6 py-2.5 rounded-xl font-bold text-sm bg-white text-slate-600 border border-slate-300 hover:bg-slate-100 transition-colors flex items-center disabled:opacity-60 disabled:cursor-not-allowed">Cancelar</button>
+              <button v-if="isConflict" @click="deactivateVehicle" :disabled="isDeleting" class="flex-1 sm:flex-none justify-center px-6 py-2.5 rounded-xl font-bold text-sm bg-amber-500 hover:bg-amber-600 text-white transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                <svg v-if="isDeleting" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                {{ isDeleting ? 'Desactivando...' : 'Desactivar' }}
+              </button>
+              <button v-else @click="deleteVehicle" :disabled="isDeleting" class="flex-1 sm:flex-none justify-center px-6 py-2.5 rounded-xl font-bold text-sm bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                <svg v-if="isDeleting" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                {{ isDeleting ? 'Eliminando...' : 'Sí, eliminar' }}
               </button>
             </div>
           </div>
@@ -794,7 +1081,11 @@ onMounted(() => {
               <h3 class="text-2xl font-titles font-extrabold text-slate-800">Añadir patente</h3>
               <p class="text-sm font-medium text-slate-500 mt-1">Registrar nuevo vehículo</p>
             </div>
-            <button @click="closeAddModal" class="text-gray-400 hover:text-gray-700 hover:bg-gray-100 p-1.5 rounded-xl transition-colors outline-none cursor-pointer">
+            <button
+              @click="closeAddModal"
+              :disabled="isAdding"
+              class="text-gray-400 hover:text-gray-700 hover:bg-gray-100 p-1.5 rounded-xl transition-colors outline-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
           </div>
@@ -813,6 +1104,42 @@ onMounted(() => {
                 <input v-model.number="formAdd.mileage" type="number" min="0" placeholder="0" class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400" />
               </div>
             </div>
+
+            <div class="mb-6 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              <div class="flex items-center justify-between gap-3 mb-3">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Conductores asignados</label>
+                <span class="text-[11px] font-bold text-slate-500">{{ selectedAddDriverIds.length }} seleccionado{{ selectedAddDriverIds.length === 1 ? '' : 's' }}</span>
+              </div>
+              <input
+                v-model="addDriverSearch"
+                type="search"
+                placeholder="Buscar conductor..."
+                :disabled="isAdding"
+                class="w-full text-sm font-semibold rounded-xl border border-gray-300 px-4 py-2 bg-white text-slate-700 outline-none focus:border-blue-500 hover:border-gray-400 disabled:opacity-60"
+              />
+              <p v-if="driverLoadError" class="mt-3 text-sm text-red-600 font-medium">{{ driverLoadError }}</p>
+              <div v-else class="mt-3 max-h-44 overflow-y-auto rounded-xl border border-gray-200 bg-white">
+                <button
+                  v-for="driver in filteredAddDrivers"
+                  :key="driver.id"
+                  type="button"
+                  :disabled="isAdding"
+                  @click="toggleAddDriver(driver.id)"
+                  class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded border"
+                    :class="selectedAddDriverIds.includes(driver.id) ? 'border-primary bg-primary text-white' : 'border-slate-300 bg-white text-transparent'">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
+                  <span class="min-w-0">
+                    <span class="block text-sm font-bold text-slate-700 truncate">{{ driverDisplayName(driver) }}</span>
+                    <span class="block text-xs text-slate-400 truncate">{{ driver.email }}</span>
+                  </span>
+                </button>
+                <div v-if="filteredAddDrivers.length === 0" class="px-4 py-4 text-sm text-slate-400 text-center">No hay conductores disponibles.</div>
+              </div>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col gap-3">
                 <label class="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Permiso de circulación</label>
@@ -858,10 +1185,10 @@ onMounted(() => {
           </div>
           <div v-if="addError" class="mx-6 md:mx-8 mb-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700 font-medium">{{ addError }}</div>
           <div class="px-6 md:px-8 py-5 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
-            <button @click="closeAddModal" class="flex-1 md:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 shadow-sm border border-slate-300 hover:bg-slate-100 transition-colors flex items-center">Cancelar</button>
-            <button @click="saveAdd" :disabled="isLoading || !formAdd.plate || !formAdd.model" class="flex-1 md:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white shadow transition-colors flex items-center gap-2">
-              <svg v-if="isLoading" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-              Guardar
+            <button @click="closeAddModal" :disabled="isAdding" class="flex-1 md:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-white text-slate-600 shadow-sm border border-slate-300 hover:bg-slate-100 transition-colors flex items-center disabled:opacity-60 disabled:cursor-not-allowed">Cancelar</button>
+            <button @click="saveAdd" :disabled="isAdding || !formAdd.plate || !formAdd.model" class="flex-1 md:flex-none justify-center px-6 py-2.5 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow transition-colors flex items-center gap-2">
+              <svg v-if="isAdding" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              {{ isAdding ? 'Guardando...' : 'Guardar' }}
             </button>
           </div>
         </div>

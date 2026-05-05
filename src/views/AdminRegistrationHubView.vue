@@ -18,7 +18,7 @@ const adminCards = [
   { label: 'Usuarios',    icon: anadirGrupoIcon,  path: '/admin/gestion-usuarios' },
   { label: 'Vehículos',   icon: camionIcon,        path: '/admin/vehiculos'        },
   { label: 'Destinos',    icon: destinoIcon,       path: '/admin/destinos'         },
-  { label: 'Funcionario', icon: funcionarioIcon,   path: '/admin/funcionarios'     },
+  { label: 'Funcionarios', icon: funcionarioIcon,   path: '/admin/funcionarios'     },
   { label: 'Documentos',  icon: documentosIcon,    path: '/admin/documentos'       },
 ]
 
@@ -26,6 +26,7 @@ const directionCards = [
   { label: 'Conductores', icon: anadirGrupoIcon, path: '/admin/gestion-usuarios' },
   { label: 'Vehículos',   icon: camionIcon,      path: '/admin/vehiculos'        },
   { label: 'Destinos',    icon: destinoIcon,     path: '/admin/destinos'         },
+  { label: 'Funcionarios', icon: funcionarioIcon, path: '/admin/funcionarios'     },
 ]
 
 const cards = computed(() => authStore.isDireccion ? directionCards : adminCards)

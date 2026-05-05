@@ -32,6 +32,10 @@ const props = defineProps({
     type: String,
     default: ''
   },
+  canStartTrips: {
+    type: Boolean,
+    default: true
+  },
   adminDrivers: {
     type: Array,
     default: () => []
@@ -457,10 +461,10 @@ const adminStatusLabel = (status) => {
           <td class="px-6 py-4 text-center">
             <!-- Iniciar -->
             <button v-if="trip.status === 'idle'" @click="$emit('start-trip', trip)"
-              :disabled="!canStartTrip(trip) || trip.isSaving"
+              :disabled="!props.canStartTrips || !canStartTrip(trip) || trip.isSaving"
               title="Iniciar viaje"
               class="inline-flex items-center justify-center w-9 h-9 rounded-full text-white shadow transition-all duration-200"
-              :class="!canStartTrip(trip) || trip.isSaving ? 'bg-green-300 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 hover:scale-110'">
+              :class="!props.canStartTrips || !canStartTrip(trip) || trip.isSaving ? 'bg-green-300 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 hover:scale-110'">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             </button>
             <!-- Finalizar -->
@@ -571,7 +575,7 @@ const adminStatusLabel = (status) => {
   border-spacing: 0 !important;
 }
 .history-table thead th:not(.no-border-cell) {
-  border: 1px solid #555 !important;
+  border: 1px solid #7EA0C4 !important;
   padding: 10px 12px !important;
   letter-spacing: 0.02em;
 }

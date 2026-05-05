@@ -247,12 +247,6 @@ watch(currentPage, () => {
 
       <!-- Main content -->
       <main class="flex-1 pt-4 pb-10 pl-4 pr-3 overflow-y-auto flex flex-col min-w-0">
-        <div class="w-full mb-3 shrink-0">
-          <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            Volver
-          </button>
-        </div>
         <div class="flex gap-6 w-full min-w-0">
 
           <!-- Main Card (Table) -->
@@ -260,7 +254,14 @@ watch(currentPage, () => {
             'bg-white rounded-3xl border-2 border-slate-300 shadow-sm flex-1 flex flex-col overflow-visible transition-all duration-300 relative min-w-0',
             isFilterOpen ? 'md:max-w-[calc(100%-24rem)]' : 'w-full'
           ]">
-<!-- Top section: Title and Filter Button -->
+            <div class="px-4 sm:px-6 lg:px-8 pt-6 pb-1">
+              <button @click="router.back()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Volver
+              </button>
+            </div>
+
+            <!-- Top section: Title and Filter Button -->
             <div class="flex items-center justify-between p-4 md:p-8 pb-4 md:pb-6 relative min-h-[4rem] md:min-h-[5rem]">
                
                <h1 class="text-xl sm:text-2xl md:text-3xl font-titles font-extrabold text-slate-900 tracking-tight text-center order-1 md:absolute md:left-1/2 md:-translate-x-1/2">Historial de Viajes</h1>
@@ -286,19 +287,19 @@ watch(currentPage, () => {
                 <table class="history-table w-full text-sm text-center" style="border-collapse: separate; border-spacing: 0;">
                   <thead class="text-[13px] text-text-title font-bold sticky top-0 bg-white z-10">
                     <tr>
-                      <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Fecha</th>
-                      <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Patente</th>
-                      <th colspan="2" style="border: 1px solid #555; border-bottom: none; padding: 10px 12px;">Hora</th>
-                      <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Destino</th>
-                      <th colspan="2" style="border: 1px solid #555; border-bottom: none; padding: 10px 12px;">Kilometraje</th>
-                      <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Funcionario</th>
-                      <th rowspan="2" class="align-middle" style="border: 1px solid #555; padding: 10px 12px;">Firma Funcionario</th>
+                      <th rowspan="2" class="align-middle" style="border: 1px solid #7EA0C4; padding: 10px 12px;">Fecha</th>
+                      <th rowspan="2" class="align-middle" style="border: 1px solid #7EA0C4; padding: 10px 12px;">Patente</th>
+                      <th colspan="2" style="border: 1px solid #7EA0C4; border-bottom: none; padding: 10px 12px;">Hora</th>
+                      <th rowspan="2" class="align-middle" style="border: 1px solid #7EA0C4; padding: 10px 12px;">Destino</th>
+                      <th colspan="2" style="border: 1px solid #7EA0C4; border-bottom: none; padding: 10px 12px;">Kilometraje</th>
+                      <th rowspan="2" class="align-middle" style="border: 1px solid #7EA0C4; padding: 10px 12px;">Funcionario</th>
+                      <th rowspan="2" class="align-middle" style="border: 1px solid #7EA0C4; padding: 10px 12px;">Firma Funcionario</th>
                     </tr>
                     <tr>
-                      <th class="text-xs font-semibold" style="border: 1px solid #555; border-top: 1px solid #999; padding: 8px 12px;">Inicio</th>
-                      <th class="text-xs font-semibold" style="border: 1px solid #555; border-top: 1px solid #999; padding: 8px 12px;">Final</th>
-                      <th class="text-xs font-semibold" style="border: 1px solid #555; border-top: 1px solid #999; padding: 8px 12px;">Inicio</th>
-                      <th class="text-xs font-semibold" style="border: 1px solid #555; border-top: 1px solid #999; padding: 8px 12px;">Final</th>
+                      <th class="text-xs font-semibold" style="border: 1px solid #7EA0C4; border-top: 1px solid #7EA0C4; padding: 8px 12px;">Inicio</th>
+                      <th class="text-xs font-semibold" style="border: 1px solid #7EA0C4; border-top: 1px solid #7EA0C4; padding: 8px 12px;">Final</th>
+                      <th class="text-xs font-semibold" style="border: 1px solid #7EA0C4; border-top: 1px solid #7EA0C4; padding: 8px 12px;">Inicio</th>
+                      <th class="text-xs font-semibold" style="border: 1px solid #7EA0C4; border-top: 1px solid #7EA0C4; padding: 8px 12px;">Final</th>
                     </tr>
                   </thead>
                   <tbody class="text-center font-body">
@@ -395,10 +396,16 @@ watch(currentPage, () => {
 
           <!-- Filter Panel -->
           <Transition name="slide">
-            <div v-show="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[88px] z-50 md:relative md:inset-x-auto md:bottom-auto md:top-0 md:z-20 md:w-[22rem] md:self-start md:mt-0 md:max-h-[calc(100vh-220px)] bg-[#EBEBEB] md:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 md:shrink-0 overflow-y-auto md:ml-auto">
+            <div v-if="isFilterOpen" class="fixed inset-x-0 bottom-0 top-[88px] z-50 md:relative md:inset-x-auto md:bottom-auto md:top-0 md:z-20 md:w-[22rem] md:self-start md:mt-0 md:max-h-[calc(100vh-220px)] bg-[#EBEBEB] md:rounded-[2rem] rounded-t-[2rem] border border-gray-300 shadow-sm flex flex-col p-6 md:shrink-0 overflow-y-auto md:ml-auto">
               
               <!-- Filter icon top right inside panel (serves as close button also) -->
-              <button @click="isFilterOpen = false" class="absolute right-6 top-6 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent md:hidden">
+              <button
+                type="button"
+                @click.stop="isFilterOpen = false"
+                @pointerdown.stop
+                class="absolute right-6 top-6 z-10 text-gray-700 hover:text-gray-900 focus:outline-none bg-transparent md:hidden"
+                aria-label="Cerrar filtros"
+              >
                 <!-- Icon as requested in design -->
                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                    <line x1="8" y1="5" x2="8" y2="19"></line>
@@ -437,13 +444,13 @@ watch(currentPage, () => {
                   <div class="flex flex-col relative">
                     <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Desde</label>
                     <div class="relative">
-                      <input type="date" v-model="filters.from" class="text-[11px] px-3 py-[9px] w-full rounded-xl border border-[#b2b2b2] bg-white text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors" />
+                      <input type="date" v-model="filters.from" class="text-[11px] px-3 py-[9px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors" />
                     </div>
                   </div>
                   <div class="flex flex-col relative">
                     <label class="text-[10px] text-gray-500 font-bold ml-3 mb-0.5 z-10 bg-[#EBEBEB] w-fit px-1 absolute -top-2 left-2">Hasta</label>
                     <div class="relative">
-                      <input type="date" v-model="filters.to" class="text-[11px] px-3 py-[9px] w-full rounded-xl border border-[#b2b2b2] bg-white text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors" />
+                      <input type="date" v-model="filters.to" class="text-[11px] px-3 py-[9px] w-full rounded-xl border border-[#b2b2b2] bg-transparent text-gray-600 outline-none focus:border-primary hover:border-gray-500 transition-colors" />
                     </div>
                   </div>
                 </div>
@@ -513,10 +520,18 @@ watch(currentPage, () => {
 .slide-leave-to {
   transform: translateX(100%);
   opacity: 0;
-  width: 0;
-  margin-left: 0;
-  padding-left: 0;
-  padding-right: 0;
+}
+
+@media (min-width: 768px) {
+  .slide-enter-from,
+  .slide-leave-to {
+    transform: translateX(100%);
+    opacity: 0;
+    width: 0;
+    margin-left: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
 }
 
 /* Excel-style table with uniform borders on headers */
@@ -525,7 +540,7 @@ watch(currentPage, () => {
   border-spacing: 0 !important;
 }
 .history-table thead th {
-  border: 1px solid #555 !important;
+  border: 1px solid #7EA0C4 !important;
   padding: 10px 12px !important;
   letter-spacing: 0.02em;
 }

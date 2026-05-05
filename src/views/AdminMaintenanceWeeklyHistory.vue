@@ -1018,12 +1018,12 @@ const confirmDeleteRecord = async () => {
             <table class="w-full text-sm border-collapse">
               <thead class="bg-white">
                 <tr>
-                  <th class="py-3 px-5 text-center font-bold text-slate-700 border border-gray-300 w-[12%]">Fecha</th>
-                  <th class="py-3 px-5 text-center font-bold text-slate-700 border border-gray-300 w-[15%]">Patente</th>
-                  <th class="py-3 px-5 text-center font-bold text-slate-700 border border-gray-300 w-[20%]">Conductor</th>
-                  <th class="py-3 px-5 text-center font-bold text-slate-700 border border-gray-300 w-[20%]">Resumen de fallos</th>
-                  <th class="py-3 px-5 text-center font-bold text-slate-700 border border-gray-300 w-[15%]">Estado</th>
-                  <th class="py-3 px-5 text-center font-bold text-slate-700 border border-gray-300 w-[18%]">Registro</th>
+                  <th class="py-3 px-5 text-center font-bold text-slate-700 border border-[#7EA0C4] w-[12%]">Fecha</th>
+                  <th class="py-3 px-5 text-center font-bold text-slate-700 border border-[#7EA0C4] w-[15%]">Patente</th>
+                  <th class="py-3 px-5 text-center font-bold text-slate-700 border border-[#7EA0C4] w-[20%]">Conductor</th>
+                  <th class="py-3 px-5 text-center font-bold text-slate-700 border border-[#7EA0C4] w-[20%]">Resumen de fallos</th>
+                  <th class="py-3 px-5 text-center font-bold text-slate-700 border border-[#7EA0C4] w-[15%]">Estado</th>
+                  <th class="py-3 px-5 text-center font-bold text-slate-700 border border-[#7EA0C4] w-[18%]">Registro</th>
                 </tr>
               </thead>
               <tbody>

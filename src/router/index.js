@@ -217,7 +217,7 @@ const router = createRouter({
             path: '/admin/funcionarios',
             name: 'admin-funcionarios',
             component: AdminFuncionarioView,
-            meta: { requiresAuth: true, roles: ['ADMIN'] }
+            meta: { requiresAuth: true, roles: ['ADMIN', 'DIRECTION'] }
         },
         {
             path: '/admin/solicitudes',
