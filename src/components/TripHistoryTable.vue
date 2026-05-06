@@ -48,9 +48,9 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
-  adminTrucksByDriver: {
-    type: Object,
-    default: () => ({})
+  adminTrucks: {
+    type: Array,
+    default: () => []
   }
 });
 
@@ -79,7 +79,7 @@ const startEditing = (trip) => {
   editingTripData.value.date = trip.dateIso || '';
 
   if (editingTripData.value.driverId) {
-    const trucks = getDriverTrucks(editingTripData.value.driverId);
+    const trucks = getDriverTrucks();
     const hasCurrentTruck = trucks.some(
       (truck) => truck.id === editingTripData.value.truckId,
     );
@@ -130,13 +130,10 @@ const canStartTrip = (trip) => {
 // from showing autocomplete history suggestions
 const makeEditable = (e) => e.target.removeAttribute('readonly');
 
-const getDriverTrucks = (driverId) => {
-  if (!driverId) return [];
-  return props.adminTrucksByDriver[driverId] || [];
-};
+const getDriverTrucks = () => props.adminTrucks;
 
 const onAdminDriverChange = () => {
-  const trucks = getDriverTrucks(editingTripData.value.driverId);
+  const trucks = getDriverTrucks();
   const hasCurrentTruck = trucks.some((truck) => truck.id === editingTripData.value.truckId);
 
   if (!hasCurrentTruck) {
@@ -146,7 +143,7 @@ const onAdminDriverChange = () => {
 };
 
 const onAdminTruckChange = () => {
-  const selectedTruck = getDriverTrucks(editingTripData.value.driverId).find(
+  const selectedTruck = getDriverTrucks().find(
     (truck) => truck.id === editingTripData.value.truckId,
   );
   editingTripData.value.licensePlate = selectedTruck?.plate || '';
@@ -325,7 +322,7 @@ const adminStatusLabel = (status) => {
                   {{ editingTripData.driverId ? 'Selecciona patente...' : 'Selecciona conductor...' }}
                 </option>
                 <option
-                  v-for="truck in getDriverTrucks(editingTripData.driverId)"
+                  v-for="truck in getDriverTrucks()"
                   :key="truck.id"
                   :value="truck.id"
                 >

@@ -24,7 +24,7 @@ const totalPages = ref(1)
 const adminDrivers = ref([])
 const adminEmployees = ref([])
 const adminDestinations = ref([])
-const adminTrucksByDriver = ref({})
+const adminTrucks = ref([])
 
 const isFilterOpen = ref(false)
 const sidebarStore = useSidebarStore()
@@ -176,23 +176,10 @@ const loadAdminEditCatalogs = async () => {
       name: destination.name,
     }))
 
-    const { data: unassignedData } = await api.get('/trucks/unassigned')
-    const unassignedTrucks = Array.isArray(unassignedData)
-      ? unassignedData.map((truck) => ({ id: truck.id, plate: truck.plate }))
+    const { data: trucksData } = await api.get('/trucks')
+    adminTrucks.value = Array.isArray(trucksData)
+      ? trucksData.map((truck) => ({ id: truck.id, plate: truck.plate }))
       : []
-
-    const trucksEntries = await Promise.all(
-      adminDrivers.value.map(async (driver) => {
-        const { data } = await api.get(`/users/${driver.id}/trucks`)
-        const assignedTrucks = Array.isArray(data)
-          ? data.map((truck) => ({ id: truck.id, plate: truck.plate }))
-          : []
-
-        return [driver.id, assignedTrucks.length > 0 ? assignedTrucks : unassignedTrucks]
-      }),
-    )
-
-    adminTrucksByDriver.value = Object.fromEntries(trucksEntries)
   } catch (error) {
     console.error('No se pudieron cargar catalogos de edición admin', error)
   }
@@ -900,7 +887,7 @@ watch(currentPage, () => {
                   :adminDrivers="adminDrivers"
                   :adminDestinations="adminDestinations"
                   :adminEmployees="adminEmployees"
-                  :adminTrucksByDriver="adminTrucksByDriver"
+                  :adminTrucks="adminTrucks"
                   @edit-trip="handleEditTrip"
                   @delete-trip="handleDeleteTrip"
                   @request-save-trip="handleSaveTripRequest"
