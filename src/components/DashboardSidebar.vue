@@ -53,7 +53,7 @@ ADMIN: [
         { label: 'Usuarios',    path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Usuarios'      },
         { label: 'Vehículos',   path: '/admin/vehiculos',         icon: camionIcon,       alt: 'Vehículos'    },
         { label: 'Destinos',    path: '/admin/destinos',          icon: destinoIcon,      alt: 'Destinos'      },
-        { label: 'Funcionario', path: '/admin/funcionarios',      icon: funcionarioIcon,  alt: 'Funcionario'   },
+        { label: 'Funcionarios', path: '/admin/funcionarios',      icon: funcionarioIcon,  alt: 'Funcionarios'   },
         { label: 'Documentos',  path: '/admin/documentos',        icon: documentosIcon,     alt: 'Documentos'    },
       ],
     },
@@ -85,6 +85,7 @@ ADMIN: [
         { label: 'Conductores', path: '/admin/gestion-usuarios', icon: anadirGrupoIcon, alt: 'Conductores' },
         { label: 'Vehículos', path: '/admin/vehiculos',        icon: camionIcon,      alt: 'Vehículos' },
         { label: 'Destinos',  path: '/admin/destinos',         icon: destinoIcon,     alt: 'Destinos'  },
+        { label: 'Funcionarios', path: '/admin/funcionarios', icon: funcionarioIcon, alt: 'Funcionarios' },
       ],
     },
     {
@@ -161,11 +162,11 @@ const reportProblem = () => {
 
 <template>
   <div
-    class="fixed md:relative h-[calc(100dvh-6rem)] max-h-[calc(100dvh-6rem)] md:h-full md:max-h-none transition-all duration-300 ease-in-out flex flex-col z-[60] shrink-0"
+    class="dashboard-sidebar-shell fixed left-0 top-24 bottom-0 h-auto w-56 min-w-[14rem] max-h-none transition-transform duration-300 ease-in-out flex flex-col z-[60] shrink-0 md:relative md:left-auto md:top-auto md:bottom-auto md:h-full md:transition-[width,min-width,max-width]"
     :class="
       open
-        ? 'w-64 min-w-[16rem] flex-shrink-0 overflow-hidden pointer-events-auto bg-white border-r border-gray-200 shadow-xl'
-        : 'w-0 overflow-visible pointer-events-none md:w-10 md:min-w-[2.5rem] md:max-w-[2.5rem] md:overflow-hidden md:pointer-events-auto md:border-transparent md:bg-background md:shadow-none'
+        ? 'translate-x-0 flex-shrink-0 overflow-hidden pointer-events-auto bg-white border-r border-gray-200 shadow-xl md:w-56 md:min-w-[14rem]'
+        : '-translate-x-full pointer-events-none md:translate-x-0 md:w-10 md:min-w-[2.5rem] md:overflow-hidden md:pointer-events-auto md:border-transparent md:bg-background md:shadow-none'
     "
   >
     <!-- Overlay solo en móvil -->
@@ -184,7 +185,7 @@ const reportProblem = () => {
         type="button"
         @click="setOpen(true)"
         aria-label="Abrir menú"
-        class="md:hidden fixed left-2 top-20 z-[100] flex flex-col justify-center items-center gap-[5px] w-9 h-9 rounded-md border border-gray-300 bg-white shadow-sm hover:border-primary transition-all"
+        class="md:hidden fixed left-2 top-[6.5rem] z-[100] flex flex-col justify-center items-center gap-[5px] w-9 h-9 rounded-md border border-gray-300 bg-white shadow-sm hover:border-primary transition-all"
       >
         <span v-for="i in 3" :key="i" class="block w-4 h-[2px] bg-gray-600 rounded-full" />
       </button>
@@ -201,6 +202,14 @@ const reportProblem = () => {
       <span v-for="i in 3" :key="i" class="block w-4 h-[2px] bg-gray-600 rounded-full" />
     </button>
 
+    <Transition
+      enter-active-class="transition-opacity duration-75 ease-in delay-[220ms]"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-75 ease-out"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
     <div v-show="open" class="flex flex-col h-full w-full min-h-0">
       <div class="flex justify-end px-2 pt-2">
         <button
@@ -363,6 +372,7 @@ const reportProblem = () => {
           </button>
         </div>
     </div>
+    </Transition>
 
     <Teleport to="body">
       <ReportProblemModal
@@ -377,5 +387,11 @@ const reportProblem = () => {
 /* Ocultar scrollbar visual del nav en Chrome/Safari/iOS */
 nav::-webkit-scrollbar {
   display: none;
+}
+
+@media (max-width: 767px) {
+  :global(.dashboard-sidebar-shell + main) {
+    padding-top: 3.5rem !important;
+  }
 }
 </style>

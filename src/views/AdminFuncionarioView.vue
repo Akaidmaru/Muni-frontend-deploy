@@ -5,8 +5,10 @@ import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import api from '@/services/axios'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 // ── Estado principal ────────────────────────────────────────────────────────
 const funcionarios = ref([])
@@ -16,6 +18,9 @@ const loadError = ref('')
 const searchQuery = ref('')
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
+const managers = ref([])
+const managerSearchQuery = ref('')
+const isManagerPickerOpen = ref(false)
 
 // ── Modales ─────────────────────────────────────────────────────────────────
 const isAddModalOpen = ref(false)
@@ -28,17 +33,42 @@ const addForm = ref({ name: '' })
 const addError = ref('')
 const addSuccess = ref('')
 
-const editForm = ref({ id: null, name: '', active: true })
+const editForm = ref({ id: null, name: '', active: true, managedById: null })
 const editError = ref('')
 const editSuccess = ref('')
 
 const selectedFuncionario = ref(null)
 const deleteError = ref('')
 const isConflict = ref(false)
+const canDeleteFuncionarios = computed(() => !authStore.isDireccion)
+const showManagedByColumn = computed(() => authStore.isAdmin)
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const normalize = (v) =>
   String(v || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+const roleLabelMap = {
+  ADMIN: 'Administrador',
+  DIRECTION: 'Dirección',
+}
+const formatRoleLabel = (role) => roleLabelMap[role] || role || 'Sin rol'
+
+const managerOptions = computed(() =>
+  managers.value.map((user) => ({
+    id: user.id,
+    label: `${user.email} (${formatRoleLabel(user.role)})`,
+    searchText: normalize(`${user.email} ${user.name} ${user.role}`),
+  }))
+)
+const filteredManagerOptions = computed(() => {
+  const q = normalize(managerSearchQuery.value)
+  if (!q) return managerOptions.value
+  return managerOptions.value.filter((option) => option.searchText.includes(q))
+})
+const selectedManagedByLabel = computed(() => {
+  const selected = managerOptions.value.find((option) => option.id === editForm.value.managedById)
+  return selected?.label || 'Selecciona un usuario gestor'
+})
 
 const mapUserFromApi = (u) => ({
   id: u?.id ?? null,
@@ -63,6 +93,8 @@ const loadFuncionarios = async () => {
       role: 'EMPLOYEE',
       verified: true,
       active: u.active,
+      managedById: u.managedById ?? u.managedBy?.id ?? null,
+      managedBy: u.managedBy?.email || u.managedBy?.name || '—',
     }))
   } catch (error) {
     const msg = error.response?.data?.message
@@ -72,6 +104,16 @@ const loadFuncionarios = async () => {
     funcionarios.value = []
   } finally {
     isLoading.value = false
+  }
+}
+
+const loadManagers = async () => {
+  if (!authStore.isAdmin) return
+  try {
+    const { data } = await api.get('/users/by-roles', { params: { roles: 'ADMIN,DIRECTION' } })
+    managers.value = Array.isArray(data) ? data : []
+  } catch {
+    managers.value = []
   }
 }
 
@@ -99,7 +141,7 @@ const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.v
 // ── Navegación ──────────────────────────────────────────────────────────────
 const goBack = () => {
   if (window.history.length > 1) { router.back(); return }
-  router.push('/dashboard-admin')
+  router.push(authStore.isDireccion ? '/dashboard-direccion' : '/dashboard-admin')
 }
 
 // ── Modal AÑADIR ─────────────────────────────────────────────────────────────
@@ -111,6 +153,7 @@ const openAddModal = () => {
 }
 
 const closeAddModal = () => {
+  if (isSaving.value) return
   isAddModalOpen.value = false
   addError.value = ''
   addSuccess.value = ''
@@ -118,6 +161,7 @@ const closeAddModal = () => {
 }
 
 const saveFuncionario = async () => {
+  if (isSaving.value || addSuccess.value) return
   if (!addForm.value.name.trim()) {
     addError.value = 'El nombre no puede estar vacío.'
     return
@@ -137,6 +181,8 @@ const { data } = await api.post('/employees', {
       role: 'EMPLOYEE',
       verified: true,
       active: data.active,
+      managedById: data.managedById ?? data.managedBy?.id ?? null,
+      managedBy: data.managedBy?.email || data.managedBy?.name || '—',
     })
     addSuccess.value = 'Funcionario añadido correctamente.'
     setTimeout(() => closeAddModal(), 900)
@@ -151,21 +197,41 @@ const { data } = await api.post('/employees', {
 // ── Modal EDITAR ─────────────────────────────────────────────────────────────
 const openEditModal = (func) => {
   selectedFuncionario.value = func
-  editForm.value = { id: func.id, name: func.name, active: func.active }
+  editForm.value = { id: func.id, name: func.name, active: func.active, managedById: func.managedById ?? null }
+  managerSearchQuery.value = ''
+  isManagerPickerOpen.value = false
   editError.value = ''
   editSuccess.value = ''
   isEditModalOpen.value = true
 }
 
 const closeEditModal = () => {
+  if (isSaving.value) return
   isEditModalOpen.value = false
   editError.value = ''
   editSuccess.value = ''
   isSaving.value = false
+  isManagerPickerOpen.value = false
   selectedFuncionario.value = null
 }
 
+const openManagerPicker = () => {
+  if (!authStore.isAdmin) return
+  managerSearchQuery.value = ''
+  isManagerPickerOpen.value = true
+}
+
+const closeManagerPicker = () => {
+  isManagerPickerOpen.value = false
+}
+
+const selectManager = (managerId) => {
+  editForm.value.managedById = managerId
+  closeManagerPicker()
+}
+
 const saveEdit = async () => {
+  if (isSaving.value || editSuccess.value) return
   if (!editForm.value.name.trim()) {
     editError.value = 'El nombre no puede estar vacío.'
     return
@@ -177,8 +243,17 @@ const saveEdit = async () => {
     const { data } = await api.patch(`/employees/${editForm.value.id}`, {
       name: editForm.value.name.trim(),
       active: editForm.value.active,
+      ...(authStore.isAdmin && editForm.value.managedById != null
+        ? { managedById: editForm.value.managedById }
+        : {}),
     })
-    const updated = { ...selectedFuncionario.value, name: data.name, active: data.active }
+    const updated = {
+      ...selectedFuncionario.value,
+      name: data.name,
+      active: data.active,
+      managedById: data.managedById ?? data.managedBy?.id ?? selectedFuncionario.value?.managedById ?? null,
+      managedBy: data.managedBy?.email || data.managedBy?.name || selectedFuncionario.value?.managedBy || '—',
+    }
     funcionarios.value = funcionarios.value.map((f) => (f.id === updated.id ? updated : f))
     editSuccess.value = 'Funcionario actualizado correctamente.'
     setTimeout(() => closeEditModal(), 900)
@@ -192,12 +267,21 @@ const saveEdit = async () => {
 
 // ── Modal ELIMINAR ────────────────────────────────────────────────────────────
 const openDeleteConfirm = (func) => {
+  if (!canDeleteFuncionarios.value) return
   selectedFuncionario.value = func
   deleteError.value = ''
   isDeleteConfirmOpen.value = true
 }
 
 const closeDeleteConfirm = () => {
+  if (isDeleting.value) return
+  isDeleteConfirmOpen.value = false
+  deleteError.value = ''
+  isConflict.value = false
+  selectedFuncionario.value = null
+}
+
+const resetDeleteConfirm = () => {
   isDeleteConfirmOpen.value = false
   deleteError.value = ''
   isConflict.value = false
@@ -205,6 +289,8 @@ const closeDeleteConfirm = () => {
 }
 
 const confirmDelete = async () => {
+  if (isDeleting.value) return
+  if (!canDeleteFuncionarios.value) return
   if (!selectedFuncionario.value?.id) return
   isDeleting.value = true
   deleteError.value = ''
@@ -212,7 +298,7 @@ const confirmDelete = async () => {
   try {
     await api.delete(`/employees/${selectedFuncionario.value.id}`)
     funcionarios.value = funcionarios.value.filter((f) => f.id !== selectedFuncionario.value.id)
-    closeDeleteConfirm()
+    resetDeleteConfirm()
   } catch (error) {
     const status = error.response?.status
     const msg = error.response?.data?.message
@@ -228,6 +314,8 @@ const confirmDelete = async () => {
 }
 
 const deactivateFuncionario = async () => {
+  if (isDeleting.value) return
+  if (!canDeleteFuncionarios.value) return
   if (!selectedFuncionario.value?.id) return
   isDeleting.value = true
   deleteError.value = ''
@@ -236,7 +324,7 @@ const deactivateFuncionario = async () => {
     funcionarios.value = funcionarios.value.map((f) =>
       f.id === selectedFuncionario.value.id ? { ...f, active: false } : f
     )
-    closeDeleteConfirm()
+    resetDeleteConfirm()
   } catch (error) {
     const msg = error.response?.data?.message
     deleteError.value = Array.isArray(msg) ? msg.join(', ') : msg || 'No se pudo desactivar el funcionario.'
@@ -246,7 +334,10 @@ const deactivateFuncionario = async () => {
 }
 
 
-onMounted(() => { loadFuncionarios() })
+onMounted(() => {
+  loadFuncionarios()
+  loadManagers()
+})
 </script>
 
 <template>
@@ -332,17 +423,18 @@ onMounted(() => { loadFuncionarios() })
                 <span class="text-sm text-slate-500">Cargando funcionarios...</span>
               </div>
 
-              <table v-else class="w-full border-collapse min-w-[500px]">
+              <table v-else class="w-full border-collapse min-w-[640px]">
                 <thead>
                   <tr>
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white">Nombre</th>
+                    <th v-if="showManagedByColumn" class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white w-72">Gestionado por</th>
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white w-52">Estado</th>
                     <th class="border border-[#7EA0C4] py-4 px-4 text-center font-body text-[1.05rem] font-medium text-slate-700 bg-white w-72">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-if="pagedFuncionarios.length === 0">
-                    <td colspan="3" class="border border-[#D3DCE6] py-16 text-center text-slate-400 text-sm">
+                    <td :colspan="showManagedByColumn ? 4 : 3" class="border border-[#D3DCE6] py-16 text-center text-slate-400 text-sm">
                       No hay funcionarios para mostrar.
                     </td>
                   </tr>
@@ -354,6 +446,10 @@ onMounted(() => { loadFuncionarios() })
                     <!-- Nombre -->
                     <td class="border border-[#D3DCE6] py-4 px-4 text-slate-600 text-sm font-medium">
                       {{ func.name }}
+                    </td>
+                    <!-- Gestionado por -->
+                    <td v-if="showManagedByColumn" class="border border-[#D3DCE6] py-4 px-4 text-center text-slate-500 text-sm">
+                      <span class="block truncate" :title="func.managedBy">{{ func.managedBy || '—' }}</span>
                     </td>
                     <!-- Estado -->
                     <td class="border border-[#D3DCE6] py-4 px-4 text-center">
@@ -383,6 +479,7 @@ onMounted(() => { loadFuncionarios() })
                         </button>
                         <!-- Eliminar -->
                         <button
+                          v-if="canDeleteFuncionarios"
                           @click="openDeleteConfirm(func)"
                           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[1.25rem] text-[11px] font-bold bg-red-50 text-red-600 hover:bg-red-100 transition-colors tracking-wide"
                         >
@@ -479,13 +576,13 @@ onMounted(() => { loadFuncionarios() })
               </div>
 
               <div class="flex justify-end gap-3 pt-1">
-                <button @click="closeAddModal" type="button" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors text-sm">
+                <button @click="closeAddModal" type="button" :disabled="isSaving || !!addSuccess" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed">
                   Cancelar
                 </button>
                 <button
                   @click="saveFuncionario"
                   type="button"
-                  :disabled="isSaving"
+                  :disabled="isSaving || !!addSuccess"
                   class="px-5 py-2.5 rounded-xl bg-[#0B2545] hover:bg-[#133A6D] text-white font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
                 >
                   <svg v-if="isSaving" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
@@ -558,14 +655,31 @@ onMounted(() => { loadFuncionarios() })
                 </select>
               </div>
 
+              <!-- Gestionado por -->
+              <div v-if="showManagedByColumn">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 pl-1">Gestionado por</label>
+                <div class="rounded-2xl border border-slate-300 bg-white px-4 py-3 shadow-sm">
+                  <div class="flex items-center justify-between gap-3">
+                    <p class="min-w-0 truncate text-sm font-medium text-slate-700">{{ selectedManagedByLabel }}</p>
+                    <button
+                      type="button"
+                      @click="openManagerPicker"
+                      class="shrink-0 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+                    >
+                      Cambiar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div class="flex justify-end gap-3 pt-1">
-                <button @click="closeEditModal" type="button" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors text-sm">
+                <button @click="closeEditModal" type="button" :disabled="isSaving || !!editSuccess" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed">
                   Cancelar
                 </button>
                 <button
                   @click="saveEdit"
                   type="button"
-                  :disabled="isSaving"
+                  :disabled="isSaving || !!editSuccess"
                   class="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
                 >
                   <svg v-if="isSaving" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
@@ -576,6 +690,63 @@ onMounted(() => { loadFuncionarios() })
           </div>
         </div>
       </transition>
+    </Teleport>
+
+    <Teleport to="body">
+      <div
+        v-if="isManagerPickerOpen"
+        class="fixed inset-0 z-[70] bg-black/35 flex items-center justify-center px-4 py-4"
+        @click.self="closeManagerPicker"
+      >
+        <div class="w-full max-w-lg rounded-[1.75rem] bg-white shadow-2xl border border-slate-200 overflow-hidden">
+          <div class="px-6 pt-6 pb-4 flex items-start justify-between gap-4 border-b border-slate-100">
+            <div>
+              <h3 class="text-xl font-titles font-bold text-slate-900">Seleccionar gestionado por</h3>
+              <p class="mt-1 text-sm text-slate-500">Busca un usuario con rol ADMIN o Dirección.</p>
+            </div>
+            <button @click="closeManagerPicker" type="button" class="text-slate-400 hover:text-slate-700 transition-colors">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
+            </button>
+          </div>
+
+          <div class="p-6 space-y-4">
+            <div class="relative">
+              <input
+                v-model="managerSearchQuery"
+                type="text"
+                placeholder="Buscar por correo, nombre o rol"
+                class="w-full rounded-xl border border-slate-300 px-4 py-3 pr-10 text-sm text-slate-700 outline-none focus:border-primary"
+              />
+              <svg class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
+            <div class="max-h-72 overflow-y-auto rounded-2xl border border-slate-200">
+              <button
+                v-for="option in filteredManagerOptions"
+                :key="option.id"
+                type="button"
+                @click="selectManager(option.id)"
+                class="w-full px-4 py-3 text-left text-sm transition-colors border-b border-slate-100 last:border-b-0"
+                :class="editForm.managedById === option.id ? 'bg-primary/10 text-primary font-semibold' : 'bg-white text-slate-700 hover:bg-slate-50'"
+              >
+                <div class="flex items-center justify-between gap-3">
+                  <span class="truncate">{{ option.label }}</span>
+                  <span v-if="editForm.managedById === option.id" class="text-xs font-bold">Seleccionado</span>
+                </div>
+              </button>
+              <div v-if="filteredManagerOptions.length === 0" class="px-4 py-6 text-sm text-slate-400 text-center">
+                No se encontraron usuarios gestores.
+              </div>
+            </div>
+
+            <div class="flex justify-end">
+              <button @click="closeManagerPicker" type="button" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors text-sm">Cerrar</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </Teleport>
 
     <!-- ══════════════════════════════════════════════════════════════════════

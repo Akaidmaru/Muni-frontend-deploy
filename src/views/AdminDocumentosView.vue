@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import logoCompleto from '@/assets/images/Logo-completo.png'
 import DashboardSidebar from '@/components/DashboardSidebar.vue'
@@ -25,6 +25,9 @@ const DOCUMENT_FILE_ACCEPT =
 
 const vehicles = ref([])
 const selectedTruckId = ref('')
+const isPlatePickerOpen = ref(false)
+const plateSearchQuery = ref('')
+const plateSearchInput = ref(null)
 const docsList = ref([])
 const isLoading = ref(false)
 const loadError = ref('')
@@ -84,6 +87,53 @@ const sortedVehicles = computed(() =>
     })
   )
 )
+
+const normalizeSearch = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+
+const selectedVehicle = computed(() =>
+  sortedVehicles.value.find((vehicle) => String(vehicle.id) === String(selectedTruckId.value))
+)
+
+const selectedPlateLabel = computed(() =>
+  selectedVehicle.value?.plate || 'Selecciona una patente'
+)
+
+const filteredPlateOptions = computed(() => {
+  const query = normalizeSearch(plateSearchQuery.value)
+  if (!query) return sortedVehicles.value
+  return sortedVehicles.value.filter((vehicle) =>
+    normalizeSearch(vehicle.plate).includes(query)
+  )
+})
+
+const openPlatePicker = async () => {
+  plateSearchQuery.value = ''
+  isPlatePickerOpen.value = true
+  await nextTick()
+  plateSearchInput.value?.focus()
+}
+
+const closePlatePicker = () => {
+  isPlatePickerOpen.value = false
+}
+
+const togglePlatePicker = () => {
+  if (isPlatePickerOpen.value) {
+    closePlatePicker()
+    return
+  }
+  openPlatePicker()
+}
+
+const selectPlate = (vehicleId) => {
+  selectedTruckId.value = String(vehicleId)
+  closePlatePicker()
+}
 
 const docsByKind = computed(() => {
   const m = {}
@@ -369,20 +419,17 @@ onMounted(async () => {
             <div class="w-full sm:max-w-xs md:max-w-sm">
               <label class="sr-only" for="patente-select">Patente</label>
               <div class="relative">
-                <select
+                <button
                   id="patente-select"
-                  v-model="selectedTruckId"
-                  class="w-full appearance-none border border-slate-300 rounded-lg px-3 py-2.5 pr-10 bg-white text-sm font-medium text-slate-800 outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer"
+                  type="button"
+                  class="relative z-30 w-full border border-slate-300 rounded-lg px-3 py-2.5 pr-10 bg-white text-left text-sm font-medium outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer"
+                  :class="selectedTruckId ? 'text-slate-800' : 'text-slate-400'"
+                  aria-haspopup="listbox"
+                  :aria-expanded="isPlatePickerOpen"
+                  @click="togglePlatePicker"
                 >
-                  <option value="">Selecciona una patente</option>
-                  <option
-                    v-for="v in sortedVehicles"
-                    :key="v.id"
-                    :value="String(v.id)"
-                  >
-                    {{ v.plate || '—' }}
-                  </option>
-                </select>
+                  <span class="block truncate">{{ selectedPlateLabel }}</span>
+                </button>
                 <svg
                   width="14"
                   height="14"
@@ -390,10 +437,85 @@ onMounted(async () => {
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
-                  class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
+                  class="absolute right-3 top-1/2 z-30 -translate-y-1/2 pointer-events-none text-slate-400 transition-transform"
+                  :class="{ 'rotate-180': isPlatePickerOpen }"
                 >
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
+                <button
+                  v-if="isPlatePickerOpen"
+                  type="button"
+                  class="fixed inset-0 z-20 cursor-default"
+                  aria-label="Cerrar selector de patente"
+                  tabindex="-1"
+                  @click="closePlatePicker"
+                />
+                <div
+                  v-if="isPlatePickerOpen"
+                  class="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
+                >
+                  <div class="border-b border-slate-100 p-3">
+                    <div class="relative">
+                      <input
+                        ref="plateSearchInput"
+                        v-model="plateSearchQuery"
+                        type="search"
+                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pl-9 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400 focus:border-primary focus:ring-1 focus:ring-primary"
+                        placeholder="Buscar patente"
+                        autocomplete="off"
+                        autocorrect="off"
+                        spellcheck="false"
+                        @keydown.esc="closePlatePicker"
+                      />
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      >
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.3-4.3" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div class="max-h-64 overflow-y-auto py-1 custom-scrollbar" role="listbox">
+                    <button
+                      v-for="vehicle in filteredPlateOptions"
+                      :key="vehicle.id"
+                      type="button"
+                      class="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm font-medium transition-colors hover:bg-slate-50"
+                      :class="String(vehicle.id) === String(selectedTruckId) ? 'text-primary bg-blue-50' : 'text-slate-700'"
+                      role="option"
+                      :aria-selected="String(vehicle.id) === String(selectedTruckId)"
+                      @click="selectPlate(vehicle.id)"
+                    >
+                      <span class="truncate">{{ vehicle.plate || '—' }}</span>
+                      <svg
+                        v-if="String(vehicle.id) === String(selectedTruckId)"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="shrink-0"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </button>
+                    <p
+                      v-if="filteredPlateOptions.length === 0"
+                      class="px-4 py-4 text-center text-sm font-medium text-slate-500"
+                    >
+                      No se encontraron patentes.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
             <button

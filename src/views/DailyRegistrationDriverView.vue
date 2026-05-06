@@ -21,6 +21,21 @@ const router = useRouter();
 const route = useRoute();
 const tripActionError = ref("");
 const gpsStatusError = ref("");
+const managerRestrictionMessage = computed(() => {
+  if (!auth.isConductor) return "";
+  const managerRole = auth.user?.managedByRole;
+  if (auth.user?.managedById != null && (managerRole === "ADMIN" || managerRole === "DIRECTION")) {
+    return "";
+  }
+  return "Tu cuenta debe estar asociada a un usuario con rol ADMIN o DIRECTION para iniciar viajes.";
+});
+const canStartTrips = computed(() => {
+  if (!auth.isConductor) return true;
+  return (
+    auth.user?.managedById != null &&
+    (auth.user?.managedByRole === "ADMIN" || auth.user?.managedByRole === "DIRECTION")
+  );
+});
 
 const destinations = ref([]);
 const isLoadingDestinations = ref(false);
@@ -94,26 +109,17 @@ const loadAssignedTrucks = async () => {
   platesError.value = "";
 
   try {
-    // Intentar cargar camiones asignados al conductor
-    const { data: assignedTrucks } = await api.get("/users/me/trucks");
-    const trucks = Array.isArray(assignedTrucks)
-      ? assignedTrucks
+    if (!canStartTrips.value) {
+      licensePlates.value = [];
+      return;
+    }
+
+    const { data: managerTrucks } = await api.get("/trucks/managed-by-my-manager");
+    licensePlates.value = Array.isArray(managerTrucks)
+      ? managerTrucks
           .filter((truck) => truck?.id && truck?.plate)
           .map((truck) => ({ id: truck.id, plate: truck.plate }))
       : [];
-
-    // Si el conductor tiene camiones asignados, usar esos
-    if (trucks.length > 0) {
-      licensePlates.value = trucks;
-    } else {
-      // Si no tiene, cargar camiones sin asignar
-      const { data: unassignedTrucks } = await api.get("/trucks/unassigned");
-      licensePlates.value = Array.isArray(unassignedTrucks)
-        ? unassignedTrucks
-            .filter((truck) => truck?.id && truck?.plate)
-            .map((truck) => ({ id: truck.id, plate: truck.plate }))
-        : [];
-    }
   } catch (error) {
     const backendMessage = error.response?.data?.message;
     platesError.value = Array.isArray(backendMessage)
@@ -1083,6 +1089,19 @@ onBeforeUnmount(() => {
               }}</span>
             </div>
 
+            <div
+              v-if="managerRestrictionMessage"
+              class="mb-8 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-900 shadow-sm"
+              role="alert"
+            >
+              <div class="flex items-start gap-3">
+                <span class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-200 text-amber-900 font-bold">!</span>
+                <p class="leading-relaxed">
+                  {{ managerRestrictionMessage }}
+                </p>
+              </div>
+            </div>
+
             <div class="max-w-xs mx-auto mb-12">
               <div class="relative">
                 <select
@@ -1139,7 +1158,7 @@ onBeforeUnmount(() => {
             <div class="flex justify-center">
               <button
                 @click="handleConfirm"
-                :disabled="isLoadingPlates || isConfirming"
+                :disabled="isLoadingPlates || isConfirming || !canStartTrips || !selectedPlate || licensePlates.length === 0"
                 class="px-12 py-3 bg-[#215179] hover:bg-blue-900 text-white font-bold rounded-xl shadow-md transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Confirmar
@@ -1151,9 +1170,9 @@ onBeforeUnmount(() => {
         <!-- ═══════════════════════════════════ -->
         <!-- PASO 2 – Tabla de viajes            -->
         <!-- ═══════════════════════════════════ -->
-        <div v-else class="flex gap-6 w-full max-w-5xl h-full min-h-0">
+        <div v-else class="flex gap-6 w-full max-w-5xl min-h-full">
           <div
-            class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm overflow-hidden flex-1 flex flex-col"
+            class="bg-white rounded-3xl border-2 border-slate-300 shadow-sm overflow-hidden flex-1 flex flex-col min-h-full"
           >
             <!-- Encabezado de la tarjeta -->
             <div class="px-8 pt-8 pb-4">
@@ -1170,6 +1189,19 @@ onBeforeUnmount(() => {
                 <span class="text-gray-500 font-body text-sm">{{
                   currentDate
                 }}</span>
+              </div>
+
+              <div
+                v-if="managerRestrictionMessage"
+                class="mb-4 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-900 shadow-sm"
+                role="alert"
+              >
+                <div class="flex items-start gap-3">
+                  <span class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-200 text-amber-900 font-bold">!</span>
+                  <p class="leading-relaxed">
+                    {{ managerRestrictionMessage }}
+                  </p>
+                </div>
               </div>
 
               <div class="mb-4 flex items-center justify-between gap-4">
@@ -1199,6 +1231,7 @@ onBeforeUnmount(() => {
               <TripHistoryTable 
                 :trips="trips"
                 role="driver"
+                :canStartTrips="canStartTrips"
                 :destinations="destinations"
                 :isLoadingDestinations="isLoadingDestinations"
                 :destinationsError="destinationsError"
