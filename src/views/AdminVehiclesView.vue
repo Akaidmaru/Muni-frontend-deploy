@@ -1279,10 +1279,18 @@ onMounted(() => {
 .slide-leave-to {
   transform: translateX(100%);
   opacity: 0;
-  width: 0;
-  margin-left: 0;
-  padding-left: 0;
-  padding-right: 0;
+}
+
+@media (min-width: 768px) {
+  .slide-enter-from,
+  .slide-leave-to {
+    transform: translateX(100%);
+    opacity: 0;
+    width: 0;
+    margin-left: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
 }
 
 .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
