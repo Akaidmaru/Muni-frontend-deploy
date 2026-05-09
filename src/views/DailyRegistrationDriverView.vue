@@ -170,25 +170,45 @@ const getGpsTracker = (historyId) => gpsTrackers.get(historyId);
 
 const flushGpsPoints = async (historyId) => {
   const tracker = getGpsTracker(historyId);
-  if (!tracker || tracker.sending || tracker.queue.length === 0) {
-    return true;
+  if (!tracker) return true;
+
+  // Si hay un envío en vuelo, esperar que termine antes de continuar
+  if (tracker.sendingPromise) {
+    await tracker.sendingPromise.catch(() => {});
   }
+
+  if (tracker.queue.length === 0) return true;
 
   const pointsToSend = tracker.queue.splice(0, tracker.queue.length);
   tracker.sending = true;
 
-  try {
-    await api.post(`/trip-history/${historyId}/points`, {
-      points: pointsToSend,
+  tracker.sendingPromise = api
+    .post(`/trip-history/${historyId}/points`, { points: pointsToSend })
+    .then(() => true)
+    .catch((error) => {
+      tracker.queue.unshift(...pointsToSend);
+      tracker.lastFlushError = error.response?.status ?? null;
+      console.error('No se pudieron enviar los puntos GPS', error);
+      return false;
+    })
+    .finally(() => {
+      tracker.sending = false;
+      tracker.sendingPromise = null;
     });
-    return true;
-  } catch (error) {
-    tracker.queue.unshift(...pointsToSend);
-    console.error('No se pudieron enviar los puntos GPS', error);
-    return false;
-  } finally {
-    tracker.sending = false;
+
+  return tracker.sendingPromise;
+};
+
+const takeQueuedGpsPoints = async (historyId) => {
+  const tracker = getGpsTracker(historyId);
+  if (!tracker) return [];
+
+  if (tracker.sendingPromise) {
+    await tracker.sendingPromise.catch(() => {});
   }
+
+  tracker.lastFlushError = null;
+  return tracker.queue.splice(0, tracker.queue.length);
 };
 
 const stopGpsTracking = (historyId) => {
@@ -219,6 +239,8 @@ const startGpsTracking = (trip) => {
   const tracker = {
     queue: [],
     sending: false,
+    sendingPromise: null,
+    lastFlushError: null,
     watchId: null,
     intervalId: null,
     lastCapturedPoint: null,
@@ -600,6 +622,7 @@ const confirmStopTrip = async () => {
   if (trip) {
     isFinishingTrip.value = true;
     tripActionError.value = "";
+    let pendingGpsPoints = [];
 
     try {
       if (!trip.historyId) {
@@ -612,14 +635,10 @@ const confirmStopTrip = async () => {
         return; // Debe firmar primero
       }
 
-      if (trip.historyId) {
-        const flushed = await flushGpsPoints(trip.historyId);
-        if (!flushed) {
-          tripActionError.value =
-            'No se pudieron enviar los últimos puntos GPS. Intenta finalizar el viaje nuevamente.';
-          return;
-        }
-      }
+      // Intenta renovar el token sin hacer logout — el backend valida el token final
+      await auth.syncCurrentUser(true, { preventLogout: true })
+
+      pendingGpsPoints = await takeQueuedGpsPoints(trip.historyId);
       
       const endTime = getCurrentTime();
       const { data } = await api.patch(
@@ -627,6 +646,7 @@ const confirmStopTrip = async () => {
         {
           endTime,
           signature: trip.signatureDataUrl,
+          ...(pendingGpsPoints.length ? { points: pendingGpsPoints } : {}),
         },
       );
 
@@ -659,6 +679,17 @@ const confirmStopTrip = async () => {
         signature: true,
       });
     } catch (error) {
+      if (pendingGpsPoints.length && trip?.historyId) {
+        const tracker = getGpsTracker(trip.historyId);
+        tracker?.queue.unshift(...pendingGpsPoints);
+        pendingGpsPoints = [];
+      }
+
+      if (error.response?.status === 401) {
+        tripActionError.value = 'Tu sesión ha expirado. Recarga la página e inicia sesión nuevamente.';
+        return;
+      }
+
       const backendMessage = error.response?.data?.message;
       const normalizedMessage = Array.isArray(backendMessage)
         ? backendMessage.join(", ")
