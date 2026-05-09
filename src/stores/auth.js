@@ -12,6 +12,8 @@ export const useAuthStore = defineStore('auth', () => {
     const SESSION_SYNC_INTERVAL_MS = 15000
     const lastSessionSyncAt = ref(0)
     const isSyncingSession = ref(false)
+    let sessionSyncIntervalId = null
+    let sessionSyncPromise = null
 
     // ── Getters ────────────────────────────────────────────────────────────
     const isAuthenticated = computed(() => !!token.value)
@@ -33,7 +35,41 @@ export const useAuthStore = defineStore('auth', () => {
         return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
     })
 
+    // ── Session sync interval ──────────────────────────────────────────────
+    function onAppResume() {
+        if (document.visibilityState === 'visible' && token.value) {
+            void syncCurrentUser(true)
+        }
+    }
+
+    function startSessionSync() {
+        if (sessionSyncIntervalId !== null) return
+        sessionSyncIntervalId = setInterval(() => {
+            if (token.value) void syncCurrentUser()
+        }, SESSION_SYNC_INTERVAL_MS)
+        // En móvil/Capacitor los timers se pausan al quedar en segundo plano.
+        // visibilitychange fuerza una verificación al retomar la app.
+        document.addEventListener('visibilitychange', onAppResume)
+    }
+
+    function stopSessionSync() {
+        if (sessionSyncIntervalId !== null) {
+            clearInterval(sessionSyncIntervalId)
+            sessionSyncIntervalId = null
+        }
+        document.removeEventListener('visibilitychange', onAppResume)
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────
+    function getTokenExpiryMs(jwt) {
+        try {
+            const payload = JSON.parse(atob(jwt.split('.')[1]))
+            return typeof payload.exp === 'number' ? payload.exp * 1000 : null
+        } catch {
+            return null
+        }
+    }
+
     function normalizeRole(rawRole) {
         const roleMap = {
             ADMIN: 'ADMIN',
@@ -67,6 +103,7 @@ export const useAuthStore = defineStore('auth', () => {
         }
 
         lastSessionSyncAt.value = Date.now()
+        startSessionSync()
     }
 
     function buildErrorDetails(error) {
@@ -123,15 +160,18 @@ export const useAuthStore = defineStore('auth', () => {
         }
 
         lastSessionSyncAt.value = 0
+        startSessionSync()
     }
 
-    async function syncCurrentUser(force = false) {
+    async function syncCurrentUser(force = false, { preventLogout = false } = {}) {
         if (!token.value) {
             return { success: false, message: 'Sin token de sesión' }
         }
 
         if (isSyncingSession.value) {
-            return { success: true }
+            return sessionSyncPromise
+                ? await sessionSyncPromise
+                : { success: true }
         }
 
         const now = Date.now()
@@ -144,23 +184,50 @@ export const useAuthStore = defineStore('auth', () => {
         }
 
         isSyncingSession.value = true
+        sessionSyncPromise = (async () => {
+            try {
+                const { data } = await api.get('/auth/me')
+                const normalizedRole = normalizeRole(data?.role)
+
+                if (!data?.id || !data?.email || !normalizedRole) {
+                    if (!preventLogout) logout()
+                    return { success: false, message: 'Sesión inválida' }
+                }
+
+                setSession(token.value, data, normalizedRole)
+
+                // Renovar el token si expira en menos de 2 horas
+                const TWO_HOURS_MS = 2 * 60 * 60 * 1000
+                const expiry = getTokenExpiryMs(token.value)
+                if (expiry !== null && expiry - Date.now() < TWO_HOURS_MS) {
+                    try {
+                        const { data: refreshData } = await api.post('/auth/refresh')
+                        if (refreshData?.accessToken) {
+                            token.value = refreshData.accessToken
+                            localStorage.setItem('token', refreshData.accessToken)
+                            lastSessionSyncAt.value = Date.now()
+                        }
+                    } catch {
+                        // El token actual sigue siendo válido — se reintenta en el próximo ciclo
+                    }
+                }
+
+                return { success: true }
+            } catch (error) {
+                if (error.response?.status === 401) {
+                    if (!preventLogout) logout()
+                    return { success: false, message: 'Sesión expirada o inválida' }
+                }
+                // Error de red o servidor temporalmente caído — no cerrar sesión
+                return { success: false, message: 'Error de conexión temporal' }
+            }
+        })()
 
         try {
-            const { data } = await api.get('/auth/me')
-            const normalizedRole = normalizeRole(data?.role)
-
-            if (!data?.id || !data?.email || !normalizedRole) {
-                logout()
-                return { success: false, message: 'Sesión inválida' }
-            }
-
-            setSession(token.value, data, normalizedRole)
-            return { success: true }
-        } catch {
-            logout()
-            return { success: false, message: 'Sesión expirada o inválida' }
+            return await sessionSyncPromise
         } finally {
             isSyncingSession.value = false
+            sessionSyncPromise = null
         }
     }
 
@@ -211,6 +278,7 @@ export const useAuthStore = defineStore('auth', () => {
      * Logout: limpia todo el estado y redirige.
      */
     function logout() {
+        stopSessionSync()
         token.value = null
         user.value = null
         role.value = null
