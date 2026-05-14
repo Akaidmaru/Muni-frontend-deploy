@@ -9,7 +9,12 @@ const normalizeBaseUrl = (url) => {
   return `https://${t}`;
 };
 
-const getEnvApiBaseUrl = () => normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
+const getEnvApiBaseUrl = () =>
+  normalizeBaseUrl(
+    import.meta.env.VITE_API_BASE_URL ||
+      import.meta.env.VITE_OLD_ORIGIN ||
+      import.meta.env.VITE_OLD_API_BASE_URL,
+  );
 
 export const getApiBaseUrl = () => getEnvApiBaseUrl();
 
